@@ -98,3 +98,7 @@ def test_calculate_rise_set_sun():
 2. **Testing**: Highlighted deep-space and edge-case tests.
 3. **Dependencies**: Added `astroquery` for SIMBAD integration.
 4. **Structure**: Clarified file roles and test coverage.
+
+# Screen shots
+![alt text](images/image.png)
+![alt text](images/image-1.png)
