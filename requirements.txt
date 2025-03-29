@@ -1,0 +1,5 @@
+fastmcp
+astropy
+pytz
+numpy
+astroquery
