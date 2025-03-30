@@ -2,6 +2,7 @@ from astropy import units as u
 from astropy.coordinates import EarthLocation
 from datetime import datetime
 import pytz
+import tzlocal
 
 def validate_coordinates(lat: float, lon: float) -> bool:
     """Validate latitude and longitude values."""

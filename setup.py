@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 name="mcp-stargazing"
 setup(
     name="mcp-stargazing",
-    version="0.1.0",
+    version="0.1.2",
     description="Calculate celestial object positions and rise/set times",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -14,7 +14,10 @@ setup(
         "astropy>=5.0",
         "pytz",
         "numpy",
-        "astroquery"
+        "astroquery",
+        "rasterio",
+        "tzlocal",
+        "geopy",
     ],
     python_requires=">=3.8",
     classifiers=[
