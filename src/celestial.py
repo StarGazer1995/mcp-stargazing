@@ -3,7 +3,6 @@ from astropy.coordinates import (
     EarthLocation,
     AltAz,
     get_sun,
-    get_moon,
     get_body,
     SkyCoord
 )
