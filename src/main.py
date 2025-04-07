@@ -14,6 +14,36 @@ import os
 # Initialize MCP instance
 mcp = FastMCP("mcp-stargazing")
 
+def datetime_to_longitude(dt: datetime) -> float:
+    """
+    Calculate the longitude from a timezone-aware datetime object.
+    
+    Args:
+        dt (datetime): A timezone-aware datetime object.
+    
+    Returns:
+        float: The longitude in degrees.
+    
+    Raises:
+        ValueError: If the datetime is not timezone-aware.
+    """
+    if dt.tzinfo is None:
+        raise ValueError("Datetime object must be timezone-aware")
+    
+    # Get the UTC offset (as a timedelta)
+    utc_offset = dt.utcoffset()
+    if utc_offset is None:
+        return 0.0  # UTC
+    
+    # Convert timedelta to total hours (including fractional hours)
+    total_seconds = utc_offset.total_seconds()
+    total_hours = total_seconds / 3600
+    
+    # Calculate longitude (15 degrees per hour)
+    longitude = total_hours * 15
+    
+    return longitude
+
 def process_location_and_time(
     lon: float,
     lat: float,
@@ -81,6 +111,8 @@ def get_celestial_rise_set(
         Tuple of (rise_time, set_time) as UTC Time objects
     """
     location, time_info = process_location_and_time(lon, lat, time, time_zone)
+    replace_lon = datetime_to_longitude(time)
+    location.replace(lon=replace_lon*u.deg)
     return celestial_rise_set(celestial_object, location, time_info)
 
 @mcp.tool()
@@ -121,7 +153,7 @@ def get_local_datetime_info():
     """
     local_timezone = tzlocal.get_localzone()  # Automatically detect the local timezone
     tz = pytz.timezone(zone=str(local_timezone))
-    current_time = datetime.now(tz)
+    current_time = datetime.datetime.now(tz)
     return str(current_time)
 
 @mcp.tool()

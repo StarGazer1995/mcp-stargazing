@@ -64,7 +64,6 @@ def celestial_rise_set(
         raise ValueError("Horizon must be between -90 and 90 degrees.")
     time_zone = pytz.timezone(zone=str(date.tzinfo))
     origin_zone = pytz.timezone(zone='UTC')
-    # date = date.astimezone(time_zone)
     time_grid = _generate_time_grid(date)
     altitudes = np.array([
         celestial_pos(celestial_object, observer_location, t)[0]
