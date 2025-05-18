@@ -1,7 +1,7 @@
 from fastmcp import FastMCP
-from .celestial import celestial_pos, celestial_rise_set
-from .light_pollution import get_bortle_scale_light_pollution_given_location
-from .qweather_interaction import qweather_get_weather_by_name, qweather_get_weather_by_position
+from celestial import celestial_pos, celestial_rise_set
+from light_pollution import get_bortle_scale_light_pollution_given_location
+from qweather_interaction import qweather_get_weather_by_name, qweather_get_weather_by_position
 import tzlocal
 from typing import Tuple, Optional
 import datetime
@@ -10,6 +10,7 @@ from astropy.coordinates import EarthLocation
 import astropy.units as u
 import pytz
 import os
+import argparse
 
 # Initialize MCP instance
 mcp = FastMCP("mcp-stargazing")
@@ -195,9 +196,28 @@ def get_weather_by_position(lat: float, lon: float):
         raise ValueError("QWEATHER_API_KEY environment variable not set.")
     return qweather_get_weather_by_position(lat, lon, QWEATHER_API_KEY)
 
+def arg_parse():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="MCP Server")
+    parser.add_argument("--mode", type=str, default='local', help="Mode of operation (dev local or server)")
+    parser.add_argument("--port", type=int, default=3001, help="Port to run the server on")
+    parser.add_argument("--path", type=str, default="/shttp")
+    return parser.parse_args()
+
 def main():
     """Run the MCP server."""
-    mcp.run()
+    arg = arg_parse()
+    if arg.mode == 'dev':
+        mcp.run_dev()
+    elif arg.mode == 'local':
+        mcp.run()
+    elif arg.mode == 'shttp':
+        mcp.run(transport="streamable-http", host="127.0.0.1", port=arg.port, path=arg.path)
+    elif arg.mode == 'sse':
+        mcp.run(transport="sse", host="127.0.0.1", port=arg.port, path=arg.path)
+    else:
+        raise ValueError("Invalid mode")
+    
 
 if __name__ == "__main__":
     main()
