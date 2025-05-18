@@ -1,7 +1,7 @@
 from fastmcp import FastMCP
-from celestial import celestial_pos, celestial_rise_set
-from light_pollution import get_bortle_scale_light_pollution_given_location
-from qweather_interaction import qweather_get_weather_by_name, qweather_get_weather_by_position
+from src.celestial import celestial_pos, celestial_rise_set
+from src.light_pollution import get_bortle_scale_light_pollution_given_location
+from src.qweather_interaction import qweather_get_weather_by_name, qweather_get_weather_by_position
 import tzlocal
 from typing import Tuple, Optional
 import datetime
@@ -212,9 +212,9 @@ def main():
     elif arg.mode == 'local':
         mcp.run()
     elif arg.mode == 'shttp':
-        mcp.run(transport="streamable-http", host="127.0.0.1", port=arg.port, path=arg.path)
+        mcp.run(transport="streamable-http", host="127.0.0.1", port=arg.port, path=arg.path, log_level="debug")
     elif arg.mode == 'sse':
-        mcp.run(transport="sse", host="127.0.0.1", port=arg.port, path=arg.path)
+        mcp.run(transport="sse", host="127.0.0.1", port=arg.port, path=arg.path, log_level="debug")
     else:
         raise ValueError("Invalid mode")
     
