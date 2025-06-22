@@ -2,7 +2,6 @@ from fastmcp import FastMCP
 from src.celestial import celestial_pos, celestial_rise_set
 from src.light_pollution import get_bortle_scale_light_pollution_given_location
 from src.qweather_interaction import qweather_get_weather_by_name, qweather_get_weather_by_position
-import tzlocal
 from typing import Tuple, Optional
 import datetime
 from astropy.time import Time
@@ -152,7 +151,8 @@ def get_local_datetime_info():
         - Delegates to `utils.get_datetime()` for implementation.
         - The output matches `str(datetime.now(timezone))`.
     """
-    local_timezone = tzlocal.get_localzone()  # Automatically detect the local timezone
+    datetime_info = datetime.now()
+    local_timezone = datetime_info.tzinfo  # Automatically detect the local timezone
     tz = pytz.timezone(zone=str(local_timezone))
     current_time = datetime.datetime.now(tz)
     return str(current_time)
