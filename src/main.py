@@ -1,8 +1,7 @@
 from fastmcp import FastMCP
 from src.celestial import celestial_pos, celestial_rise_set
-from src.light_pollution import get_bortle_scale_light_pollution_given_location
 from src.qweather_interaction import qweather_get_weather_by_name, qweather_get_weather_by_position
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List, Dict, Any
 import datetime
 from astropy.time import Time
 from astropy.coordinates import EarthLocation
@@ -10,6 +9,9 @@ import astropy.units as u
 import pytz
 import os
 import argparse
+import sys
+from pathlib import Path
+from src.placefinder import StargazingPlaceFinder
 
 # Initialize MCP instance
 mcp = FastMCP("mcp-stargazing")
@@ -116,28 +118,6 @@ def get_celestial_rise_set(
     return celestial_rise_set(celestial_object, location, time_info)
 
 @mcp.tool()
-def get_light_pollution(
-    lon: float,
-    lat: float,
-    radius_km: float = 10.0
-) -> float:
-    """Get the Bortle scale light pollution for a given location.
-    Args:
-        lon: Observer longitude in degrees
-        lat: Observer latitude in degrees
-        radius_km: Radius in km to average over
-    """
-    map_path = os.getenv("LIGHT_POLLUTION_MAP_PATH", None)
-    if (map_path is None) or (not os.path.exists(map_path)):
-        raise ValueError("Light pollution map path not found")
-    return get_bortle_scale_light_pollution_given_location(
-        lat=lat,
-        lon=lon,
-        raster_path=map_path,
-        radius_km=radius_km,
-    )
-
-@mcp.tool()
 def get_local_datetime_info():
     """
     Retrieve the current datetime and timezone.
@@ -195,6 +175,28 @@ def get_weather_by_position(lat: float, lon: float):
     if QWEATHER_API_KEY is None:
         raise ValueError("QWEATHER_API_KEY environment variable not set.")
     return qweather_get_weather_by_position(lat, lon, QWEATHER_API_KEY)
+
+@mcp.tool()
+def analysis_area(
+    south: float, west: float, north: float, east: float,
+    max_locations: int = 30,
+    min_height_diff: float = 100.0,
+    road_radius_km: float = 10.0,
+    network_type: str = 'drive',
+    db_config_path: str = None):
+    """调用观星区域分析工具，返回观星地点对象列表"""
+    db_config_p = Path(db_config_path) if db_config_path else None
+    stargazing_place_finder = StargazingPlaceFinder(db_config_path=db_config_p)
+    return stargazing_place_finder.analyze_area(
+        south=south,
+        west=west,
+        north=north,
+        east=east,
+        min_height_diff=min_height_diff,
+        road_radius_km=road_radius_km,
+        max_locations=max_locations,
+        network_type=network_type,
+    )
 
 def arg_parse():
     """Parse command line arguments."""
