@@ -96,17 +96,50 @@ def _get_celestial_object(name: str, time: Time) -> SkyCoord:
     elif name in ["mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]:
         return get_body(name, time)
     
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def _resolve_simbad_object(name: str) -> SkyCoord:
+    """Resolve deep-space object name to SkyCoord using SIMBAD with caching."""
+    print(f"[DEBUG] Resolving object '{name}' via Simbad...")
+    # Query SIMBAD for the object
+    # Note: Simbad query involves network request which can be SLOW.
+    result = Simbad.query_object(name)
+    if result is None:
+        # Try capitalizing first letter (e.g. "sirius" -> "Sirius")
+        print(f"[DEBUG] '{name}' not found, trying '{name.capitalize()}'...")
+        result = Simbad.query_object(name.capitalize())
+    
+    if result is None:
+         print(f"[DEBUG] Object '{name}' not found in Simbad.")
+         raise ValueError(f"Object '{name}' not found in SIMBAD.")
+    
+    print(f"[DEBUG] Successfully resolved '{name}'.")
+    # Extract RA and Dec from the query result
+    ra = result["ra"][0]
+    dec = result["dec"][0]
+    return SkyCoord(ra, dec, unit=(u.hourangle, u.deg), frame='icrs')
+
+def _get_celestial_object(name: str, time: Time) -> SkyCoord:
+    """Resolve a celestial object name to its SkyCoord.
+    Supports:
+    - Solar system objects (sun, moon, planets)
+    - Stars (e.g., "sirius")
+    - Deep-space objects (e.g., "andromeda", "orion_nebula")
+    """
+    name = name.lower()
+    
+    # Solar system objects
+    if name == "sun":
+        return get_sun(time)
+    elif name == "moon":
+        return get_body("moon", time)
+    elif name in ["mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]:
+        return get_body(name, time)
+    
     # Deep-space objects (stars, galaxies, nebulae)
     try:
-        # Query SIMBAD for the object
-        result = Simbad.query_object(name)
-        if result is None:
-            raise ValueError(f"Object '{name}' not found in SIMBAD.")
-        
-        # Extract RA and Dec from the query result
-        ra = result["ra"][0]
-        dec = result["dec"][0]
-        return SkyCoord(ra, dec, unit=(u.hourangle, u.deg), frame='icrs')
+        return _resolve_simbad_object(name)
     
     except Exception as e:
         raise ValueError(f"Failed to resolve object '{name}': {str(e)}")

@@ -3,115 +3,156 @@
 Calculate the altitude, rise, and set times of celestial objects (Sun, Moon, planets, stars, and deep-space objects) for any location on Earth, with optional light pollution analysis.
 
 ## Features
+
 - **Altitude/Azimuth Calculation**: Get elevation and compass direction for any celestial object.
 - **Rise/Set Times**: Determine when objects appear/disappear above the horizon.
 - **Light Pollution Analysis**: Load and analyze light pollution maps (GeoTIFF format).
-- **Supports**:
-  - Solar system objects (Sun, Moon, planets)
-  - Stars (e.g., "sirius")
-  - Deep-space objects (e.g., "andromeda", "orion_nebula")
+- **Code Execution Ready**:
+  - **Serializable Returns**: All tools return JSON-serializable data (ISO strings for dates), making them directly usable by LLMs.
+  - **Pagination**: `analysis_area` supports paging (`page`, `page_size`) to handle large datasets efficiently.
+  - **Standardized Responses**: Uniform response format `{ "data": ..., "_meta": ... }` for better observability and error handling.
+- **Performance**:
+  - **Async Execution**: Non-blocking celestial calculations.
+  - **Caching**: Intelligent caching for Simbad queries and regional analysis.
+  - **Proxy Support**: Native support for HTTP/HTTPS proxies (useful for downloading astronomical data).
 - **Time Zone Aware**: Works with local or UTC times.
 
 ## Installation
+
+This project uses [uv](https://github.com/astral-sh/uv) for dependency management.
+
+1. **Install `uv`**:
+   ```bash
+   pip install uv
+   ```
+
+2. **Sync dependencies**:
+   ```bash
+   uv sync
+   ```
+   This will create a virtual environment in `.venv` and install all dependencies defined in `pyproject.toml`.
+
+3. **Activate the environment**:
+   ```bash
+   source .venv/bin/activate
+   ```
+
+## MCP Server Usage
+
+Start the MCP server to expose tools to AI agents or other clients.
+
+### 1. Environment Setup
+
+Create a `.env` file or export variables:
+
 ```bash
-pip install astropy pytz numpy astroquery rasterio geopy
+# Required for weather tools
+export QWEATHER_API_KEY="your_api_key"
+
+# Optional: Proxy for downloading astronomical data (Simbad/IERS)
+# Highly recommended if you are in a restricted network environment
+export HTTP_PROXY="http://127.0.0.1:7890"
+export HTTPS_PROXY="http://127.0.0.1:7890"
 ```
 
-## Usage
+### 2. Start Server
 
-### Calculate Altitude/Azimuth
-```python src/main.py
-from src.celestial import celestial_pos
-from astropy.coordinates import EarthLocation
-import pytz
-from datetime import datetime
+**Streamable HTTP (SHTTP) mode** (Recommended for most agents):
 
-# Observer location (New York)
-location = EarthLocation(lat=40.7128, lon=-74.0060)
+```bash
+# Basic start
+python -m src.main --mode shttp --port 3001 --path /shttp
 
-# Time (local timezone-aware)
-local_time = pytz.timezone("America/New_York").localize(datetime(2023, 10, 1, 12, 0))
-altitude, azimuth = celestial_pos("sun", location, local_time)
-print(f"Sun Position: Altitude={altitude:.1f}°, Azimuth={azimuth:.1f}°")
+# With proxy explicitly passed (overrides env vars)
+python -m src.main --mode shttp --port 3001 --path /shttp --proxy http://127.0.0.1:7890
 ```
 
-### Calculate Rise/Set Times
-```python src/main.py
-from src.celestial import celestial_rise_set
+**SSE mode**:
 
-rise, set_ = celestial_rise_set("andromeda", location, local_time.date())
-print(f"Andromeda: Rise={rise.iso}, Set={set_.iso}")
+```bash
+python -m src.main --mode sse --port 3001 --path /sse
 ```
 
-### Load Light Pollution Map
-```python src/light_pollution.py
-from src.light_pollution import load_map
+### 3. Response Format
 
-# Load a GeoTIFF light pollution map
-vriis_data, bounds, crs, transform = load_map("path/to/map.tif")
-print(f"Map Bounds: {bounds}")
+All tools return data in a standardized JSON format:
+
+```json
+{
+  "data": {
+    // Tool-specific return data
+    "altitude": 45.5,
+    "azimuth": 180.0
+  },
+  "_meta": {
+    "version": "1.0.0",
+    "status": "success"
+  }
+}
 ```
 
-## API Reference
+### 4. Available Tools
 
-### `celestial_pos(celestial_object, observer_location, time)` (`src/celestial.py`)
-- **Inputs**:
-  - `celestial_object`: Name (e.g., `"sun"`, `"andromeda"`).
-  - `observer_location`: `EarthLocation` object.
-  - `time`: `datetime` (timezone-aware) or Astropy `Time`.
-- **Returns**: `(altitude_degrees, azimuth_degrees)`.
+- **`get_celestial_pos`**: Calculate altitude/azimuth.
+- **`get_celestial_rise_set`**: Calculate rise/set times (Returns ISO strings).
+- **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather.
+- **`get_local_datetime_info`**: Get current local time information.
+- **`analysis_area`**: Find best stargazing spots in a region.
+  - **Inputs**: `top_left`, `bottom_right`, `time`, `page`, `page_size`.
+  - **Returns**: List of spots with viewing conditions, plus pagination metadata (`total`, `resource_id`).
 
-### `celestial_rise_set(celestial_object, observer_location, date, horizon=0.0)` (`src/celestial.py`)
-- **Inputs**: 
-  - `date`: Timezone-aware `datetime`.
-  - `horizon`: Horizon elevation (default: 0°).
-- **Returns**: `(rise_time, set_time)` as UTC `Time` objects.
+## Examples
 
-### `load_map(map_path)` (`src/light_pollution.py`)
-- **Inputs**:
-  - `map_path`: Path to GeoTIFF file.
-- **Returns**: Tuple `(vriis_data, bounds, crs, transform)` for light pollution analysis.
+- **Orchestration**: `python examples/code_execution_orchestration.py`
+  - Demonstrates a full workflow: Get time -> Get Celestial Pos -> Check Weather -> Find Spots.
+  - Shows how to handle the standardized response format programmatically.
+
+- **Pagination**: `python examples/pagination_demo.py`
+  - Demonstrates fetching large result sets page by page using the `resource_id`.
+
+## Project Structure
+
+The project is modularized for better maintainability and code execution support:
+
+```
+.
+├── src/
+│   ├── functions/            # Tool implementations grouped by domain
+│   │   ├── celestial/        # Celestial calculations (pos, rise/set)
+│   │   ├── weather/          # Weather API integration
+│   │   ├── places/           # Location and area analysis
+│   │   └── time/             # Time utilities
+│   ├── cache.py              # Caching logic for analysis results
+│   ├── response.py           # Standardized response formatting
+│   ├── server_instance.py    # FastMCP server instance (avoids circular imports)
+│   ├── main.py               # Entry point and tool registration
+│   ├── celestial.py          # Core astronomy logic (Astropy wrappers)
+│   ├── placefinder.py        # Grid analysis logic
+│   └── qweather_interaction.py # Weather API client
+├── tests/                    # Unified test suite
+│   ├── test_celestial.py
+│   ├── test_weather.py
+│   ├── test_serialization.py # Validates JSON return formats
+│   └── test_integration.py   # End-to-end flow tests
+├── examples/                 # Usage examples
+├── docs/                     # Documentation and improvement plans
+└── pyproject.toml            # Project configuration and dependencies
+```
 
 ## Testing
-Run tests with:
+
+Run the unified test suite:
+
 ```bash
 pytest tests/
 ```
 
-### Key Test Cases (`tests/test_celestial.py`)
-```python tests/test_celestial.py
-def test_calculate_altitude_deepspace():
-    """Test deep-space object resolution."""
-    altitude, _ = celestial_pos("andromeda", NYC, Time.now())
-    assert -90 <= altitude <= 90
+Key tests include:
+- `test_serialization.py`: Ensures all tools return valid JSON with the correct schema.
+- `test_integration.py`: Mocks external APIs to verify the entire toolchain.
 
-def test_calculate_rise_set_sun():
-    """Validate Sun rise/set times."""
-    rise, set_ = celestial_rise_set("sun", NYC, datetime(2023, 10, 1))
-    assert rise < set_
-```
+## Contributing
 
-## Project Structure
-```
-.
-├── src/
-│   ├── celestial.py          # Core celestial calculations
-│   ├── light_pollution.py    # Light pollution map utilities
-│   ├── utils.py              # Time/location helpers
-│   └── main.py               # CLI entry point
-├── tests/
-│   ├── test_celestial.py
-│   └── test_utils.py
-└── README.md
-```
-
-## Future Work
-- Add support for comets/asteroids.
-- Optimize SIMBAD queries for offline use.
-- Integrate light pollution data into visibility predictions.
-
-### Key Updates:
-1. **Light Pollution**: Added `light_pollution.py` to features and API reference.
-2. **Dependencies**: Added `rasterio` and `geopy` to installation instructions.
-3. **Project Structure**: Clarified file roles and test coverage.
-```
+1.  Follow the [Code Execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) best practices.
+2.  Ensure all new tools return standard JSON responses using `src.response.format_response`.
+3.  Add tests in `tests/` for any new functionality.
