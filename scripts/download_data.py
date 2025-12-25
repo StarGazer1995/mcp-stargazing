@@ -35,9 +35,6 @@ def download_messier_objects() -> List[Dict[str, Any]]:
             print("Error: No results from Simbad for Messier objects.")
             return []
             
-        # Debug: Print columns
-        # print(f"Columns: {table.colnames}")
-        
         for row in table:
             # Parse RA/Dec
             # Simbad returns RA/Dec as strings usually "HH MM SS", "DD MM SS"
@@ -126,7 +123,6 @@ def download_ngc_objects(max_mag: float = 10.0) -> List[Dict[str, Any]]:
             return []
             
         table = catalogs[0]
-        # print(f"NGC Columns (Default): {table.colnames}")
         
         # Determine column names
         ngc_col = 'NGC' if 'NGC' in table.colnames else 'Name' # Fallback
@@ -137,7 +133,6 @@ def download_ngc_objects(max_mag: float = 10.0) -> List[Dict[str, Any]]:
              # Try one more fallback: maybe it's just index?
              # But VII/118 definitely has 'NGC' column usually.
              print(f"NGC Columns found: {table.colnames}")
-             # raise KeyError("NGC column not found")
              return [] # Fail gracefully
              
         # Now re-query with the exact columns we want + hidden coordinates
@@ -215,7 +210,6 @@ def main():
             sep = n_coord.separation(m_coord)
             if sep.deg < 0.1:
                 is_dup = True
-                # print(f"Duplicate found: {n['name']} is close to {messier[idx]['name']}")
                 break
         
         if not is_dup:

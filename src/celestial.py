@@ -293,8 +293,6 @@ def calculate_nightly_forecast(
          raise ValueError("Input datetime must be timezone-aware.")
     
     # Ensure we are looking at "Night" (e.g. 10 PM local)
-    # Actually, we should check availability throughout the night.
-    # For simplicity, we calculate LST at local midnight.
     
     # Calculate Midnight
     # date is the user's requested date/time. 
@@ -339,10 +337,6 @@ def calculate_nightly_forecast(
         # Note: 360 degrees = 24 hours. 1 hour = 15 degrees.
         diff = abs(obj_ra - lst_deg)
         if diff > 180: diff = 360 - diff
-        
-        # DEBUG: Print LST and diff for M42 and M13
-        # if obj['name'] in ['M 42', 'M 13']:
-        #    print(f"DEBUG: {obj['name']} RA={obj_ra}, LST={lst_deg}, Diff={diff}")
         
         if diff > 120: # ~8 hours
              continue
@@ -392,7 +386,6 @@ def calculate_nightly_forecast(
         
         # Base Score (lower is better, like magnitude)
         # We subtract altitude bonus (higher alt = better)
-        # Bonus: 1 mag equivalent per 30 degrees altitude?
         alt_bonus = (alt / 90.0) * 2.0 
         
         score = effective_mag - alt_bonus
