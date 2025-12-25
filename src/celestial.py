@@ -6,7 +6,8 @@ from astropy.coordinates import (
     get_body,
     SkyCoord,
     GeocentricTrueEcliptic,
-    get_constellation
+    get_constellation,
+    solar_system_ephemeris
 )
 import astropy.units as u
 from typing import Optional, Tuple, Union, Dict, Any
@@ -14,6 +15,8 @@ from datetime import datetime
 import numpy as np
 import pytz
 from astroquery.simbad import Simbad
+
+solar_system_ephemeris.set('builtin')
 
 def celestial_pos(
     celestial_object: str,
@@ -67,10 +70,19 @@ def celestial_rise_set(
     time_zone = pytz.timezone(zone=str(date.tzinfo))
     origin_zone = pytz.timezone(zone='UTC')
     time_grid = _generate_time_grid(date)
-    altitudes = np.array([
-        celestial_pos(celestial_object, observer_location, t)[0]
-        for t in time_grid
-    ])
+    name = celestial_object.lower()
+    altaz_frame = AltAz(obstime=time_grid, location=observer_location)
+    if name == "sun":
+        obj_coord = get_sun(time_grid)
+    elif name == "moon":
+        obj_coord = get_body("moon", time_grid)
+    elif name in ["mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]:
+        obj_coord = get_body(name, time_grid)
+    else:
+        base_coord = _resolve_simbad_object(celestial_object)
+        obj_coord = base_coord
+    altaz = obj_coord.transform_to(altaz_frame)
+    altitudes = np.array(altaz.alt.deg)
     def __convert_timezone(time):
         t = time.to_datetime()
         t = origin_zone.localize(t)
@@ -202,16 +214,7 @@ def get_constellation_center(
     time: Union[Time, datetime]
 ) -> Dict[str, Any]:
     """
-    Get the position (altitude/azimuth) of the center of a constellation.
-    Uses Simbad to resolve the constellation name to a central coordinate.
-    
-    Args:
-        constellation_name: Name of constellation (e.g. "Orion", "Ursa Major")
-        observer_location: Observer's EarthLocation
-        time: Observation time
-        
-    Returns:
-        Dict with keys: name, altitude, azimuth
+    Return the apparent Alt/Az of a constellation's representative center using local data.
     """
     # Convert local time to UTC if input is datetime
     if isinstance(time, datetime):
@@ -219,36 +222,31 @@ def get_constellation_center(
             raise ValueError("Input datetime must be timezone-aware for local time.")
         time = Time(time.astimezone(pytz.UTC))
 
-    # Resolve constellation center
-    # Simbad often resolves constellation names to their approximate center
-    try:
-        # Some constellation names (e.g. "Ursa Major") might not resolve directly in Simbad as an object.
-        # If standard resolution fails, try adding "Constellation" or using a major star.
-        try:
+    centers = _load_constellation_centers()
+    centers_map = {item["name"].lower(): item for item in centers}
+    key = constellation_name.lower()
+    if key in centers_map:
+        ra = float(centers_map[key]["ra"])
+        dec = float(centers_map[key]["dec"])
+        center_coord = SkyCoord(ra=ra*u.deg, dec=dec*u.deg, frame='icrs')
+    else:
+        fallback = {
+            "ursa major": "Alioth",
+            "ursa minor": "Polaris",
+            "cassiopeia": "Schedar",
+            "southern cross": "Acrux",
+            "crux": "Acrux",
+            "orion": "Betelgeuse",
+            "scorpius": "Antares",
+            "leo": "Regulus",
+            "gemini": "Pollux",
+            "taurus": "Aldebaran",
+            "canis major": "Sirius"
+        }
+        if key in fallback:
+            center_coord = _resolve_simbad_object(fallback[key])
+        else:
             center_coord = _resolve_simbad_object(constellation_name)
-        except (ValueError, IndexError):
-            # Fallback map for common constellations if Simbad fails
-            FALLBACK_STARS = {
-                "Ursa Major": "Alioth",
-                "Ursa Minor": "Polaris",
-                "Cassiopeia": "Schedar",
-                "Southern Cross": "Acrux",
-                "Crux": "Acrux",
-                "Orion": "Betelgeuse",
-                "Scorpius": "Antares",
-                "Leo": "Regulus",
-                "Gemini": "Pollux",
-                "Taurus": "Aldebaran",
-                "Canis Major": "Sirius"
-            }
-            if constellation_name in FALLBACK_STARS:
-                print(f"[DEBUG] Falling back to star '{FALLBACK_STARS[constellation_name]}' for '{constellation_name}'")
-                center_coord = _resolve_simbad_object(FALLBACK_STARS[constellation_name])
-            else:
-                 raise
-                 
-    except Exception as e:
-        raise ValueError(f"Could not resolve constellation '{constellation_name}': {str(e)}")
 
     altaz_frame = AltAz(obstime=time, location=observer_location)
     altaz = center_coord.transform_to(altaz_frame)
@@ -263,6 +261,7 @@ import json
 import os
 
 OBJECTS_CACHE = None
+CONSTELLATIONS_CACHE = None
 
 def _load_objects():
     global OBJECTS_CACHE
@@ -278,6 +277,18 @@ def _load_objects():
         print(f"Warning: Objects data file not found at {data_path}")
         
     return OBJECTS_CACHE
+
+def _load_constellation_centers():
+    global CONSTELLATIONS_CACHE
+    if CONSTELLATIONS_CACHE is not None:
+        return CONSTELLATIONS_CACHE
+    data_path = os.path.join(os.path.dirname(__file__), 'data/constellation_centers.json')
+    try:
+        with open(data_path, 'r') as f:
+            CONSTELLATIONS_CACHE = json.load(f)
+    except FileNotFoundError:
+        CONSTELLATIONS_CACHE = []
+    return CONSTELLATIONS_CACHE
 
 def calculate_nightly_forecast(
     observer_location: EarthLocation,

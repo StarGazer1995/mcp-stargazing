@@ -1,40 +1,41 @@
-# Use a Python image with uv pre-installed
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+WORKDIR /app
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
+ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
+    PYTHONUNBUFFERED=1 \
     QWEATHER_API_KEY="" \
     STARGAZING_DB_CONFIG="/app/config.example.toml"
 
-# Set working directory
-WORKDIR /app
-
-# Copy dependency files first to leverage cache
+# Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies 
-RUN uv sync --frozen --no-install-project --no-dev
+# Install dependencies and clean cache to minimize image size
+# We run sync and cache clean in the same layer
+RUN uv sync --frozen --no-install-project --no-dev && \
+    uv cache clean
 
-# Copy the rest of the application
+# Copy application code
 COPY . .
 
-# Copy config example to root for easy reference
-COPY examples/postgis_config.toml /app/config.example.toml
-
-# Install the project
-RUN uv sync --frozen --no-dev
+# Install project and clean cache
+RUN uv sync --frozen --no-dev && \
+    uv cache clean
 
 # Initialize data (download astronomical catalogs)
-# This step requires internet access. 
-# If you are behind a proxy, build with: docker build --build-arg HTTP_PROXY=... .
+# This step requires internet access.
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ENV HTTP_PROXY=$HTTP_PROXY
+ENV HTTPS_PROXY=$HTTPS_PROXY
+
 RUN uv run python scripts/download_data.py
 
 # Expose port
 EXPOSE 3001
 
-# Run the application
-# Default to SHTTP mode
+# Run the application using uv run to ensure environment is set up
 ENTRYPOINT ["uv", "run", "mcp-stargazing"]
 CMD ["--mode", "shttp", "--port", "3001", "--path", "/shttp"]

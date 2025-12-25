@@ -7,7 +7,7 @@ name = "mcp-stargazing"
 version = "0.1.6"
 description = "An MCP server that provides real-time astronomical data, smart stargazing planning, and light pollution analysis for AI agents."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 authors = [
     { name = "Henry Gong", email = "zhao.gong@outlook.com" },
 ]
@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "fastmcp",
-    "astropy>=5.0",
+    "astropy[all]",
     "pytz",
     "numpy",
     "astroquery",

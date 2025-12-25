@@ -13,7 +13,10 @@ venv/
 .venv/
 pip-log.txt
 pip-delete-this-directory.txt
-
+.pytest_cache/
+.coverage
+htmlcov/
+mcp_stargazing.egg-info/
 # Project specific
 .env
 .DS_Store
