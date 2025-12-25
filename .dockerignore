@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Project specific
+.env
+.DS_Store
+src/data/objects.json # We might want to generate this in the build, or copy it if it exists? 
+# Actually, if we run the script in the build, we don't strictly need to copy the local one. 
+# But usually copying the local one is faster if the user already has it.
+# However, for a reproducible build, we should generate it or assume the source has it.
+# The user's request implies automation, so generating it in the build is safer.
+# So I will ignore the local objects.json to ensure the image is self-contained and generated from source script.

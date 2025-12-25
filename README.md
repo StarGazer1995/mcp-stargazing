@@ -22,6 +22,8 @@ Calculate the altitude, rise, and set times of celestial objects (Sun, Moon, pla
 
 This project uses [uv](https://github.com/astral-sh/uv) for dependency management.
 
+### Local Installation
+
 1. **Install `uv`**:
    ```bash
    pip install uv
@@ -44,6 +46,32 @@ This project uses [uv](https://github.com/astral-sh/uv) for dependency managemen
    python scripts/download_data.py
    ```
    *Note: If you are behind a firewall, ensure `HTTP_PROXY` env var is set before running this script.*
+
+### Docker Installation
+
+You can also run the server using Docker, which handles all dependencies and data initialization automatically.
+
+1. **Build the image**:
+   ```bash
+   docker build -t mcp-stargazing .
+   ```
+   
+   *Note: If you are behind a proxy, pass the proxy URL during build:*
+   ```bash
+   docker build --build-arg HTTP_PROXY=http://127.0.0.1:7890 -t mcp-stargazing .
+   ```
+
+2. **Run the container**:
+   ```bash
+   # Basic run (SHTTP mode on port 3001)
+   docker run -p 3001:3001 mcp-stargazing
+   
+   # With Environment Variables
+   docker run -p 3001:3001 \
+     -e QWEATHER_API_KEY=your_key \
+     -e STARGAZING_DB_CONFIG=your_db_config \
+     mcp-stargazing
+   ```
 
 ## MCP Server Usage
 
