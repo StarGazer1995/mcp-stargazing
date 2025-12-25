@@ -16,10 +16,13 @@ Calculate the altitude, rise, and set times of celestial objects (Sun, Moon, pla
   - **Caching**: Intelligent caching for Simbad queries and regional analysis.
   - **Proxy Support**: Native support for HTTP/HTTPS proxies (useful for downloading astronomical data).
 - **Time Zone Aware**: Works with local or UTC times.
+- **Data Driven**: Integrated database of 10,000+ deep-sky objects (Messier & NGC) for smart recommendations.
 
 ## Installation
 
 This project uses [uv](https://github.com/astral-sh/uv) for dependency management.
+
+### Local Installation
 
 1. **Install `uv`**:
    ```bash
@@ -35,6 +38,39 @@ This project uses [uv](https://github.com/astral-sh/uv) for dependency managemen
 3. **Activate the environment**:
    ```bash
    source .venv/bin/activate
+   ```
+
+4. **Initialize Data** (Required for Nightly Planner):
+   This downloads the latest Messier and NGC catalog data to `src/data/objects.json`.
+   ```bash
+   python scripts/download_data.py
+   ```
+   *Note: If you are behind a firewall, ensure `HTTP_PROXY` env var is set before running this script.*
+
+### Docker Installation
+
+You can also run the server using Docker, which handles all dependencies and data initialization automatically.
+
+1. **Build the image**:
+   ```bash
+   docker build -t mcp-stargazing .
+   ```
+   
+   *Note: If you are behind a proxy, pass the proxy URL during build:*
+   ```bash
+   docker build --build-arg HTTP_PROXY=http://127.0.0.1:7890 -t mcp-stargazing .
+   ```
+
+2. **Run the container**:
+   ```bash
+   # Basic run (SHTTP mode on port 3001)
+   docker run -p 3001:3001 mcp-stargazing
+   
+   # With Environment Variables
+   docker run -p 3001:3001 \
+     -e QWEATHER_API_KEY=your_key \
+     -e STARGAZING_DB_CONFIG=your_db_config \
+     mcp-stargazing
    ```
 
 ## MCP Server Usage
@@ -95,6 +131,10 @@ All tools return data in a standardized JSON format:
 
 - **`get_celestial_pos`**: Calculate altitude/azimuth.
 - **`get_celestial_rise_set`**: Calculate rise/set times (Returns ISO strings).
+- **`get_moon_info`**: Detailed moon phase, illumination, and age.
+- **`get_visible_planets`**: List of all planets currently above the horizon with positions.
+- **`get_constellation`**: Find the position (Alt/Az) of a constellation center.
+- **`get_nightly_forecast`**: Smart planner returning curated list of best objects to view tonight (Planets + Deep Sky).
 - **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather.
 - **`get_local_datetime_info`**: Get current local time information.
 - **`analysis_area`**: Find best stargazing spots in a region.
@@ -102,6 +142,15 @@ All tools return data in a standardized JSON format:
   - **Returns**: List of spots with viewing conditions, plus pagination metadata (`total`, `resource_id`).
 
 ## Examples
+
+- **Nightly Planner**: `python examples/nightly_forecast_demo.py`
+  - Shows a curated list of planets and deep-sky objects visible tonight, accounting for moonlight.
+
+- **Visible Planets**: `python examples/visible_planets_demo.py`
+  - Lists which planets are currently up.
+
+- **Moon Info**: `python examples/moon_phase_demo.py`
+  - Prints a 30-day moon phase calendar.
 
 - **Orchestration**: `python examples/code_execution_orchestration.py`
   - Demonstrates a full workflow: Get time -> Get Celestial Pos -> Check Weather -> Find Spots.

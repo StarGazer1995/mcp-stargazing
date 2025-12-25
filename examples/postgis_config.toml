@@ -1,0 +1,5 @@
+host = "10.0.0.16"
+port = 5455
+database = "osm_db"
+user = "postgres"
+password = "postgres123"

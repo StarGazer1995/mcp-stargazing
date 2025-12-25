@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mcp-stargazing"
 version = "0.1.6"
-description = "This is a mcp server Calculate celestial object positions and rise/set times"
+description = "An MCP server that provides real-time astronomical data, smart stargazing planning, and light pollution analysis for AI agents."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 authors = [
     { name = "Henry Gong", email = "zhao.gong@outlook.com" },
 ]
@@ -20,14 +20,14 @@ classifiers = [
 ]
 dependencies = [
     "fastmcp",
-    "astropy>=5.0",
+    "astropy[all]",
     "pytz",
     "numpy",
     "astroquery",
     "rasterio",
     "tzlocal",
     "geopy",
-    "stargazing-place-finder>=0.3.0"
+    "stargazing-place-finder>=0.3.1"
 ]
 
 [project.scripts]
@@ -43,4 +43,5 @@ include = ["src*"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
 ]

@@ -1,6 +1,7 @@
 import os
 import argparse
 from src.server_instance import mcp
+from astropy.utils.iers import conf as iers_conf
 
 # Import modules to register tools
 import src.functions.celestial.impl
@@ -20,6 +21,10 @@ def arg_parse():
 def main():
     """Run the MCP server."""
     arg = arg_parse()
+    host = os.getenv("MCP_HOST", "0.0.0.0")
+    auto_env = os.getenv("ASTROPY_IERS_AUTO_DOWNLOAD", "0")
+    iers_conf.auto_download = auto_env == "1"
+    iers_conf.auto_max_age = None
     
     # Configure proxy if provided
     if arg.proxy:
@@ -34,9 +39,9 @@ def main():
     elif arg.mode == 'local':
         mcp.run()
     elif arg.mode == 'shttp':
-        mcp.run(transport="streamable-http", host="127.0.0.1", port=arg.port, path=arg.path, log_level="debug")
+        mcp.run(transport="streamable-http", host=host, port=arg.port, path=arg.path, log_level="debug")
     elif arg.mode == 'sse':
-        mcp.run(transport="sse", host="127.0.0.1", port=arg.port, path=arg.path, log_level="debug")
+        mcp.run(transport="sse", host=host, port=arg.port, path=arg.path, log_level="debug")
     else:
         raise ValueError("Invalid mode")
 
