@@ -44,16 +44,27 @@ rise, set_ = celestial_rise_set("andromeda", location, local_time.date())
 print(f"Andromeda: Rise={rise.iso}, Set={set_.iso}")
 ```
 
-### Load Light Pollution Map
-```python src/light_pollution.py
-from src.light_pollution import load_map
-
-# Load a GeoTIFF light pollution map
-vriis_data, bounds, crs, transform = load_map("path/to/map.tif")
-print(f"Map Bounds: {bounds}")
+### Get Light Pollution Map
+```python
+# via MCP Tool
+# This tool provides light pollution data for a specific coordinate range.
+result = await call_tool("light_pollution_map", {
+    "south": 39.9, 
+    "west": 116.3, 
+    "north": 40.0, 
+    "east": 116.4, 
+    "zoom": 10
+})
+print(result)
 ```
 
 ## API Reference
+
+### `light_pollution_map(south, west, north, east, zoom=10)`
+- **Inputs**:
+  - `south`, `west`, `north`, `east`: Bounding box coordinates.
+  - `zoom`: Zoom level (default 10).
+- **Returns**: Grid of light pollution data points.
 
 ### `celestial_pos(celestial_object, observer_location, time)` (`src/celestial.py`)
 - **Inputs**:
@@ -67,11 +78,6 @@ print(f"Map Bounds: {bounds}")
   - `date`: Timezone-aware `datetime`.
   - `horizon`: Horizon elevation (default: 0°).
 - **Returns**: `(rise_time, set_time)` as UTC `Time` objects.
-
-### `load_map(map_path)` (`src/light_pollution.py`)
-- **Inputs**:
-  - `map_path`: Path to GeoTIFF file.
-- **Returns**: Tuple `(vriis_data, bounds, crs, transform)` for light pollution analysis.
 
 ## Testing
 Run tests with:
@@ -97,7 +103,6 @@ def test_calculate_rise_set_sun():
 .
 ├── src/
 │   ├── celestial.py          # Core celestial calculations
-│   ├── light_pollution.py    # Light pollution map utilities
 │   ├── utils.py              # Time/location helpers
 │   └── main.py               # CLI entry point
 ├── tests/

@@ -33,3 +33,6 @@ class StargazingPlaceFinder:
             include_light_pollution=True,
             include_road_connectivity=True,
         )
+
+def get_light_pollution_grid(north: float, south: float, east: float, west: float, zoom: int = 10) -> Dict[str, Any]:
+    return spf.get_light_pollution_grid(north=north, south=south, east=east, west=west, zoom=zoom)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-stargazing"
-version = "0.1.6"
+version = "0.1.7"
 description = "An MCP server that provides real-time astronomical data, smart stargazing planning, and light pollution analysis for AI agents."
 readme = "README.md"
 requires-python = ">=3.13"
