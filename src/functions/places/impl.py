@@ -2,10 +2,29 @@ from typing import Dict, Any, List
 import asyncio
 from pathlib import Path
 from src.server_instance import mcp
-from src.placefinder import StargazingPlaceFinder
+from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
 from src.cache import ANALYSIS_CACHE, generate_cache_key
 
 from src.response import format_response
+
+@mcp.tool()
+async def light_pollution_map(
+    south: float, west: float, north: float, east: float,
+    zoom: int = 10
+) -> Dict[str, Any]:
+    """Get light pollution data for a specific area.
+    
+    Returns a grid of light pollution data points including brightness, Bortle class, and SQM.
+    
+    Args:
+        south, west, north, east: Bounding box coordinates.
+        zoom: Zoom level for the grid resolution (default: 10). Higher zoom means more detailed grid.
+    """
+    def _compute():
+        return get_light_pollution_grid(north=north, south=south, east=east, west=west, zoom=zoom)
+
+    result = await asyncio.to_thread(_compute)
+    return format_response(result)
 
 @mcp.tool()
 async def analysis_area(
