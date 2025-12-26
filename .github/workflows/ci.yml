@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev/ci
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Docker Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Test Image
+        run: docker build --target test -t test-image .
+
+      - name: Run Tests in Docker
+        run: |
+          mkdir -p reports
+          docker run --rm -v ${{ github.workspace }}/reports:/app/reports test-image tests/ -v --junitxml=/app/reports/test-report.xml
+
+      - name: Build Production Image
+        run: docker build --target production -t prod-image .
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: reports/test-report.xml
