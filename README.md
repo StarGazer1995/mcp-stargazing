@@ -82,8 +82,18 @@ Start the MCP server to expose tools to AI agents or other clients.
 Create a `.env` file or export variables:
 
 ```bash
-# Required for weather tools
+# Weather tools
+# 推荐：使用你账号专属的 API Host（公共域名将从 2026 年起逐步停止服务）
+export QWEATHER_API_HOST="abc1234xyz.def.qweatherapi.com"
+
+# 鉴权（二选一）
+# 1) API KEY（兼容旧用法）
 export QWEATHER_API_KEY="your_api_key"
+# 2) JWT（推荐，更安全）
+# export QWEATHER_JWT_TOKEN="your_jwt_token"
+
+# 如需临时兼容旧公共域名（不推荐），显式开启：
+# export QWEATHER_ALLOW_PUBLIC_HOST=1
 
 # Optional: Proxy for downloading astronomical data (Simbad/IERS)
 # Highly recommended if you are in a restricted network environment

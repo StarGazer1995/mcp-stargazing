@@ -6,7 +6,9 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     PYTHONUNBUFFERED=1 \
+    QWEATHER_API_HOST="" \
     QWEATHER_API_KEY="" \
+    QWEATHER_JWT_TOKEN="" \
     STARGAZING_DB_CONFIG="/app/config.example.toml"
 
 # Copy dependency files

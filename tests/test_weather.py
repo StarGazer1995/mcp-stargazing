@@ -8,7 +8,7 @@ def test_get_weather_by_name_no_api_key():
         if "QWEATHER_API_KEY" in os.environ:
             del os.environ["QWEATHER_API_KEY"]
             
-        with pytest.raises(ValueError, match="QWEATHER_API_KEY"):
+        with pytest.raises(ValueError, match="QWEATHER_API_KEY|QWEATHER_JWT_TOKEN"):
             # Use .fn to call the underlying function
             get_weather_by_name.fn("Beijing")
 
@@ -21,7 +21,7 @@ def test_get_weather_by_name_success():
         assert "data" in result
         assert result["data"] == {"weather": "sunny"}
         assert result["_meta"]["status"] == "success"
-        mock_api.assert_called_with("Beijing", "fake_key")
+        mock_api.assert_called_with("Beijing", "fake_key", api_host=None, jwt_token=None)
 
 def test_get_weather_by_position_success():
     with patch.dict(os.environ, {"QWEATHER_API_KEY": "fake_key"}), \
@@ -31,4 +31,4 @@ def test_get_weather_by_position_success():
         
         assert "data" in result
         assert result["data"] == {"temp": 20}
-        mock_api.assert_called_with(40.0, 116.0, "fake_key")
+        mock_api.assert_called_with(40.0, 116.0, "fake_key", api_host=None, jwt_token=None)
