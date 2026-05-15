@@ -1,8 +1,8 @@
 import os
 from src.server_instance import mcp
 from src.qweather_interaction import qweather_get_weather_by_name, qweather_get_weather_by_position
-
-from src.response import format_response
+from src.response import format_response, MCPError
+from src.retry import retry_on_failure, RetryConfig
 
 
 def _get_qweather_auth_from_env() -> tuple[str | None, str | None, str | None]:
@@ -19,7 +19,11 @@ def _get_qweather_auth_from_env() -> tuple[str | None, str | None, str | None]:
     jwt_token = os.getenv("QWEATHER_JWT_TOKEN")
     api_host = os.getenv("QWEATHER_API_HOST")
     if not api_key and not jwt_token:
-        raise ValueError("QWEATHER_API_KEY 或 QWEATHER_JWT_TOKEN 环境变量未设置。")
+        raise MCPError(
+            MCPError.MISSING_API_KEY,
+            "QWEATHER_API_KEY 或 QWEATHER_JWT_TOKEN 环境变量未设置。",
+            {"required_vars": ["QWEATHER_API_KEY", "QWEATHER_JWT_TOKEN"]}
+        )
     return api_key, jwt_token, api_host
 
 
@@ -35,21 +39,41 @@ def get_weather_by_name(place_name: str):
         Dict，包含 keys: "data", "_meta"。
 
     Raises:
-        ValueError: 未配置必要环境变量时抛出（QWEATHER_API_KEY 或 QWEATHER_JWT_TOKEN）。
+        MCPError: For authentication failures, API errors, or network issues.
     """
     api_key, jwt_token, api_host = _get_qweather_auth_from_env()
-    try:
-        # 兼容旧签名：第二个位置参数仍然传 api_key（若使用 JWT 则为 None）
-        result = qweather_get_weather_by_name(
-            place_name,
-            api_key,
-            api_host=api_host,
-            jwt_token=jwt_token,
-        )
-        return format_response(result)
-    except Exception as e:
-        # fast failure：直接抛出异常，避免把 None 包装成 success
-        raise ValueError(f"QWeather 请求失败: {e}") from e
+    
+    @retry_on_failure(
+        RetryConfig(max_attempts=3, base_delay=1.0, max_delay=10.0),
+        retryable_errors=(ConnectionError, TimeoutError, OSError)
+    )
+    def _fetch_weather():
+        try:
+            # 兼容旧签名：第二个位置参数仍然传 api_key（若使用 JWT 则为 None）
+            result = qweather_get_weather_by_name(
+                place_name,
+                api_key,
+                api_host=api_host,
+                jwt_token=jwt_token,
+            )
+            return result
+        except ValueError as e:
+            if "QWeather 请求失败" in str(e):
+                raise MCPError(
+                    MCPError.EXTERNAL_API_ERROR,
+                    f"QWeather API request failed for place '{place_name}': {e}",
+                    {"place_name": place_name}
+                ) from e
+            else:
+                raise MCPError(
+                    MCPError.CONFIGURATION_ERROR,
+                    f"QWeather configuration error: {e}",
+                    {"place_name": place_name}
+                ) from e
+        # Let ConnectionError, TimeoutError, OSError bubble up to retry decorator
+    
+    result = _fetch_weather()
+    return format_response(result)
 
 @mcp.tool()
 def get_weather_by_position(lat: float, lon: float):
@@ -64,17 +88,38 @@ def get_weather_by_position(lat: float, lon: float):
         Dict，包含 keys: "data", "_meta"。
 
     Raises:
-        ValueError: 未配置必要环境变量时抛出（QWEATHER_API_KEY 或 QWEATHER_JWT_TOKEN）。
+        MCPError: For authentication failures, API errors, or network issues.
     """
     api_key, jwt_token, api_host = _get_qweather_auth_from_env()
-    try:
-        result = qweather_get_weather_by_position(
-            lat,
-            lon,
-            api_key,
-            api_host=api_host,
-            jwt_token=jwt_token,
-        )
-        return format_response(result)
-    except Exception as e:
-        raise ValueError(f"QWeather 请求失败: {e}") from e
+    
+    @retry_on_failure(
+        RetryConfig(max_attempts=3, base_delay=1.0, max_delay=10.0),
+        retryable_errors=(ConnectionError, TimeoutError, OSError)
+    )
+    def _fetch_weather():
+        try:
+            result = qweather_get_weather_by_position(
+                lat,
+                lon,
+                api_key,
+                api_host=api_host,
+                jwt_token=jwt_token,
+            )
+            return result
+        except ValueError as e:
+            if "QWeather 请求失败" in str(e):
+                raise MCPError(
+                    MCPError.EXTERNAL_API_ERROR,
+                    f"QWeather API request failed for coordinates ({lat}, {lon}): {e}",
+                    {"lat": lat, "lon": lon}
+                ) from e
+            else:
+                raise MCPError(
+                    MCPError.CONFIGURATION_ERROR,
+                    f"QWeather configuration error: {e}",
+                    {"lat": lat, "lon": lon}
+                ) from e
+        # Let ConnectionError, TimeoutError, OSError bubble up to retry decorator
+    
+    result = _fetch_weather()
+    return format_response(result)

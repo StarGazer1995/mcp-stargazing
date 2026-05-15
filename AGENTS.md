@@ -42,7 +42,19 @@ This is not a runtime requirement, but it is the best place for team-level regul
 ## Error handling
 
 - Use `src.response.MCPError` for errors that should be surfaced cleanly to agents.
-- Avoid raising raw exceptions from tools; catch and translate them into structured error responses.
+- Standard error codes include:
+  - `INVALID_COORDINATES`: Invalid latitude/longitude values
+  - `INVALID_TIMEZONE`: Invalid timezone string
+  - `INVALID_TIME_FORMAT`: Invalid time string format
+  - `MISSING_API_KEY`: Missing required API credentials
+  - `API_AUTH_FAILURE`: API authentication failed
+  - `API_TIMEOUT`: API request timed out
+  - `API_RATE_LIMIT`: API rate limit exceeded
+  - `EXTERNAL_API_ERROR`: External API returned error
+  - `NETWORK_ERROR`: Network connectivity issues
+  - `CONFIGURATION_ERROR`: Configuration problems
+- Avoid raising raw exceptions from tools; catch and translate them into structured MCPError responses.
+- Weather tools include automatic retry logic for network failures (up to 3 attempts with exponential backoff).
 - Tool failures should be explicit and actionable for the calling agent.
 
 ## Harness engineering requirements

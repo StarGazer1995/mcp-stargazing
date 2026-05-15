@@ -41,8 +41,26 @@ def format_error(code: str, message: str, details: Optional[Dict[str, Any]] = No
 
 class MCPError(Exception):
     """Base exception for application errors that should be reported to the agent."""
+    
+    # Standard error codes
+    INVALID_COORDINATES = "INVALID_COORDINATES"
+    INVALID_TIMEZONE = "INVALID_TIMEZONE"
+    INVALID_TIME_FORMAT = "INVALID_TIME_FORMAT"
+    MISSING_API_KEY = "MISSING_API_KEY"
+    API_AUTH_FAILURE = "API_AUTH_FAILURE"
+    API_TIMEOUT = "API_TIMEOUT"
+    API_RATE_LIMIT = "API_RATE_LIMIT"
+    EXTERNAL_API_ERROR = "EXTERNAL_API_ERROR"
+    NETWORK_ERROR = "NETWORK_ERROR"
+    CONFIGURATION_ERROR = "CONFIGURATION_ERROR"
+    
     def __init__(self, code: str, message: str, details: Optional[Dict[str, Any]] = None):
         self.code = code
         self.message = message
         self.details = details
         super().__init__(message)
+    
+    def to_response(self) -> Dict[str, Any]:
+        """Convert this error to a formatted response dict."""
+        return format_error(self.code, self.message, self.details)
+

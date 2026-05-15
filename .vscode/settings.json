@@ -3,6 +3,22 @@
         "/^source \\.venv/bin/activate && python -m pytest tests/test_integration\\.py$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^source \\.venv/bin/activate && python -m pytest tests/test_structured_errors\\.py -v$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^source \\.venv/bin/activate && python -m pytest tests/test_structured_errors\\.py::test_weather_retry_logic -v$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^source \\.venv/bin/activate && python -m pytest tests/ -x --tb=short$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^source \\.venv/bin/activate && python -m pytest tests/test_utils\\.py::test_create_earth_location -v$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

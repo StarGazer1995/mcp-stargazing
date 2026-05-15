@@ -2,13 +2,14 @@ import pytest
 from unittest.mock import patch
 import os
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
+from src.response import MCPError
 
 def test_get_weather_by_name_no_api_key():
     with patch.dict(os.environ, clear=True):
         if "QWEATHER_API_KEY" in os.environ:
             del os.environ["QWEATHER_API_KEY"]
             
-        with pytest.raises(ValueError, match="QWEATHER_API_KEY|QWEATHER_JWT_TOKEN"):
+        with pytest.raises(MCPError, match="QWEATHER_API_KEY|QWEATHER_JWT_TOKEN"):
             # Use .fn to call the underlying function
             get_weather_by_name.fn("Beijing")
 

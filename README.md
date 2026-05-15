@@ -145,12 +145,21 @@ All tools return data in a standardized JSON format:
 - **`get_visible_planets`**: List of all planets currently above the horizon with positions.
 - **`get_constellation`**: Find the position (Alt/Az) of a constellation center.
 - **`get_nightly_forecast`**: Smart planner returning curated list of best objects to view tonight (Planets + Deep Sky).
-- **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather.
+- **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather with automatic retry on network failures.
 - **`get_local_datetime_info`**: Get current local time information.
 - **`get_tool_catalog`**: Discover available MCP tool metadata and parameters.
 - **`analysis_area`**: Find best stargazing spots in a region.
   - **Inputs**: `top_left`, `bottom_right`, `time`, `page`, `page_size`.
   - **Returns**: List of spots with viewing conditions, plus pagination metadata (`total`, `resource_id`).
+
+### 5. Error Handling
+
+All tools return JSON-serializable data and use structured error handling:
+
+- **Standard Error Codes**: `INVALID_COORDINATES`, `INVALID_TIMEZONE`, `INVALID_TIME_FORMAT`, `MISSING_API_KEY`, `API_AUTH_FAILURE`, `API_TIMEOUT`, `API_RATE_LIMIT`, `EXTERNAL_API_ERROR`, `NETWORK_ERROR`, `CONFIGURATION_ERROR`
+- **Weather Tools**: Include automatic retry logic for network failures (up to 3 attempts with exponential backoff)
+- **Error Responses**: Structured MCPError objects with actionable error messages for calling agents
+- **Validation**: Input parameters are validated before processing with clear error messages
 
 ## Examples
 
