@@ -10,7 +10,7 @@
 import os
 
 import requests
-
+from src.response import MCPError
 def _build_qweather_headers(api_key: str | None, jwt_token: str | None) -> dict:
     """构建 QWeather 请求 Headers（支持 JWT / API KEY）。"""
 
@@ -20,7 +20,11 @@ def _build_qweather_headers(api_key: str | None, jwt_token: str | None) -> dict:
     elif api_key:
         headers["X-QW-Api-Key"] = api_key
     else:
-        raise ValueError("必须提供 api_key 或 jwt_token 之一用于访问 QWeather API。")
+        raise MCPError(
+            MCPError.MISSING_API_KEY,
+            "必须提供 api_key 或 jwt_token 之一用于访问 QWeather API。",
+            {"provided": {"api_key": api_key is not None, "jwt_token": jwt_token is not None}}
+        )
     return headers
 
 
@@ -41,10 +45,12 @@ def _get_api_host_or_fail(default_public_host: str) -> str:
     if allow_public:
         return default_public_host
 
-    raise ValueError(
+    raise MCPError(
+        MCPError.CONFIGURATION_ERROR,
         "未设置 QWEATHER_API_HOST（账号专属 API Host）。"
         "为尽早暴露配置问题，本项目默认不再自动回退公共域名；"
-        "如需临时兼容旧域名，请设置 QWEATHER_ALLOW_PUBLIC_HOST=1。"
+        "如需临时兼容旧域名，请设置 QWEATHER_ALLOW_PUBLIC_HOST=1。",
+        {"env_vars_checked": ["QWEATHER_API_HOST", "QWEATHER_ALLOW_PUBLIC_HOST"]}
     )
 
 
@@ -69,14 +75,64 @@ def fetch_gzipped_json(
     """
 
     headers = _build_qweather_headers(api_key=api_token, jwt_token=jwt_token)
-    response = requests.get(api_url, headers=headers, timeout=timeout_s)
-    response.raise_for_status()
+    try:
+        response = requests.get(api_url, headers=headers, timeout=timeout_s)
+        response.raise_for_status()
+    except requests.exceptions.Timeout as e:
+        raise MCPError(
+            MCPError.API_TIMEOUT,
+            f"QWeather API request timed out after {timeout_s} seconds",
+            {"url": api_url, "timeout_seconds": timeout_s}
+        ) from e
+    except requests.exceptions.ConnectionError as e:
+        raise MCPError(
+            MCPError.NETWORK_ERROR,
+            f"Network connection error while accessing QWeather API",
+            {"url": api_url}
+        ) from e
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 401:
+            raise MCPError(
+                MCPError.API_AUTH_FAILURE,
+                "QWeather API authentication failed",
+                {"url": api_url, "status_code": response.status_code}
+            ) from e
+        elif response.status_code == 429:
+            raise MCPError(
+                MCPError.API_RATE_LIMIT,
+                "QWeather API rate limit exceeded",
+                {"url": api_url, "status_code": response.status_code}
+            ) from e
+        else:
+            raise MCPError(
+                MCPError.EXTERNAL_API_ERROR,
+                f"QWeather API returned HTTP {response.status_code}",
+                {"url": api_url, "status_code": response.status_code}
+            ) from e
+    except requests.exceptions.RequestException as e:
+        raise MCPError(
+            MCPError.NETWORK_ERROR,
+            f"Request error while accessing QWeather API: {e}",
+            {"url": api_url}
+        ) from e
 
-    data = response.json()
+    try:
+        data = response.json()
+    except ValueError as e:
+        raise MCPError(
+            MCPError.EXTERNAL_API_ERROR,
+            "QWeather API returned invalid JSON response",
+            {"url": api_url}
+        ) from e
+
     # QWeather 响应通常包含 code 字段，200 表示成功
     code = str(data.get("code", ""))
     if code and code != "200":
-        raise RuntimeError(f"QWeather API 返回错误 code={code}")
+        raise MCPError(
+            MCPError.EXTERNAL_API_ERROR,
+            f"QWeather API returned error code {code}",
+            {"url": api_url, "api_code": code, "response": data}
+        )
     return data
     
 def qweather_get_poi(

@@ -6,7 +6,7 @@ from src.server_instance import mcp
 from src.celestial import celestial_pos, celestial_rise_set, calculate_moon_info, get_visible_planets, get_constellation_center, calculate_nightly_forecast
 from src.utils import process_location_and_time
 
-from src.response import format_response
+from src.response import format_response, MCPError
 
 @mcp.tool()
 async def get_celestial_pos(
@@ -86,7 +86,11 @@ async def get_moon_info(
             # Try ISO format
             dt = datetime.fromisoformat(time)
         except ValueError:
-             raise ValueError(f"Time string '{time}' matches neither '%Y-%m-%d %H:%M:%S' nor ISO format.")
+             raise MCPError(
+                 MCPError.INVALID_TIME_FORMAT,
+                 f"Time string '{time}' matches neither '%Y-%m-%d %H:%M:%S' nor ISO format.",
+                 {"time_string": time, "expected_formats": ["%Y-%m-%d %H:%M:%S", "ISO format"]}
+             )
 
     if dt.tzinfo is None:
         tz = pytz.timezone(time_zone)

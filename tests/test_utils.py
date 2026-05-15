@@ -1,5 +1,6 @@
 import pytest
 from src.utils import validate_coordinates, create_earth_location, parse_datetime, localtime_to_utc
+from src.response import MCPError
 from astropy.coordinates import EarthLocation
 from datetime import datetime
 import pytz
@@ -17,7 +18,7 @@ def test_create_earth_location():
     assert isinstance(loc, EarthLocation)
     assert abs(loc.lat.deg - 40.7128) < 1e-5
     assert abs(loc.lon.deg - -74.0060) < 1e-5
-    with pytest.raises(ValueError):
+    with pytest.raises(MCPError):
         create_earth_location(100, -200)
 
 def test_parse_datetime():
@@ -33,7 +34,7 @@ def test_localtime_to_utc():
     utc_dt = localtime_to_utc(local_dt)
     assert utc_dt.tzinfo == pytz.UTC
     assert utc_dt.hour == local_dt.hour
-    with pytest.raises(ValueError):
+    with pytest.raises(MCPError):
         localtime_to_utc(datetime(2023, 10, 1))
 
 if __name__ == "__main__":

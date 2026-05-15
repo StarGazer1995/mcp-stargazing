@@ -7,6 +7,7 @@ This roadmap captures future agent-facing, harness, and feature improvements for
 1.  Tool metadata and discovery
     - Expose each tool's name, description, parameters, and return schema programmatically.
     - Add a tool catalog endpoint or manifest so agents can discover capabilities automatically.
+    - Provide a registered discovery tool (`get_tool_catalog`) for agents to inspect available MCP capabilities.
     - Standardize schema documentation in code and generated docs.
 
 2.  Structured errors and retry semantics

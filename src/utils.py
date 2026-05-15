@@ -4,6 +4,7 @@ from datetime import datetime
 import pytz
 import tzlocal
 from typing import Tuple
+from src.response import MCPError
 
 def validate_coordinates(lat: float, lon: float) -> bool:
     """Validate latitude and longitude values."""
@@ -12,7 +13,11 @@ def validate_coordinates(lat: float, lon: float) -> bool:
 def create_earth_location(lat: float, lon: float, elevation: float = 0.0) -> EarthLocation:
     """Create an EarthLocation object from coordinates."""
     if not validate_coordinates(lat, lon):
-        raise ValueError(f"Invalid coordinates: lat={lat}, lon={lon}")
+        raise MCPError(
+            MCPError.INVALID_COORDINATES,
+            f"Invalid coordinates: lat={lat}, lon={lon}",
+            {"lat": lat, "lon": lon, "valid_range": {"lat": [-90, 90], "lon": [-180, 180]}}
+        )
     return EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=elevation * u.m)
 
 def parse_datetime(date_str: str, time_str: str, timezone: str = "UTC") -> datetime:
@@ -25,7 +30,11 @@ def parse_datetime(date_str: str, time_str: str, timezone: str = "UTC") -> datet
         naive_dt = datetime.strptime(date_str, "%Y-%m-%d")
         return tz.localize(naive_dt)
     except (ValueError, pytz.exceptions.UnknownTimeZoneError) as e:
-        raise ValueError(f"Invalid input: {e}")
+        raise MCPError(
+            MCPError.INVALID_TIMEZONE,
+            f"Invalid timezone '{timezone}': {e}",
+            {"timezone": timezone}
+        )
 
 def localtime_to_utc(local_dt: datetime) -> datetime:
     """
@@ -35,10 +44,14 @@ def localtime_to_utc(local_dt: datetime) -> datetime:
     Returns:
         datetime: UTC datetime (timezone-aware).
     Raises:
-        ValueError: If input datetime is naive (not timezone-aware).
+        MCPError: If input datetime is naive (not timezone-aware).
     """
     if local_dt.tzinfo is None:
-        raise ValueError("Input datetime must be timezone-aware.")
+        raise MCPError(
+            MCPError.INVALID_TIME_FORMAT,
+            "Input datetime must be timezone-aware.",
+            {"received_tzinfo": None}
+        )
     return local_dt.astimezone(pytz.UTC)
 
 def datetime_to_longitude(dt: datetime) -> float:
