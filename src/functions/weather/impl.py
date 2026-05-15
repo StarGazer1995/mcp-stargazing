@@ -24,7 +24,8 @@ def _get_qweather_auth_from_env() -> tuple[str | None, str | None, str | None]:
             "QWEATHER_API_KEY 或 QWEATHER_JWT_TOKEN 环境变量未设置。",
             {"required_vars": ["QWEATHER_API_KEY", "QWEATHER_JWT_TOKEN"]}
         )
-    return api_key, jwt_token, api_host
+    # normalize empty strings to None (Dockerfile may set ENV to "")
+    return api_key, jwt_token or None, api_host or None
 
 
 @mcp.tool()
