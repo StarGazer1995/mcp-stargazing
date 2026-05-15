@@ -147,6 +147,7 @@ All tools return data in a standardized JSON format:
 - **`get_nightly_forecast`**: Smart planner returning curated list of best objects to view tonight (Planets + Deep Sky).
 - **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather.
 - **`get_local_datetime_info`**: Get current local time information.
+- **`get_tool_catalog`**: Discover available MCP tool metadata and parameters.
 - **`analysis_area`**: Find best stargazing spots in a region.
   - **Inputs**: `top_left`, `bottom_right`, `time`, `page`, `page_size`.
   - **Returns**: List of spots with viewing conditions, plus pagination metadata (`total`, `resource_id`).
@@ -215,3 +216,5 @@ Key tests include:
 1.  Follow the [Code Execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) best practices.
 2.  Ensure all new tools return standard JSON responses using `src.response.format_response`.
 3.  Add tests in `tests/` for any new functionality.
+4.  Follow the repository agent conventions in `AGENTS.md` for all MCP tool and agent-facing changes.
+5.  Refer to `docs/ROADMAP.md` for the planned agent and harness feature roadmap.

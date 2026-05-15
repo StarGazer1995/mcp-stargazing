@@ -8,6 +8,7 @@ import src.functions.celestial.impl
 import src.functions.weather.impl
 import src.functions.places.impl
 import src.functions.time.impl
+import src.functions.metadata.impl
 
 def arg_parse():
     """Parse command line arguments."""
