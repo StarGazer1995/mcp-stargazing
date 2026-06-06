@@ -10,6 +10,11 @@ ENV UV_COMPILE_BYTECODE=1 \
     STARGAZING_DB_CONFIG="/app/config.example.toml" \
     PATH="/app/.venv/bin:$PATH"
 
+# Install system dependencies required by rasterio native extensions
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 
