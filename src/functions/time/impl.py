@@ -14,6 +14,9 @@ def get_local_datetime_info() -> Dict[str, Any]:
     """
     tz = get_localzone()
     current_time = datetime.datetime.now(tz)
+    # Include timezone information explicitly so the tool matches its docstring
+    tz_name = getattr(tz, 'zone', None) or str(tz)
     return format_response({
-        "current_time": current_time.isoformat()
+        "current_time": current_time.isoformat(),
+        "time_zone": tz_name
     })

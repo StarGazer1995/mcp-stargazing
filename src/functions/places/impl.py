@@ -95,6 +95,8 @@ async def analysis_area(
             for item in results:
                 if isinstance(item, dict):
                     serialized.append(item)
+                elif hasattr(item, "model_dump") and callable(item.model_dump):
+                    serialized.append(item.model_dump(exclude_none=True))
                 elif hasattr(item, "to_dict") and callable(item.to_dict):
                     serialized.append(item.to_dict())
                 elif hasattr(item, "__dict__"):
