@@ -2,6 +2,11 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS base
 
 WORKDIR /app
 
+# Install system dependencies required by rasterio (GDAL)
+RUN apt-get update -qq && \
+    apt-get install -y -qq --no-install-recommends libexpat1 && \
+    rm -rf /var/lib/apt/lists/*
+
 # Set environment variables
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
