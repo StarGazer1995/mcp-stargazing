@@ -22,12 +22,12 @@ dependencies = [
     "fastmcp",
     "astropy[all]",
     "pytz",
-    "numpy",
+    "numpy>=1.24,<2.4",
     "astroquery",
     "rasterio",
     "tzlocal",
     "geopy",
-    "stargazing-place-finder>=0.3.1"
+    "stargazing-place-finder>=0.4.2",
 ]
 
 [project.scripts]

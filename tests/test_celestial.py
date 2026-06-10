@@ -30,7 +30,7 @@ def test_calculate_altitude_moon():
     assert -90 <= altitude <= 90
 def test_calculate_altitude_deepspace():
     """Test position calculation for deep-space objects (e.g., Andromeda)."""
-    time = Time(datetime.now())
+    time = Time(datetime(2024, 1, 15, 22, 0, tzinfo=pytz.UTC))
     altitude, _ = celestial_pos("andromeda", NYC, time)
     assert -90 <= altitude <= 90
 

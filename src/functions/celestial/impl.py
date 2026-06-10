@@ -100,7 +100,7 @@ async def get_moon_info(
     return format_response(result)
 
 @mcp.tool()
-async def get_visible_planets(
+async def list_visible_planets(
     lon: float,
     lat: float,
     time: str,
@@ -118,11 +118,13 @@ async def get_visible_planets(
         Dict with keys "data", "_meta". "data" is a list of planet dicts (name, altitude, azimuth).
     """
     location, time_info = process_location_and_time(lon, lat, time, time_zone)
-    # Note: Function name collision with imported function 'get_visible_planets'
-    # Use the imported function from src.celestial
+    # Avoid collision with imported function `get_visible_planets` from src.celestial
     from src.celestial import get_visible_planets as calc_visible_planets
     planets = await asyncio.to_thread(calc_visible_planets, location, time_info)
     return format_response(planets)
+
+# Backwards-compatible alias: export the original name pointing to the decorated wrapper
+get_visible_planets = list_visible_planets
 
 @mcp.tool()
 async def get_constellation(
