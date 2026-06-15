@@ -2,11 +2,13 @@
 
 import os
 
-from src.functions.weather.models import (
-    build_current_weather_payload,
-    build_daily_forecast_item,
-    build_hourly_forecast_item,
-    build_provider_success_payload,
+from src.models.weather import (
+    CurrentWeather,
+    DailyForecastItem,
+    HourlyForecastItem,
+    LocationInfo,
+    NormalizedWeatherData,
+    ProviderSuccess,
 )
 from src.qweather_interaction import (
     qweather_get_weather_by_coord_in_ten_days,
@@ -36,7 +38,7 @@ def get_weather_by_position(
     lon: float,
     location_name: str | None = None,
     timezone: str | None = None,
-) -> dict:
+) -> ProviderSuccess:
     """查询 QWeather 并返回标准化后的 provider 结果。"""
 
     raw_data = fetch_qweather_raw_weather(lat, lon)
@@ -47,7 +49,7 @@ def get_weather_by_position(
         location_name=location_name,
         timezone=timezone,
     )
-    return build_provider_success_payload("qweather", normalized)
+    return ProviderSuccess(provider="qweather", data=normalized)
 
 
 def fetch_qweather_raw_weather(lat: float, lon: float) -> dict:
@@ -85,21 +87,21 @@ def normalize_qweather_weather(
     lon: float,
     location_name: str | None = None,
     timezone: str | None = None,
-) -> dict:
+) -> NormalizedWeatherData:
     """将 QWeather 原始响应映射为统一天气结构。"""
 
     current = raw_data.get("current", {}).get("now", {})
     daily_rows = raw_data.get("daily", {}).get("daily", [])
     hourly_rows = raw_data.get("hourly", {}).get("hourly", [])
 
-    return {
-        "location": {
-            "name": location_name,
-            "lat": lat,
-            "lon": lon,
-            "timezone": timezone,
-        },
-        "current": build_current_weather_payload(
+    return NormalizedWeatherData(
+        location=LocationInfo(
+            name=location_name,
+            lat=lat,
+            lon=lon,
+            timezone=timezone,
+        ),
+        current=CurrentWeather(
             temperature_c=_to_float(current.get("temp")),
             feels_like_c=_to_float(current.get("feelsLike")),
             humidity=_to_float(current.get("humidity")),
@@ -115,8 +117,8 @@ def normalize_qweather_weather(
             weather_text=current.get("text"),
             observation_time=current.get("obsTime"),
         ),
-        "daily": [
-            build_daily_forecast_item(
+        daily=[
+            DailyForecastItem(
                 date=row.get("fxDate"),
                 temp_min_c=_to_float(row.get("tempMin")),
                 temp_max_c=_to_float(row.get("tempMax")),
@@ -128,8 +130,8 @@ def normalize_qweather_weather(
             for row in daily_rows
             if row.get("fxDate")
         ],
-        "hourly": [
-            build_hourly_forecast_item(
+        hourly=[
+            HourlyForecastItem(
                 time=row.get("fxTime"),
                 temperature_c=_to_float(row.get("temp")),
                 humidity=_to_float(row.get("humidity")),
@@ -146,7 +148,7 @@ def normalize_qweather_weather(
             for row in hourly_rows
             if row.get("fxTime")
         ],
-    }
+    )
 
 
 def map_qweather_condition_code(code: str | None) -> str | None:

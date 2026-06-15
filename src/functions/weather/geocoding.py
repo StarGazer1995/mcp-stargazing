@@ -3,10 +3,11 @@
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 from geopy.geocoders import Nominatim
 
+from src.models.weather import LocationInfo
 from src.response import MCPError
 
 
-def resolve_place_name(place_name: str) -> dict:
+def resolve_place_name(place_name: str) -> LocationInfo:
     """将地点名称解析为标准位置对象。"""
 
     cleaned_name = place_name.strip()
@@ -20,7 +21,7 @@ def resolve_place_name(place_name: str) -> dict:
     return _resolve_with_nominatim(cleaned_name)
 
 
-def _resolve_with_nominatim(place_name: str) -> dict:
+def _resolve_with_nominatim(place_name: str) -> LocationInfo:
     """使用 Nominatim 地理编码服务解析地点名称。"""
 
     geocoder = Nominatim(user_agent="mcp-stargazing")
@@ -47,25 +48,9 @@ def _resolve_with_nominatim(place_name: str) -> dict:
         )
 
     display_name = getattr(result, "address", None) or place_name
-    return normalize_geocoding_result(
+    return LocationInfo(
         name=display_name,
         lat=float(result.latitude),
         lon=float(result.longitude),
         timezone=None,
     )
-
-
-def normalize_geocoding_result(
-    name: str,
-    lat: float,
-    lon: float,
-    timezone: str | None = None,
-) -> dict:
-    """将地理编码结果标准化为统一位置结构。"""
-
-    return {
-        "name": name,
-        "lat": lat,
-        "lon": lon,
-        "timezone": timezone,
-    }

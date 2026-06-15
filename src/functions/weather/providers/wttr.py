@@ -2,11 +2,13 @@
 
 import requests
 
-from src.functions.weather.models import (
-    build_current_weather_payload,
-    build_daily_forecast_item,
-    build_hourly_forecast_item,
-    build_provider_success_payload,
+from src.models.weather import (
+    CurrentWeather,
+    DailyForecastItem,
+    HourlyForecastItem,
+    LocationInfo,
+    NormalizedWeatherData,
+    ProviderSuccess,
 )
 from src.response import MCPError
 
@@ -16,7 +18,7 @@ def get_weather_by_position(
     lon: float,
     location_name: str | None = None,
     timezone: str | None = None,
-) -> dict:
+) -> ProviderSuccess:
     """查询 wttr.in 并返回标准化后的 provider 结果。"""
 
     raw_data = fetch_wttr_raw_weather(lat, lon)
@@ -27,7 +29,7 @@ def get_weather_by_position(
         location_name=location_name,
         timezone=timezone,
     )
-    return build_provider_success_payload("wttr", normalized)
+    return ProviderSuccess(provider="wttr", data=normalized)
 
 
 def build_wttr_query(lat: float, lon: float) -> str:
@@ -87,7 +89,7 @@ def normalize_wttr_weather(
     lon: float,
     location_name: str | None = None,
     timezone: str | None = None,
-) -> dict:
+) -> NormalizedWeatherData:
     """将 wttr.in 原始响应映射为统一天气结构。"""
 
     current = (raw_data.get("current_condition") or [{}])[0]
@@ -98,12 +100,12 @@ def normalize_wttr_weather(
         if area_names:
             location_name = area_names[0].get("value")
 
-    daily_items: list[dict] = []
-    hourly_items: list[dict] = []
+    daily_items: list[DailyForecastItem] = []
+    hourly_items: list[HourlyForecastItem] = []
     for weather_row in weather_rows:
         hourly_rows = weather_row.get("hourly") or []
         daily_items.append(
-            build_daily_forecast_item(
+            DailyForecastItem(
                 date=weather_row.get("date"),
                 temp_min_c=_to_float(weather_row.get("mintempC")),
                 temp_max_c=_to_float(weather_row.get("maxtempC")),
@@ -115,14 +117,14 @@ def normalize_wttr_weather(
         )
         hourly_items.extend(_build_hourly_items(weather_row.get("date"), hourly_rows))
 
-    return {
-        "location": {
-            "name": location_name,
-            "lat": lat,
-            "lon": lon,
-            "timezone": timezone,
-        },
-        "current": build_current_weather_payload(
+    return NormalizedWeatherData(
+        location=LocationInfo(
+            name=location_name,
+            lat=lat,
+            lon=lon,
+            timezone=timezone,
+        ),
+        current=CurrentWeather(
             temperature_c=_to_float(current.get("temp_C")),
             feels_like_c=_to_float(current.get("FeelsLikeC")),
             humidity=_to_float(current.get("humidity")),
@@ -138,9 +140,9 @@ def normalize_wttr_weather(
             weather_text=_condition_text_from_row(current),
             observation_time=current.get("localObsDateTime"),
         ),
-        "daily": [item for item in daily_items if item["date"]],
-        "hourly": hourly_items,
-    }
+        daily=[item for item in daily_items if item.date],
+        hourly=hourly_items,
+    )
 
 
 def map_wttr_condition_text(text: str | None) -> str | None:
@@ -164,16 +166,16 @@ def map_wttr_condition_text(text: str | None) -> str | None:
     return "unknown"
 
 
-def _build_hourly_items(date_value: str | None, hourly_rows: list[dict]) -> list[dict]:
+def _build_hourly_items(date_value: str | None, hourly_rows: list[dict]) -> list[HourlyForecastItem]:
     """构造 wttr.in 的小时级预报列表。"""
 
-    items: list[dict] = []
+    items: list[HourlyForecastItem] = []
     for row in hourly_rows:
         time_value = _combine_wttr_date_and_time(date_value, row.get("time"))
         if time_value is None:
             continue
         items.append(
-            build_hourly_forecast_item(
+            HourlyForecastItem(
                 time=time_value,
                 temperature_c=_to_float(row.get("tempC")),
                 humidity=_to_float(row.get("humidity")),
