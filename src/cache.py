@@ -37,4 +37,4 @@ def generate_cache_key(**kwargs) -> str:
     """Generate a stable cache key from arguments."""
     # Sort keys to ensure stability
     serialized = json.dumps(kwargs, sort_keys=True, default=str)
-    return hashlib.md5(serialized.encode()).hexdigest()
+    return hashlib.md5(serialized.encode(), usedforsecurity=False).hexdigest()

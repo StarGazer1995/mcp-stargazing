@@ -22,7 +22,7 @@ def arg_parse():
 def main():
     """Run the MCP server."""
     arg = arg_parse()
-    host = os.getenv('MCP_HOST', '0.0.0.0')
+    host = os.getenv('MCP_HOST', '0.0.0.0')  # nosec - intentional MCP server bind
     auto_env = os.getenv('ASTROPY_IERS_AUTO_DOWNLOAD', '0')
     iers_conf.auto_download = auto_env == '1'
     iers_conf.auto_max_age = None
