@@ -1,12 +1,17 @@
-import stargazingplacefinder as spf
-from typing import Optional, List, Dict, Any
 from pathlib import Path
+from typing import Any
+
+import stargazingplacefinder as spf
+
 
 class StargazingPlaceFinder:
-    def __init__(self, geotiff_path: Optional[Path] = None,
-                 min_height_difference: float = 100.0,
-                 road_search_radius_km: float = 10.0,
-                 db_config_path: Optional[Path] = None):
+    def __init__(
+        self,
+        geotiff_path: Path | None = None,
+        min_height_difference: float = 100.0,
+        road_search_radius_km: float = 10.0,
+        db_config_path: Path | None = None,
+    ):
         self.geotiff_path = geotiff_path
         self.min_height_difference = min_height_difference
         self.road_search_radius_km = road_search_radius_km
@@ -18,11 +23,17 @@ class StargazingPlaceFinder:
             db_config_path=db_config_path,
         )
 
-    def analyze_area(self, south: float, west: float, north: float, east: float,
-                        min_height_diff: float = 100.0,
-                        road_radius_km: float = 10.0,
-                        max_locations: int = 30,
-                        network_type: str = 'drive') -> List[Dict[str, Any]]:
+    def analyze_area(
+        self,
+        south: float,
+        west: float,
+        north: float,
+        east: float,
+        min_height_diff: float = 100.0,
+        road_radius_km: float = 10.0,
+        max_locations: int = 30,
+        network_type: str = 'drive',
+    ) -> list[dict[str, Any]]:
         self.min_height_difference = min_height_diff
         self.road_search_radius_km = road_radius_km
         self.stargazing_analyzer = spf.init_stargazing_analyzer(
@@ -40,5 +51,8 @@ class StargazingPlaceFinder:
             include_road_connectivity=True,
         )
 
-def get_light_pollution_grid(north: float, south: float, east: float, west: float, zoom: int = 10) -> Dict[str, Any]:
+
+def get_light_pollution_grid(
+    north: float, south: float, east: float, west: float, zoom: int = 10
+) -> dict[str, Any]:
     return spf.get_light_pollution_grid(north=north, south=south, east=east, west=west, zoom=zoom)
