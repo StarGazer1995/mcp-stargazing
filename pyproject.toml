@@ -24,6 +24,7 @@ dependencies = [
     "pytz",
     "numpy>=1.24,<2.4",
     "astroquery",
+    "requests",
     "rasterio",
     "tzlocal",
     "geopy",
