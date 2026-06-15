@@ -18,12 +18,12 @@ from src.models.weather import (
 )
 from src.response import MCPError
 
-PROVIDER_ORDER = ["open-meteo", "qweather", "wttr"]
+PROVIDER_ORDER = ['open-meteo', 'qweather', 'wttr']
 
 
 def get_aggregated_weather_by_name(
     place_name: str,
-    provider: str = "all",
+    provider: str = 'all',
 ) -> AggregatedWeatherResponse:
     """根据地点名称查询并聚合多个天气提供商的结果。"""
 
@@ -40,7 +40,7 @@ def get_aggregated_weather_by_name(
 def get_aggregated_weather_by_position(
     lat: float,
     lon: float,
-    provider: str = "all",
+    provider: str = 'all',
     location_name: str | None = None,
     timezone: str | None = None,
 ) -> AggregatedWeatherResponse:
@@ -53,7 +53,9 @@ def get_aggregated_weather_by_position(
     for pname in provider_names:
         try:
             provider_results[pname] = _query_single_provider(
-                pname, lat, lon,
+                pname,
+                lat,
+                lon,
                 location_name=location_name,
                 timezone=timezone,
             )
@@ -67,16 +69,14 @@ def get_aggregated_weather_by_position(
                 provider=pname,
                 error=ProviderErrorDetail(
                     code=MCPError.EXTERNAL_API_ERROR,
-                    message=f"{pname} provider 查询失败: {exc}",
-                    details={"lat": lat, "lon": lon},
+                    message=f'{pname} provider 查询失败: {exc}',
+                    details={'lat': lat, 'lon': lon},
                 ),
             )
 
     _ensure_any_provider_success(provider_results)
 
-    successful_providers = [
-        r for r in provider_results.values() if isinstance(r, ProviderSuccess)
-    ]
+    successful_providers = [r for r in provider_results.values() if isinstance(r, ProviderSuccess)]
 
     location = _build_location(lat, lon, location_name, timezone, successful_providers)
     summary = _build_summary(successful_providers)
@@ -99,8 +99,8 @@ def _get_enabled_providers(provider_type: ProviderType) -> list[str]:
         return [provider_type.value]
     raise MCPError(
         MCPError.CONFIGURATION_ERROR,
-        f"不支持的天气 provider: {provider_type.value}",
-        {"provider": provider_type.value, "allowed": ["all", *PROVIDER_ORDER]},
+        f'不支持的天气 provider: {provider_type.value}',
+        {'provider': provider_type.value, 'allowed': ['all', *PROVIDER_ORDER]},
     )
 
 
@@ -113,16 +113,22 @@ def _query_single_provider(
 ) -> ProviderSuccess:
     """查询单个 provider 并返回 ProviderSuccess 模型。"""
 
-    if provider_name == "open-meteo":
-        return open_meteo.get_weather_by_position(lat, lon, location_name=location_name, timezone=timezone)
-    if provider_name == "qweather":
-        return qweather.get_weather_by_position(lat, lon, location_name=location_name, timezone=timezone)
-    if provider_name == "wttr":
-        return wttr.get_weather_by_position(lat, lon, location_name=location_name, timezone=timezone)
+    if provider_name == 'open-meteo':
+        return open_meteo.get_weather_by_position(
+            lat, lon, location_name=location_name, timezone=timezone
+        )
+    if provider_name == 'qweather':
+        return qweather.get_weather_by_position(
+            lat, lon, location_name=location_name, timezone=timezone
+        )
+    if provider_name == 'wttr':
+        return wttr.get_weather_by_position(
+            lat, lon, location_name=location_name, timezone=timezone
+        )
     raise MCPError(
         MCPError.CONFIGURATION_ERROR,
-        f"未知 provider: {provider_name}",
-        {"provider": provider_name},
+        f'未知 provider: {provider_name}',
+        {'provider': provider_name},
     )
 
 
@@ -196,21 +202,19 @@ def _build_source_meta(
 ) -> SourceMeta:
     """根据 provider 查询结果构造来源元信息。"""
 
-    successful = [
-        r.provider for r in provider_results.values() if isinstance(r, ProviderSuccess)
-    ]
-    failed = [
-        r.provider for r in provider_results.values() if isinstance(r, ProviderError)
-    ]
+    successful = [r.provider for r in provider_results.values() if isinstance(r, ProviderSuccess)]
+    failed = [r.provider for r in provider_results.values() if isinstance(r, ProviderError)]
     return SourceMeta(
         query_mode=requested_provider,
         successful_providers=successful,
         failed_providers=failed,
-        summary_provider_policy="open-meteo-first",
+        summary_provider_policy='open-meteo-first',
     )
 
 
-def _ensure_any_provider_success(provider_results: dict[str, ProviderSuccess | ProviderError]) -> None:
+def _ensure_any_provider_success(
+    provider_results: dict[str, ProviderSuccess | ProviderError],
+) -> None:
     """确保至少有一个 provider 查询成功，否则抛出错误。"""
 
     if any(isinstance(r, ProviderSuccess) for r in provider_results.values()):
@@ -222,8 +226,8 @@ def _ensure_any_provider_success(provider_results: dict[str, ProviderSuccess | P
     }
     raise MCPError(
         MCPError.EXTERNAL_API_ERROR,
-        "所有天气 provider 查询均失败。",
-        {"provider_errors": errors},
+        '所有天气 provider 查询均失败。',
+        {'provider_errors': errors},
     )
 
 

@@ -8,11 +8,12 @@ FastMCP 服务实例。
 """
 
 import inspect
-from typing import Any, Dict
+from typing import Any
 
 try:
     from fastmcp import FastMCP  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover
+
     class _ToolWrapper:
         """测试用工具包装器：提供 `.fn` 与可调用行为。"""
 
@@ -38,7 +39,7 @@ except ModuleNotFoundError:  # pragma: no cover
 class MCP:
     def __init__(self, name: str):
         self._mcp = FastMCP(name)
-        self._tool_metadata: Dict[str, Dict[str, Any]] = {}
+        self._tool_metadata: dict[str, dict[str, Any]] = {}
         self._tool_manager = getattr(self._mcp, '_tool_manager', None)
 
     def tool(self, *args, **kwargs):
@@ -79,12 +80,14 @@ class MCP:
             if not required:
                 default = param.default
 
-            parameters.append({
-                'name': name,
-                'type': annotation_name,
-                'required': required,
-                'default': default,
-            })
+            parameters.append(
+                {
+                    'name': name,
+                    'type': annotation_name,
+                    'required': required,
+                    'default': default,
+                }
+            )
 
         doc = inspect.getdoc(fn) or ''
         description = doc.splitlines()[0] if doc else ''
@@ -112,4 +115,4 @@ class MCP:
 
 
 # Initialize MCP instance
-mcp = MCP("mcp-stargazing")
+mcp = MCP('mcp-stargazing')
