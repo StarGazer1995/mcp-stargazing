@@ -20,4 +20,4 @@ def test_tool_catalog_contains_registered_tools():
     assert celestial_tool['description'] == 'Calculate the altitude and azimuth angles of a celestial object.'
     assert any(param['name'] == 'lat' for param in celestial_tool['parameters'])
     assert any(param['name'] == 'time_zone' for param in celestial_tool['parameters'])
-    assert 'Dict' in celestial_tool['return_type']
+    assert 'dict' in celestial_tool['return_type'] or 'Dict' in celestial_tool['return_type']

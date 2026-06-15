@@ -1,9 +1,10 @@
-from typing import Dict, Any, List
+from typing import Any
 import asyncio
 from pathlib import Path
 from src.server_instance import mcp
 from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
 from src.cache import ANALYSIS_CACHE, generate_cache_key
+from src.models.places import LightPollutionGrid, LightPollutionGridPoint, StargazingLocation, AnalysisAreaResult
 
 from src.response import format_response
 
@@ -11,7 +12,7 @@ from src.response import format_response
 async def light_pollution_map(
     south: float, west: float, north: float, east: float,
     zoom: int = 10
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get light pollution data for a specific area.
     
     Returns a grid of light pollution data points including brightness, Bortle class, and SQM.
@@ -23,8 +24,13 @@ async def light_pollution_map(
     def _compute():
         return get_light_pollution_grid(north=north, south=south, east=east, west=west, zoom=zoom)
 
-    result = await asyncio.to_thread(_compute)
-    return format_response(result)
+    raw = await asyncio.to_thread(_compute)
+    grid = LightPollutionGrid(
+        grid=[LightPollutionGridPoint(**p) for p in raw.get("grid", [])],
+        bounds={"south": south, "west": west, "north": north, "east": east},
+        zoom=zoom,
+    )
+    return format_response(grid.model_dump())
 
 @mcp.tool()
 async def analysis_area(
@@ -36,7 +42,7 @@ async def analysis_area(
     db_config_path: str = None,
     page: int = 1,
     page_size: int = 10
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Analyze a geographic area for suitable stargazing locations.
     
     This tool searches for dark, accessible locations with good viewing conditions.
@@ -72,10 +78,10 @@ async def analysis_area(
     resource_id = generate_cache_key(**calc_params)
     
     # 2. Check Cache
-    all_results = ANALYSIS_CACHE.get(resource_id)
+    cached = ANALYSIS_CACHE.get(resource_id)
     
     # 3. If miss, compute (in thread)
-    if all_results is None:
+    if cached is None:
         def _compute():
             db_config_p = Path(db_config_path) if db_config_path else None
             stargazing_place_finder = StargazingPlaceFinder(db_config_path=db_config_p)
@@ -89,38 +95,26 @@ async def analysis_area(
                 max_locations=max_locations,
                 network_type=network_type,
             )
-            
-            # Ensure results are serializable
-            serialized = []
-            for item in results:
-                if isinstance(item, dict):
-                    serialized.append(item)
-                elif hasattr(item, "model_dump") and callable(item.model_dump):
-                    serialized.append(item.model_dump(exclude_none=True))
-                elif hasattr(item, "to_dict") and callable(item.to_dict):
-                    serialized.append(item.to_dict())
-                elif hasattr(item, "__dict__"):
-                    serialized.append(vars(item))
-                else:
-                    serialized.append(str(item))
-            return serialized
+            # Convert raw dict results to StargazingLocation models
+            return [StargazingLocation(**item) if isinstance(item, dict) else item for item in results]
 
-        all_results = await asyncio.to_thread(_compute)
-        ANALYSIS_CACHE.set(resource_id, all_results)
+        cached = await asyncio.to_thread(_compute)
+        ANALYSIS_CACHE.set(resource_id, cached)
         
     # 4. Pagination
-    total = len(all_results)
+    total = len(cached)
     start_idx = (page - 1) * page_size
     end_idx = start_idx + page_size
     
     # Slice results (safe even if indices are out of bounds)
-    page_items = all_results[start_idx:end_idx]
+    page_items = cached[start_idx:end_idx]
     
-    return format_response({
-        "items": page_items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size if page_size > 0 else 0,
-        "resource_id": resource_id
-    })
+    result = AnalysisAreaResult(
+        items=page_items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=(total + page_size - 1) // page_size if page_size > 0 else 0,
+        resource_id=resource_id,
+    )
+    return format_response(result.model_dump())

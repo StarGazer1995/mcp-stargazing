@@ -86,7 +86,7 @@ def test_analysis_area_pagination_serialization():
              patch('src.functions.places.impl.ANALYSIS_CACHE', new=MockCache()) as mock_cache: 
             
             mock_instance = MockPF.return_value
-            mock_results = [{"name": f"Loc {i}", "score": i} for i in range(25)]
+            mock_results = [{"name": f"Loc {i}", "score": i, "lat": 35.0 + i * 0.01, "lon": -120.0 - i * 0.01} for i in range(25)]
             mock_instance.analyze_area.return_value = mock_results
             
             # Test Page 1 (size 10)

@@ -2,11 +2,13 @@
 
 import requests
 
-from src.functions.weather.models import (
-    build_current_weather_payload,
-    build_daily_forecast_item,
-    build_hourly_forecast_item,
-    build_provider_success_payload,
+from src.models.weather import (
+    CurrentWeather,
+    DailyForecastItem,
+    HourlyForecastItem,
+    LocationInfo,
+    NormalizedWeatherData,
+    ProviderSuccess,
 )
 from src.response import MCPError
 
@@ -18,7 +20,7 @@ def get_weather_by_position(
     lon: float,
     location_name: str | None = None,
     timezone: str | None = None,
-) -> dict:
+) -> ProviderSuccess:
     """查询 Open-Meteo 并返回标准化后的 provider 结果。"""
 
     raw_data = fetch_open_meteo_raw_weather(lat, lon, timezone=timezone)
@@ -29,7 +31,7 @@ def get_weather_by_position(
         location_name=location_name,
         timezone=timezone,
     )
-    return build_provider_success_payload("open-meteo", normalized)
+    return ProviderSuccess(provider="open-meteo", data=normalized)
 
 
 def build_open_meteo_url(
@@ -105,7 +107,7 @@ def normalize_open_meteo_weather(
     lon: float,
     location_name: str | None = None,
     timezone: str | None = None,
-) -> dict:
+) -> NormalizedWeatherData:
     """将 Open-Meteo 原始响应映射为统一天气结构。"""
 
     current = raw_data.get("current", {})
@@ -113,14 +115,14 @@ def normalize_open_meteo_weather(
     hourly = raw_data.get("hourly", {})
     resolved_timezone = raw_data.get("timezone", timezone)
 
-    return {
-        "location": {
-            "name": location_name,
-            "lat": lat,
-            "lon": lon,
-            "timezone": resolved_timezone,
-        },
-        "current": build_current_weather_payload(
+    return NormalizedWeatherData(
+        location=LocationInfo(
+            name=location_name,
+            lat=lat,
+            lon=lon,
+            timezone=resolved_timezone,
+        ),
+        current=CurrentWeather(
             temperature_c=_to_float(current.get("temperature_2m")),
             feels_like_c=_to_float(current.get("apparent_temperature")),
             humidity=_to_float(current.get("relative_humidity_2m")),
@@ -136,8 +138,8 @@ def normalize_open_meteo_weather(
             weather_text=_weather_text_from_open_meteo_code(current.get("weather_code")),
             observation_time=current.get("time"),
         ),
-        "daily": [
-            build_daily_forecast_item(
+        daily=[
+            DailyForecastItem(
                 date=date,
                 temp_min_c=_safe_index(daily.get("temperature_2m_min"), idx),
                 temp_max_c=_safe_index(daily.get("temperature_2m_max"), idx),
@@ -148,8 +150,8 @@ def normalize_open_meteo_weather(
             )
             for idx, date in enumerate(daily.get("time", []))
         ],
-        "hourly": [
-            build_hourly_forecast_item(
+        hourly=[
+            HourlyForecastItem(
                 time=time_value,
                 temperature_c=_safe_index(hourly.get("temperature_2m"), idx),
                 humidity=_safe_index(hourly.get("relative_humidity_2m"), idx),
@@ -165,7 +167,7 @@ def normalize_open_meteo_weather(
             )
             for idx, time_value in enumerate(hourly.get("time", []))
         ],
-    }
+    )
 
 
 def map_open_meteo_weather_code(code: int | None) -> str | None:
