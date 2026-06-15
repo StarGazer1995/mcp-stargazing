@@ -177,6 +177,21 @@ def qweather_get_weather_by_coord_in_ten_days(
     api = f"https://{host}/v7/weather/10d?location={lon},{lat}"
     return fetch_gzipped_json(api, api_token, jwt_token=jwt_token)
 
+
+def qweather_get_weather_by_coord_in_twenty_four_hours(
+    lon: float,
+    lat: float,
+    api_token: str | None,
+    *,
+    api_host: str | None = None,
+    jwt_token: str | None = None,
+) -> dict | None:
+    """根据经纬度获取 24 小时逐小时预报。"""
+
+    host = (api_host or _get_api_host_or_fail("api.qweather.com")).strip().rstrip("/")
+    api = f"https://{host}/v7/weather/24h?location={lon},{lat}"
+    return fetch_gzipped_json(api, api_token, jwt_token=jwt_token)
+
 def qweather_get_weather_by_name(
     city: str,
     api_token: str | None,
