@@ -24,13 +24,18 @@ def _get_free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _read_jsonrpc_response(response: http.client.HTTPResponse) -> dict:
-    """Read a JSON-RPC response from either JSON or SSE streamable HTTP payloads."""
+def _read_jsonrpc_response(
+    response: http.client.HTTPResponse, expected_id: str | None = None
+) -> dict:
+    """Read a JSON-RPC response and optionally require a matching request id."""
     content_type = response.getheader('Content-Type', '')
     body = response.read().decode('utf-8', errors='replace')
 
     if 'text/event-stream' not in content_type:
-        return json.loads(body)
+        payload = json.loads(body)
+        if expected_id is not None:
+            assert payload.get('id') == expected_id, payload
+        return payload
 
     for raw_line in body.splitlines():
         line = raw_line.strip()
@@ -38,9 +43,11 @@ def _read_jsonrpc_response(response: http.client.HTTPResponse) -> dict:
             continue
         payload = json.loads(line[6:])
         if 'result' in payload or 'error' in payload:
+            if expected_id is not None and payload.get('id') != expected_id:
+                continue
             return payload
 
-    raise AssertionError(f'No JSON-RPC payload found in SSE body: {body}')
+    raise AssertionError(f'No JSON-RPC payload found in SSE body for id={expected_id}: {body}')
 
 
 def _initialize_session(host: str, port: int, path: str) -> str:
@@ -64,7 +71,7 @@ def _initialize_session(host: str, port: int, path: str) -> str:
     }
     conn.request('POST', path, body=body, headers=headers)
     response = conn.getresponse()
-    payload = _read_jsonrpc_response(response)
+    payload = _read_jsonrpc_response(response, expected_id='init')
     session_id = response.getheader('mcp-session-id') or ''
     conn.close()
 
@@ -84,7 +91,7 @@ def _list_tools(host: str, port: int, path: str, session_id: str) -> set[str]:
     }
     conn.request('POST', path, body=body, headers=headers)
     response = conn.getresponse()
-    payload = _read_jsonrpc_response(response)
+    payload = _read_jsonrpc_response(response, expected_id='tools-list')
     conn.close()
 
     assert 'result' in payload, payload
@@ -96,11 +103,12 @@ def _call_tool(
     host: str, port: int, path: str, session_id: str, tool_name: str, arguments: dict
 ) -> dict:
     """Call an MCP tool via ``tools/call`` and return the JSON-RPC response dict."""
+    request_id = f'call-{tool_name}'
     conn = http.client.HTTPConnection(host, port, timeout=10)
     body = json.dumps(
         {
             'jsonrpc': '2.0',
-            'id': f'call-{tool_name}',
+            'id': request_id,
             'method': 'tools/call',
             'params': {'name': tool_name, 'arguments': arguments},
         }
@@ -112,7 +120,7 @@ def _call_tool(
     }
     conn.request('POST', path, body=body, headers=headers)
     response = conn.getresponse()
-    payload = _read_jsonrpc_response(response)
+    payload = _read_jsonrpc_response(response, expected_id=request_id)
     conn.close()
     return payload
 

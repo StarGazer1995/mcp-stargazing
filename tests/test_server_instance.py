@@ -75,10 +75,11 @@ def test_tool_decorator_with_args_registers_metadata():
     assert len(catalog) == 1
     entry = catalog[0]
 
-    # The custom MCP wrapper uses the function's __name__ for metadata,
-    # not the explicit name passed to FastMCP.
-    assert entry['name'] == 'another_tool'
-    assert 'Custom' in entry['description'] or 'Docstring' in entry['description']
+    assert entry['name'] == 'custom_name'
+    assert entry['description'] == 'Custom description'
+    assert entry['docstring'] == 'Docstring that should be overridden by explicit description.'
+    assert len(entry['parameters']) == 1
+    assert entry['parameters'][0]['name'] == 'x'
 
 
 def test_tool_decorator_preserves_fn_attribute():
@@ -152,6 +153,29 @@ def test_tool_metadata_does_not_overwrite_on_duplicate():
 
     # Metadata should reflect the FIRST registration
     assert entry['description'] == 'First registration.'
+
+
+def test_tool_metadata_does_not_overwrite_same_explicit_name():
+    """Registering the same explicit tool name twice preserves the first metadata entry."""
+    fresh_mcp = MCP('test-server')
+
+    @fresh_mcp.tool(name='shared_name', description='First description')
+    def first_tool(a: int) -> int:
+        """First tool."""
+        return a
+
+    @fresh_mcp.tool(name='shared_name', description='Second description')
+    def second_tool(b: int) -> int:
+        """Second tool."""
+        return b
+
+    catalog = fresh_mcp.get_tool_catalog()
+    assert len(catalog) == 1
+    entry = catalog[0]
+
+    assert entry['name'] == 'shared_name'
+    assert entry['description'] == 'First description'
+    assert entry['parameters'][0]['name'] == 'a'
 
 
 def test_get_tool_catalog_returns_list():

@@ -20,10 +20,7 @@ def test_mcp_startup_lists_expected_tools(running_mcp_server):
     """Verify the started MCP server advertises the expected tool names via ``tools/list``."""
     host, port, path, session_id = running_mcp_server
     listed_tools = _list_tools(host, port, path, session_id)
-    print(listed_tools)
-    missing_tools = EXPECTED_TOOLS - listed_tools
-
-    assert not missing_tools, (
-        f'Started MCP server missed tools in tools/list: {sorted(missing_tools)}; '
-        f'listed tools: {sorted(listed_tools)}'
+    assert listed_tools == EXPECTED_TOOLS, (
+        f'Expected tools/list to match exactly. expected={sorted(EXPECTED_TOOLS)} '
+        f'actual={sorted(listed_tools)}'
     )

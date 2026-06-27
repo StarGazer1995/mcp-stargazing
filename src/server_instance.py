@@ -47,10 +47,16 @@ class MCP:
             return self._decorate_tool(args[0])
 
         decorator = self._mcp.tool(*args, **kwargs)
+        metadata_name = kwargs.get('name')
+        metadata_description = kwargs.get('description')
 
         def wrapper(fn):
             wrapped = decorator(fn)
-            self._register_tool_metadata(fn)
+            self._register_tool_metadata(
+                fn,
+                metadata_name=metadata_name,
+                metadata_description=metadata_description,
+            )
             return wrapped
 
         return wrapper
@@ -60,8 +66,15 @@ class MCP:
         self._register_tool_metadata(fn)
         return wrapped
 
-    def _register_tool_metadata(self, fn):
-        if fn.__name__ in self._tool_metadata:
+    def _register_tool_metadata(
+        self,
+        fn,
+        metadata_name: str | None = None,
+        metadata_description: str | None = None,
+    ):
+        # Keep wrapper metadata aligned with the externally registered tool identity.
+        tool_name = metadata_name or fn.__name__
+        if tool_name in self._tool_metadata:
             return
 
         signature = inspect.signature(fn)
@@ -90,7 +103,7 @@ class MCP:
             )
 
         doc = inspect.getdoc(fn) or ''
-        description = doc.splitlines()[0] if doc else ''
+        description = metadata_description or (doc.splitlines()[0] if doc else '')
 
         return_type = 'Any'
         if signature.return_annotation is not inspect._empty:
@@ -99,8 +112,8 @@ class MCP:
             except AttributeError:
                 return_type = str(signature.return_annotation)
 
-        self._tool_metadata[fn.__name__] = {
-            'name': fn.__name__,
+        self._tool_metadata[tool_name] = {
+            'name': tool_name,
             'description': description,
             'docstring': doc,
             'parameters': parameters,
