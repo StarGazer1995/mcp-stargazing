@@ -97,19 +97,20 @@ def test_missing_api_key_error():
 
 @patch('src.functions.weather.impl.get_aggregated_weather_by_name')
 def test_weather_api_error_handling(mock_service):
-    """Test that weather API errors are properly handled with MCPError."""
+    """Test that weather API errors return structured error responses."""
     mock_service.side_effect = MCPError(
         MCPError.EXTERNAL_API_ERROR,
         'provider failed',
         {'place_name': 'Test City'},
     )
 
-    with pytest.raises(MCPError) as exc_info:
-        get_weather_by_name.fn('Test City')
+    result = get_weather_by_name.fn('Test City')
 
-    error = exc_info.value
-    assert error.code == MCPError.EXTERNAL_API_ERROR
-    assert error.details['place_name'] == 'Test City'
+    assert 'error' in result
+    assert '_meta' in result
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.EXTERNAL_API_ERROR
+    assert result['error']['details']['place_name'] == 'Test City'
 
 
 @patch('src.retry.time.sleep')  # Mock sleep to speed up test

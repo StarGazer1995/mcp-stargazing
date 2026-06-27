@@ -32,7 +32,7 @@ async def light_pollution_map(
 
     raw = await asyncio.to_thread(_compute)
     grid = LightPollutionGrid(
-        grid=[LightPollutionGridPoint(**p) for p in raw.get('grid', [])],
+        grid=[LightPollutionGridPoint.from_spf_point(p) for p in raw.get('data', [])],
         bounds={'south': south, 'west': west, 'north': north, 'east': east},
         zoom=zoom,
     )
@@ -109,10 +109,8 @@ async def analysis_area(
                 max_locations=max_locations,
                 network_type=network_type,
             )
-            # Convert raw dict results to StargazingLocation models
-            return [
-                StargazingLocation(**item) if isinstance(item, dict) else item for item in results
-            ]
+            # Convert spf StargazingLocation objects to our models
+            return [StargazingLocation.from_spf_location(item) for item in results]
 
         cached = await asyncio.to_thread(_compute)
         ANALYSIS_CACHE.set(resource_id, cached)

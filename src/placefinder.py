@@ -1,7 +1,32 @@
+import importlib
+import sys
 from pathlib import Path
 from typing import Any
 
-import stargazingplacefinder as spf
+# ---------------------------------------------------------------------------
+# Defensive guard: ensure stargazingplacefinder's 'models' package is not
+# shadowed by mcp-stargazing's own src/models/ directory when src/ is on
+# sys.path (e.g. during development with `python -m src.main`).
+# ---------------------------------------------------------------------------
+_site_models = None
+try:
+    _site_models = importlib.util.find_spec('models')
+except (ImportError, ValueError, ModuleNotFoundError):
+    pass
+
+if _site_models is not None and _site_models.origin is not None:
+    _origin = _site_models.origin
+    _is_mcp_models = (
+        'mcp-stargazing' in _origin or 'mcp_stargazing' in _origin
+    ) and 'site-packages' not in _origin
+    if _is_mcp_models:
+        # 'models' resolves to mcp-stargazing's own models — this will break
+        # stargazingplacefinder below.  Restore site-packages priority.
+        _site_pkgs = [p for p in sys.path if 'site-packages' in p]
+        _rest = [p for p in sys.path if 'site-packages' not in p]
+        sys.path = _site_pkgs + _rest
+
+import stargazingplacefinder as spf  # noqa: E402
 
 
 class StargazingPlaceFinder:
@@ -34,14 +59,21 @@ class StargazingPlaceFinder:
         max_locations: int = 30,
         network_type: str = 'drive',
     ) -> list[dict[str, Any]]:
-        self.min_height_difference = min_height_diff
-        self.road_search_radius_km = road_radius_km
-        self.stargazing_analyzer = spf.init_stargazing_analyzer(
-            geotiff_path=self.geotiff_path,
-            min_height_difference=self.min_height_difference,
-            road_search_radius_km=self.road_search_radius_km,
-            db_config_path=self.db_config_path,
-        )
+        # Only re-init the analyzer when spatial parameters actually change.
+        # This avoids re-opening GeoTIFF files and re-creating PostGIS
+        # connection pools on every call (e.g. pagination).
+        if (
+            min_height_diff != self.min_height_difference
+            or road_radius_km != self.road_search_radius_km
+        ):
+            self.min_height_difference = min_height_diff
+            self.road_search_radius_km = road_radius_km
+            self.stargazing_analyzer = spf.init_stargazing_analyzer(
+                geotiff_path=self.geotiff_path,
+                min_height_difference=self.min_height_difference,
+                road_search_radius_km=self.road_search_radius_km,
+                db_config_path=self.db_config_path,
+            )
         return self.stargazing_analyzer.analyze_area(
             bbox=(south, west, north, east),
             max_locations=max_locations,
