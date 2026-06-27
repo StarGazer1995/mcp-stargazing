@@ -175,6 +175,25 @@ async def test_get_moon_info_iso_format():
     assert result['data']['illumination'] == 0.25
 
 
+@pytest.mark.asyncio
+async def test_get_moon_info_naive_time_localizes_timezone():
+    """``get_moon_info.fn`` should localize naive timestamps with the provided timezone."""
+    with patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc:
+        mock_calc.return_value = {
+            'phase_name': 'First Quarter',
+            'illumination': 0.5,
+            'age_days': 7.0,
+            'elongation': 90.0,
+            'earth_distance': 384400.0,
+        }
+
+        result = await get_moon_info.fn(time='2024-06-15 12:00:00', time_zone='UTC')
+
+    assert result['_meta']['status'] == 'success'
+    assert result['data']['phase_name'] == 'First Quarter'
+    assert result['data']['illumination'] == 0.5
+
+
 # ---------------------------------------------------------------------------
 # Time tool
 # ---------------------------------------------------------------------------

@@ -1,30 +1,86 @@
-from pydantic import BaseModel, Field, field_validator
-
 from src.functions.weather.providers.qweather import get_qweather_auth_from_env
 from src.functions.weather.service import (
     get_aggregated_weather_by_name,
     get_aggregated_weather_by_position,
 )
-from src.models import GeoPoint
 from src.models.weather import AggregatedWeatherResponse
 from src.response import MCPError, format_error, format_response
 from src.retry import RetryConfig, retry_on_failure
 from src.server_instance import mcp
+from src.utils import validate_coordinates
+
+WEATHER_PROVIDERS = {'all', 'qweather', 'open-meteo', 'wttr'}
 
 
-class WeatherQuery(BaseModel):
-    """Validated input for weather queries."""
+def _normalize_provider(provider: str) -> str:
+    """Validate and normalize the provider name."""
+    normalized = provider.strip().lower()
+    if normalized not in WEATHER_PROVIDERS:
+        raise MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            f"Unsupported provider: '{provider}'. Allowed: {sorted(WEATHER_PROVIDERS)}",
+            {'provider': provider},
+        )
+    return normalized
 
-    provider: str = Field(default='all')
 
-    @field_validator('provider')
-    @classmethod
-    def normalize_provider(cls, v: str) -> str:
-        normalized = v.strip().lower()
-        allowed = {'all', 'qweather', 'open-meteo', 'wttr'}
-        if normalized not in allowed:
-            raise ValueError(f"Unsupported provider: '{v}'. Allowed: {sorted(allowed)}")
-        return normalized
+def _normalize_place_name(place_name: str) -> str:
+    """Validate and normalize a place name query."""
+    cleaned_name = place_name.strip()
+    if not cleaned_name:
+        raise MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            'place_name 不能为空。',
+            {'place_name': place_name},
+        )
+    return cleaned_name
+
+
+def _validate_weather_coordinates(lat: float, lon: float) -> None:
+    """Validate latitude and longitude for weather queries."""
+    if not validate_coordinates(lat, lon):
+        raise MCPError(
+            MCPError.INVALID_COORDINATES,
+            f'Invalid coordinates: lat={lat}, lon={lon}',
+            {'lat': lat, 'lon': lon},
+        )
+
+
+def _respond_with_mcp_error(operation):
+    """Convert MCPError exceptions into the standard response payload."""
+    try:
+        return operation()
+    except MCPError as exc:
+        return exc.to_response()
+
+
+def _format_weather_result(result: AggregatedWeatherResponse | dict) -> dict:
+    """Serialize weather results into the standard MCP success payload."""
+    if isinstance(result, AggregatedWeatherResponse):
+        return format_response(result.model_dump())
+    return format_response(result)
+
+
+def _execute_weather_fetch(fetch_weather, error_details: dict) -> dict:
+    """Run a retried weather fetch and translate external failures once."""
+
+    @retry_on_failure(
+        RetryConfig(max_attempts=3, base_delay=1.0, max_delay=10.0),
+        retryable_errors=(ConnectionError, TimeoutError, OSError),
+    )
+    def _fetch_weather():
+        return fetch_weather()
+
+    try:
+        return _format_weather_result(_fetch_weather())
+    except MCPError as exc:
+        return exc.to_response()
+    except Exception as exc:
+        return format_error(
+            MCPError.EXTERNAL_API_ERROR,
+            f'天气查询失败: {exc}',
+            error_details,
+        )
 
 
 def _get_qweather_auth_from_env() -> tuple[str | None, str | None, str | None]:
@@ -49,45 +105,16 @@ def get_weather_by_name(place_name: str, provider: str = 'all'):
     Returns:
         Dict，包含 keys: "data", "_meta"（成功时）或 "error", "_meta"（失败时）。
     """
-    cleaned_name = place_name.strip()
-    if not cleaned_name:
-        return format_error(
-            MCPError.CONFIGURATION_ERROR,
-            'place_name 不能为空。',
-            {'place_name': place_name},
-        )
 
-    try:
-        WeatherQuery(provider=provider)  # validates via Pydantic
-    except ValueError as exc:
-        return format_error(
-            MCPError.CONFIGURATION_ERROR,
-            str(exc),
-            {'place_name': cleaned_name, 'provider': provider},
-        )
-
-    try:
-
-        @retry_on_failure(
-            RetryConfig(max_attempts=3, base_delay=1.0, max_delay=10.0),
-            retryable_errors=(ConnectionError, TimeoutError, OSError),
-        )
-        def _fetch_weather():
-            return get_aggregated_weather_by_name(cleaned_name, provider=provider)
-
-        result = _fetch_weather()
-    except MCPError as exc:
-        return exc.to_response()
-    except Exception as exc:
-        return format_error(
-            MCPError.EXTERNAL_API_ERROR,
-            f'天气查询失败: {exc}',
+    def operation() -> dict:
+        cleaned_name = _normalize_place_name(place_name)
+        normalized_provider = _normalize_provider(provider)
+        return _execute_weather_fetch(
+            lambda: get_aggregated_weather_by_name(cleaned_name, provider=normalized_provider),
             {'place_name': cleaned_name},
         )
 
-    if isinstance(result, AggregatedWeatherResponse):
-        return format_response(result.model_dump())
-    return format_response(result)
+    return _respond_with_mcp_error(operation)
 
 
 @mcp.tool()
@@ -106,43 +133,13 @@ def get_weather_by_position(lat: float, lon: float, provider: str = 'all'):
     Returns:
         Dict，包含 keys: "data", "_meta"（成功时）或 "error", "_meta"（失败时）。
     """
-    try:
-        GeoPoint(lat=lat, lon=lon)  # validates via Pydantic
-    except ValueError as exc:
-        return format_error(
-            MCPError.INVALID_COORDINATES,
-            str(exc),
+
+    def operation() -> dict:
+        _validate_weather_coordinates(lat, lon)
+        normalized_provider = _normalize_provider(provider)
+        return _execute_weather_fetch(
+            lambda: get_aggregated_weather_by_position(lat, lon, provider=normalized_provider),
             {'lat': lat, 'lon': lon},
         )
 
-    try:
-        WeatherQuery(provider=provider)  # validates via Pydantic
-    except ValueError as exc:
-        return format_error(
-            MCPError.CONFIGURATION_ERROR,
-            str(exc),
-            {'lat': lat, 'lon': lon, 'provider': provider},
-        )
-
-    try:
-
-        @retry_on_failure(
-            RetryConfig(max_attempts=3, base_delay=1.0, max_delay=10.0),
-            retryable_errors=(ConnectionError, TimeoutError, OSError),
-        )
-        def _fetch_weather():
-            return get_aggregated_weather_by_position(lat, lon, provider=provider)
-
-        result = _fetch_weather()
-    except MCPError as exc:
-        return exc.to_response()
-    except Exception as exc:
-        return format_error(
-            MCPError.EXTERNAL_API_ERROR,
-            f'天气查询失败: {exc}',
-            {'lat': lat, 'lon': lon},
-        )
-
-    if isinstance(result, AggregatedWeatherResponse):
-        return format_response(result.model_dump())
-    return format_response(result)
+    return _respond_with_mcp_error(operation)

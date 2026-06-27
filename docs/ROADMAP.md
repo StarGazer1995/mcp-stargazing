@@ -1,27 +1,32 @@
 # MCP Stargazing Roadmap
 
-This roadmap captures future agent-facing, harness, and feature improvements for `mcp-stargazing`.
+This roadmap tracks the remaining agent-facing, harness, and feature work for `mcp-stargazing`.
 
-## Priority 1: Agent discovery and robustness
+## Recently completed foundation work
 
-1.  Tool metadata and discovery
-    - Expose each tool's name, description, parameters, and return schema programmatically.
-    - Add a tool catalog endpoint or manifest so agents can discover capabilities automatically.
-    - Provide a registered discovery tool (`get_tool_catalog`) for agents to inspect available MCP capabilities.
-    - Standardize schema documentation in code and generated docs.
+The following baseline capabilities are already implemented and should no longer be treated as future work:
 
-2.  Structured errors and retry semantics
-    - Use `src.response.MCPError` consistently for agent-visible failures.
-    - Define structured error codes for common failure cases:
-      - invalid coordinates
-      - missing API key / auth failure
-      - external API timeout/failure
-    - Add retry/fallback behavior for weather and external catalog lookups.
+- Tool discovery is available through the registered `get_tool_catalog` tool.
+- Tool metadata is exposed programmatically and kept aligned with `tools/list`.
+- Business validation failures are normalized into the standard `{error, _meta}` payload shape.
+- Weather tools already include retry behavior for transient network failures.
+- `analysis_area` now has explicit pagination validation and stable `resource_id` semantics based only on non-pagination query parameters.
+- MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
 
-3.  Agent-ready response format
-    - Ensure all tools return JSON-serializable data.
-    - Strengthen the response wrapper shape and normalize `_meta` content.
-    - Add tests for response consistency and schema validation.
+## Priority 1: Finish contract hardening
+
+1.  Schema and documentation consistency
+    - Keep tool descriptions, parameter docs, and return-shape documentation synchronized across code, `README.md`, and generated tool metadata.
+    - Add stronger field-level checks for tool metadata drift when new tools are introduced.
+
+2.  Error contract consistency
+    - Continue migrating agent-visible validation failures to `src.response.MCPError`.
+    - Reduce mixed error paths where some failures return business payloads while others surface as transport-level JSON-RPC errors.
+    - Keep error codes stable and documented for calling agents.
+
+3.  Transport and protocol robustness
+    - Extend protocol-level tests beyond the current SHTTP/SSE request-id and `tools/list` coverage.
+    - Add focused coverage for any future transport-specific behavior changes.
 
 ## Priority 2: Composite planning tools
 
@@ -42,7 +47,7 @@ This roadmap captures future agent-facing, harness, and feature improvements for
 1.  Better `analysis_area`
     - Add true incremental streaming support with progress metadata.
     - Support long-running scans and resumable sessions.
-    - Add pagination metadata consistency and clear `resource_id` semantics.
+    - Preserve stable paging semantics while adding streaming or resumable workflows.
 
 2.  Performance and caching
     - Cache regional analysis results when appropriate.
@@ -61,6 +66,6 @@ This roadmap captures future agent-facing, harness, and feature improvements for
 
 ## Documentation and test coverage
 
-- Keep `AGENTS.md` and `docs/ROADMAP.md` aligned as the source of repo-level policy.
-- Add harness tests in `tests/` for any new agent-facing tool or transport mode.
+- Keep `AGENTS.md`, `README.md`, and `docs/ROADMAP.md` aligned whenever the tool surface changes.
+- Add harness tests in `tests/` for any new agent-facing tool, response contract, or transport mode.
 - Document all new features in `README.md`, `AGENTS.md`, and example scripts.

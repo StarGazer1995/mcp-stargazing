@@ -10,7 +10,7 @@ from src.models.places import (
     StargazingLocation,
 )
 from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
-from src.response import format_response
+from src.response import MCPError, format_error, format_response
 from src.server_instance import mcp
 
 
@@ -74,8 +74,21 @@ async def analysis_area(
         - total: Total number of locations found.
         - page: Current page number.
         - page_size: Current page size.
-        - resource_id: Cache key for these search parameters.
+        - resource_id: Cache key for the non-pagination search parameters.
     """
+    if page < 1:
+        return format_error(
+            MCPError.CONFIGURATION_ERROR,
+            'page must be greater than or equal to 1.',
+            {'page': page},
+        )
+    if page_size < 1:
+        return format_error(
+            MCPError.CONFIGURATION_ERROR,
+            'page_size must be greater than or equal to 1.',
+            {'page_size': page_size},
+        )
+
     # 1. Generate Cache Key based on calculation parameters (excluding pagination)
     calc_params = {
         'south': south,
@@ -128,7 +141,7 @@ async def analysis_area(
         total=total,
         page=page,
         page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size if page_size > 0 else 0,
+        total_pages=(total + page_size - 1) // page_size,
         resource_id=resource_id,
     )
     return format_response(result.model_dump())

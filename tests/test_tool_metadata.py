@@ -1,5 +1,7 @@
 import src.functions.celestial.impl  # noqa: F401
 import src.functions.metadata.impl  # noqa: F401
+import src.functions.places.impl  # noqa: F401
+import src.functions.weather.impl  # noqa: F401
 from src.server_instance import mcp
 
 

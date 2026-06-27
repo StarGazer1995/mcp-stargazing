@@ -6,7 +6,13 @@ import json
 from datetime import datetime
 
 import pytest
-from conftest import _call_tool, _list_tools
+from conftest import (
+    _call_tool,
+    _list_tool_entries,
+    _list_tools,
+    _post_sse_jsonrpc,
+    _read_sse_jsonrpc_payload,
+)
 
 EXPECTED_TOOLS = {
     'analysis_area',
@@ -134,6 +140,111 @@ def test_tools_call_get_tool_catalog_returns_expected_tools(running_mcp_server):
     assert weather_tool['description'] == '通过地点名称获取综合天气（当前 + 小时预报 + 日预报）。'
     assert any(param['name'] == 'place_name' for param in weather_tool['parameters'])
     assert any(param['name'] == 'provider' for param in weather_tool['parameters'])
+
+
+def test_tools_list_matches_get_tool_catalog_names(running_mcp_server):
+    """`tools/list` and `get_tool_catalog` should expose the same registered tool names."""
+    host, port, path, session_id = running_mcp_server
+    listed_tools = _list_tools(host, port, path, session_id)
+    payload = _call_tool(host, port, path, session_id, 'get_tool_catalog', {})
+
+    catalog_data = _assert_success_tool_payload(payload, expected_id='call-get_tool_catalog')
+    catalog_tools = catalog_data['tools']
+
+    assert {tool['name'] for tool in catalog_tools} == listed_tools
+
+
+def test_tools_list_matches_get_tool_catalog_descriptions_and_parameters(running_mcp_server):
+    """`tools/list` should stay aligned with the wrapped catalog descriptions and parameters."""
+    host, port, path, session_id = running_mcp_server
+    listed_tools = _list_tool_entries(host, port, path, session_id)
+    payload = _call_tool(host, port, path, session_id, 'get_tool_catalog', {})
+
+    catalog_data = _assert_success_tool_payload(payload, expected_id='call-get_tool_catalog')
+    catalog_by_name = {tool['name']: tool for tool in catalog_data['tools']}
+    listed_by_name = {tool['name']: tool for tool in listed_tools}
+
+    assert set(listed_by_name) == set(catalog_by_name)
+
+    for tool_name, catalog_tool in catalog_by_name.items():
+        listed_tool = listed_by_name[tool_name]
+        assert listed_tool['description'].startswith(catalog_tool['description'])
+
+        input_schema = listed_tool.get('inputSchema', {})
+        properties = input_schema.get('properties', {})
+        required = set(input_schema.get('required', []))
+        catalog_parameter_names = {param['name'] for param in catalog_tool['parameters']}
+        catalog_required_names = {
+            param['name'] for param in catalog_tool['parameters'] if param['required']
+        }
+
+        assert set(properties) == catalog_parameter_names
+        assert required == catalog_required_names
+
+
+def test_sse_tools_call_preserves_request_id(running_mcp_sse_server):
+    """SSE responses should preserve the JSON-RPC request id for initialize and tool calls."""
+    host, port, message_path, stream_response, _stream_conn = running_mcp_sse_server
+
+    initialize_status = _post_sse_jsonrpc(
+        host,
+        port,
+        message_path,
+        {
+            'jsonrpc': '2.0',
+            'id': 'sse-init',
+            'method': 'initialize',
+            'params': {
+                'clientInfo': {'name': 'pytest-sse-client', 'version': '1.0'},
+                'capabilities': {},
+                'protocolVersion': '2024-11-05',
+            },
+        },
+    )
+    assert initialize_status == 202
+
+    initialize_payload = _read_sse_jsonrpc_payload(stream_response, expected_id='sse-init')
+    assert initialize_payload['id'] == 'sse-init'
+    assert 'result' in initialize_payload
+
+    tool_status = _post_sse_jsonrpc(
+        host,
+        port,
+        message_path,
+        {'jsonrpc': '2.0', 'id': 'sse-tools-list', 'method': 'tools/list'},
+    )
+    assert tool_status == 202
+
+    tools_payload = _read_sse_jsonrpc_payload(stream_response, expected_id='sse-tools-list')
+    assert tools_payload['id'] == 'sse-tools-list'
+    assert 'result' in tools_payload
+    assert {tool['name'] for tool in tools_payload['result'].get('tools', [])} == EXPECTED_TOOLS
+
+
+def test_tools_call_business_error_returns_structured_error_payload(running_mcp_server):
+    """Business validation failures should stay in structuredContent, not JSON-RPC errors."""
+    host, port, path, session_id = running_mcp_server
+    payload = _call_tool(
+        host,
+        port,
+        path,
+        session_id,
+        'get_moon_info',
+        {'time': 'invalid-time-format', 'time_zone': 'UTC'},
+    )
+
+    assert payload['jsonrpc'] == '2.0'
+    assert payload['id'] == 'call-get_moon_info'
+    assert 'error' not in payload, payload
+    assert 'result' in payload, payload
+
+    result = payload['result']
+    assert result['isError'] is False
+    structured_content = result['structuredContent']
+    assert structured_content['_meta']['status'] == 'error'
+    assert structured_content['error']['code'] == 'INVALID_TIME_FORMAT'
+    assert 'invalid-time-format' in structured_content['error']['message']
+    assert json.loads(result['content'][0]['text']) == structured_content
 
 
 @pytest.mark.parametrize(

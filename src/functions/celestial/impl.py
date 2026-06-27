@@ -1,8 +1,5 @@
 import asyncio
-from datetime import datetime
 from typing import Any
-
-import pytz
 
 from src.celestial import (
     calculate_moon_info,
@@ -14,7 +11,6 @@ from src.celestial import (
 from src.models import (
     CelestialPosition,
     ConstellationInfo,
-    GeoPoint,
     MoonInfo,
     NightlyForecast,
     RiseSet,
@@ -22,7 +18,15 @@ from src.models import (
 )
 from src.response import MCPError, format_response
 from src.server_instance import mcp
-from src.utils import process_location_and_time
+from src.utils import parse_observation_time, process_location_and_time
+
+
+async def _respond_with_mcp_error(operation) -> dict[str, Any]:
+    """Convert domain validation errors into the standard MCP response shape."""
+    try:
+        return await operation
+    except MCPError as exc:
+        return exc.to_response()
 
 
 @mcp.tool()
@@ -41,12 +45,15 @@ async def get_celestial_pos(
     Returns:
         Dict with keys "data", "_meta". "data" contains "altitude" and "azimuth" (degrees).
     """
-    GeoPoint(lat=lat, lon=lon)  # validate coordinates
-    location, time_info = process_location_and_time(lon, lat, time, time_zone)
-    # Run synchronous celestial calculations in a separate thread to avoid blocking the event loop
-    alt, az = await asyncio.to_thread(celestial_pos, celestial_object, location, time_info)
-    pos = CelestialPosition(altitude=alt, azimuth=az)
-    return format_response(pos.model_dump())
+
+    async def operation() -> dict[str, Any]:
+        location, time_info = process_location_and_time(lon, lat, time, time_zone)
+        # Run synchronous celestial calculations in a thread to avoid blocking the event loop.
+        alt, az = await asyncio.to_thread(celestial_pos, celestial_object, location, time_info)
+        pos = CelestialPosition(altitude=alt, azimuth=az)
+        return format_response(pos.model_dump())
+
+    return await _respond_with_mcp_error(operation())
 
 
 @mcp.tool()
@@ -65,17 +72,20 @@ async def get_celestial_rise_set(
     Returns:
         Dict with keys "data", "_meta". "data" contains "rise_time" and "set_time".
     """
-    GeoPoint(lat=lat, lon=lon)  # validate coordinates
-    location, time_info = process_location_and_time(lon, lat, time, time_zone)
-    # Run synchronous celestial calculations in a separate thread
-    rise_time, set_time = await asyncio.to_thread(
-        celestial_rise_set, celestial_object, location, time_info
-    )
-    rise_set = RiseSet(
-        rise_time=rise_time.isoformat() if rise_time else None,
-        set_time=set_time.isoformat() if set_time else None,
-    )
-    return format_response(rise_set.model_dump())
+
+    async def operation() -> dict[str, Any]:
+        location, time_info = process_location_and_time(lon, lat, time, time_zone)
+        # Run synchronous celestial calculations in a separate thread
+        rise_time, set_time = await asyncio.to_thread(
+            celestial_rise_set, celestial_object, location, time_info
+        )
+        rise_set = RiseSet(
+            rise_time=rise_time.isoformat() if rise_time else None,
+            set_time=set_time.isoformat() if set_time else None,
+        )
+        return format_response(rise_set.model_dump())
+
+    return await _respond_with_mcp_error(operation())
 
 
 @mcp.tool()
@@ -89,27 +99,14 @@ async def get_moon_info(time: str, time_zone: str) -> dict[str, Any]:
     Returns:
         Dict with keys "data", "_meta". "data" contains illumination, phase_name, age_days, etc.
     """
-    try:
-        # Try standard format first
-        dt = datetime.strptime(time, '%Y-%m-%d %H:%M:%S')
-    except ValueError:
-        try:
-            # Try ISO format
-            dt = datetime.fromisoformat(time)
-        except ValueError:
-            raise MCPError(
-                MCPError.INVALID_TIME_FORMAT,
-                f"Time string '{time}' matches neither '%Y-%m-%d %H:%M:%S' nor ISO format.",
-                {'time_string': time, 'expected_formats': ['%Y-%m-%d %H:%M:%S', 'ISO format']},
-            )
 
-    if dt.tzinfo is None:
-        tz = pytz.timezone(time_zone)
-        dt = tz.localize(dt)
+    async def operation() -> dict[str, Any]:
+        dt = parse_observation_time(time, time_zone)
+        result = await asyncio.to_thread(calculate_moon_info, dt)
+        moon_info = MoonInfo(**result)
+        return format_response(moon_info.model_dump())
 
-    result = await asyncio.to_thread(calculate_moon_info, dt)
-    moon_info = MoonInfo(**result)
-    return format_response(moon_info.model_dump())
+    return await _respond_with_mcp_error(operation())
 
 
 @mcp.tool()
@@ -125,14 +122,17 @@ async def list_visible_planets(lon: float, lat: float, time: str, time_zone: str
     Returns:
         Dict with keys "data", "_meta". "data" is a list of planet dicts (name, altitude, azimuth).
     """
-    GeoPoint(lat=lat, lon=lon)  # validate coordinates
-    location, time_info = process_location_and_time(lon, lat, time, time_zone)
-    # Avoid collision with imported function `get_visible_planets` from src.celestial
-    from src.celestial import get_visible_planets as calc_visible_planets
 
-    planets = await asyncio.to_thread(calc_visible_planets, location, time_info)
-    models = [VisiblePlanet(**p) for p in planets]
-    return format_response([m.model_dump() for m in models])
+    async def operation() -> dict[str, Any]:
+        location, time_info = process_location_and_time(lon, lat, time, time_zone)
+        # Avoid collision with imported function `get_visible_planets` from src.celestial
+        from src.celestial import get_visible_planets as calc_visible_planets
+
+        planets = await asyncio.to_thread(calc_visible_planets, location, time_info)
+        models = [VisiblePlanet(**p) for p in planets]
+        return format_response([m.model_dump() for m in models])
+
+    return await _respond_with_mcp_error(operation())
 
 
 # Backwards-compatible alias: export the original name pointing to the decorated wrapper
@@ -155,13 +155,16 @@ async def get_constellation(
     Returns:
         Dict with keys "data", "_meta". "data" contains name, altitude, azimuth.
     """
-    GeoPoint(lat=lat, lon=lon)  # validate coordinates
-    location, time_info = process_location_and_time(lon, lat, time, time_zone)
-    result = await asyncio.to_thread(
-        get_constellation_center, constellation_name, location, time_info
-    )
-    const = ConstellationInfo(**result)
-    return format_response(const.model_dump())
+
+    async def operation() -> dict[str, Any]:
+        location, time_info = process_location_and_time(lon, lat, time, time_zone)
+        result = await asyncio.to_thread(
+            get_constellation_center, constellation_name, location, time_info
+        )
+        const = ConstellationInfo(**result)
+        return format_response(const.model_dump())
+
+    return await _respond_with_mcp_error(operation())
 
 
 @mcp.tool()
@@ -183,17 +186,20 @@ async def get_nightly_forecast(
         - planets: List of visible planets
         - deep_sky: Sorted list of deep sky objects (Messier/NGC)
     """
-    GeoPoint(lat=lat, lon=lon)  # validate coordinates
-    location, time_info = process_location_and_time(lon, lat, time, time_zone)
 
-    # Run in thread
-    result = await asyncio.to_thread(calculate_nightly_forecast, location, time_info, limit)
+    async def operation() -> dict[str, Any]:
+        location, time_info = process_location_and_time(lon, lat, time, time_zone)
 
-    from src.models.celestial import DeepSkyObject
+        # Run in thread
+        result = await asyncio.to_thread(calculate_nightly_forecast, location, time_info, limit)
 
-    forecast = NightlyForecast(
-        moon_phase=MoonInfo(**result['moon_phase']),
-        planets=[VisiblePlanet(**p) for p in result['planets']],
-        deep_sky=[DeepSkyObject(**o) for o in result['deep_sky']],
-    )
-    return format_response(forecast.model_dump())
+        from src.models.celestial import DeepSkyObject
+
+        forecast = NightlyForecast(
+            moon_phase=MoonInfo(**result['moon_phase']),
+            planets=[VisiblePlanet(**p) for p in result['planets']],
+            deep_sky=[DeepSkyObject(**o) for o in result['deep_sky']],
+        )
+        return format_response(forecast.model_dump())
+
+    return await _respond_with_mcp_error(operation())

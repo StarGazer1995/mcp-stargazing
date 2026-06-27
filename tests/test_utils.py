@@ -5,7 +5,13 @@ import pytz
 from astropy.coordinates import EarthLocation
 
 from src.response import MCPError
-from src.utils import create_earth_location, localtime_to_utc, parse_datetime, validate_coordinates
+from src.utils import (
+    create_earth_location,
+    localtime_to_utc,
+    parse_datetime,
+    process_location_and_time,
+    validate_coordinates,
+)
 
 UTC = pytz.timezone('UTC')
 
@@ -42,6 +48,13 @@ def test_localtime_to_utc():
     assert utc_dt.hour == local_dt.hour
     with pytest.raises(MCPError):
         localtime_to_utc(datetime(2023, 10, 1))
+
+
+def test_process_location_and_time_invalid_time_raises_mcperror():
+    with pytest.raises(MCPError) as exc_info:
+        process_location_and_time(lon=116.0, lat=40.0, time='invalid-time', time_zone='UTC')
+
+    assert exc_info.value.code == MCPError.INVALID_TIME_FORMAT
 
 
 if __name__ == '__main__':

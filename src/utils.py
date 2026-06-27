@@ -23,6 +23,46 @@ def create_earth_location(lat: float, lon: float, elevation: float = 0.0) -> Ear
     return EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=elevation * u.m)
 
 
+def parse_time_string(time: str) -> datetime:
+    """Parse a supported observation time string into a datetime object."""
+    parsers = (
+        lambda value: datetime.strptime(value, '%Y-%m-%d %H:%M:%S'),
+        datetime.fromisoformat,
+    )
+    for parser in parsers:
+        try:
+            return parser(time)
+        except ValueError:
+            continue
+
+    raise MCPError(
+        MCPError.INVALID_TIME_FORMAT,
+        f"Time string '{time}' matches neither '%Y-%m-%d %H:%M:%S' nor ISO format.",
+        {'time_string': time, 'expected_formats': ['%Y-%m-%d %H:%M:%S', 'ISO format']},
+    )
+
+
+def ensure_timezone(dt: datetime, time_zone: str) -> datetime:
+    """Attach the requested timezone when the input datetime is naive."""
+    if dt.tzinfo is not None:
+        return dt
+
+    try:
+        time_zone_info = pytz.timezone(time_zone)
+    except pytz.exceptions.UnknownTimeZoneError as exc:
+        raise MCPError(
+            MCPError.INVALID_TIMEZONE,
+            f"Invalid timezone '{time_zone}': {exc}",
+            {'timezone': time_zone},
+        ) from exc
+    return time_zone_info.localize(dt)
+
+
+def parse_observation_time(time: str, time_zone: str) -> datetime:
+    """Parse and normalize an observation timestamp into a timezone-aware datetime."""
+    return ensure_timezone(parse_time_string(time), time_zone)
+
+
 def parse_datetime(date_str: str, time_str: str, timezone: str = 'UTC') -> datetime:
     """
     Parse a date string into a timezone-aware datetime object.
@@ -102,29 +142,5 @@ def process_location_and_time(
     Returns:
         Tuple of (EarthLocation, datetime) objects. datetime is timezone-aware.
     """
-    earth_location = EarthLocation(lon=lon * u.deg, lat=lat * u.deg)
-
-    try:
-        # Try standard format first
-        dt = datetime.strptime(time, '%Y-%m-%d %H:%M:%S')
-    except ValueError:
-        try:
-            # Try ISO format
-            dt = datetime.fromisoformat(time)
-        except ValueError:
-            raise ValueError(
-                f"Time string '{time}' matches neither '%Y-%m-%d %H:%M:%S' nor ISO format."
-            )
-
-    # If datetime is naive, localize it using the provided time_zone
-    if dt.tzinfo is None:
-        time_zone_info = pytz.timezone(time_zone)
-        dt = time_zone_info.localize(dt)
-    else:
-        # If already aware, ensure it's in the requested timezone or leave as is?
-        # Usually we trust the input timezone if provided separately,
-        # but if the string has offset, that takes precedence.
-        # Here we follow the original logic's intent: ensure awareness.
-        pass
-
-    return earth_location, dt
+    earth_location = create_earth_location(lat=lat, lon=lon)
+    return earth_location, parse_observation_time(time, time_zone)
