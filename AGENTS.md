@@ -25,8 +25,10 @@ This is not a runtime requirement, but it is the best place for team-level regul
 - All MCP tools must be defined under `src/functions/`.
 - Each tool module must import `src.server_instance.mcp` and decorate tool entrypoints with `@mcp.tool()`.
 - The repository should keep tool registration centralized in `src/main.py` by importing tool modules there.
+- When explicit `@mcp.tool(name=..., description=...)` metadata is provided, that metadata takes precedence over the function name and docstring and should be treated as the public contract.
 - Example domains:
   - `src/functions/celestial/impl.py`
+  - `src/functions/metadata/impl.py`
   - `src/functions/weather/impl.py`
   - `src/functions/places/impl.py`
   - `src/functions/time/impl.py`
@@ -35,6 +37,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 
 - All tools must return JSON-serializable data.
 - Use `src.response.format_response(...)` for standard response wrapping.
+- Business validation failures that remain inside normal tool execution should return the structured `{error, _meta}` payload shape instead of ad hoc dicts.
 - Dates and times should be returned as ISO strings whenever possible.
 - Keep tool argument names clear and stable; renames should be treated as breaking changes.
 - Add new tools only after verifying the new interface is agent-friendly and documented.
@@ -54,6 +57,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
   - `NETWORK_ERROR`: Network connectivity issues
   - `CONFIGURATION_ERROR`: Configuration problems
 - Avoid raising raw exceptions from tools; catch and translate them into structured MCPError responses.
+- Prefer translating input and validation failures at the boundary helper level so tool functions stay simple; avoid scattering repetitive `try/except` blocks across individual tool implementations.
 - Weather tools include automatic retry logic for network failures (up to 3 attempts with exponential backoff).
 - Tool failures should be explicit and actionable for the calling agent.
 
@@ -64,10 +68,14 @@ This is not a runtime requirement, but it is the best place for team-level regul
 - Existing harness patterns:
   - `tests/test_integration.py` validates tool registration via `mcp._tool_manager._tools`
   - `tests/test_serialization.py` validates the JSON response shape
+  - `tests/test_mcp_client.py` validates `tools/list`, `tools/call`, and SSE request-id behavior
+  - `tests/test_server_instance.py` validates metadata registry stability and catalog copy semantics
+  - `tests/test_structured_errors.py` validates business error payload normalization
 - When adding a new tool, add at least one test that:
   1. imports the tool module so it is registered
   2. verifies the tool exists on `mcp`
   3. verifies the tool returns correct JSON structure
+  4. verifies any new agent-facing metadata stays aligned with `tools/list` / catalog expectations when applicable
 
 ## Agent development workflow
 
@@ -82,6 +90,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
     ```bash
     python -m src.main --mode shttp --port 3001 --path /shttp
     ```
+    Prefer `shttp`, `sse`, or `local`; `dev` mode is not a reliable local workflow on current FastMCP versions because `run_dev()` has been removed upstream.
 3.  Use examples for agent integration patterns:
     - `examples/shttp_tools_demo.py`
     - `examples/stream_http_analysis_area.py`
@@ -106,8 +115,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 ## Future roadmap
 
 See `docs/ROADMAP.md` for the planned agent and harness feature roadmap, including:
-- tool metadata and discovery, including a registered discovery tool (`get_tool_catalog`)
-- structured error handling
+- remaining contract hardening for metadata, errors, and transport behavior
 - composite planning tools
 - streamed large-search support
 - expanded astronomy domain features

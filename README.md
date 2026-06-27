@@ -7,10 +7,12 @@ Calculate the altitude, rise, and set times of celestial objects (Sun, Moon, pla
 - **Altitude/Azimuth Calculation**: Get elevation and compass direction for any celestial object.
 - **Rise/Set Times**: Determine when objects appear/disappear above the horizon.
 - **Light Pollution Analysis**: Load and analyze light pollution maps (GeoTIFF format).
+- **Tool Discovery**: Inspect registered MCP tools programmatically through `get_tool_catalog`.
 - **Code Execution Ready**:
   - **Serializable Returns**: All tools return JSON-serializable data (ISO strings for dates), making them directly usable by LLMs.
   - **Pagination**: `analysis_area` supports paging (`page`, `page_size`) to handle large datasets efficiently.
-  - **Standardized Responses**: Uniform response format `{ "data": ..., "_meta": ... }` for better observability and error handling.
+  - **Stable Result Handles**: `analysis_area.resource_id` identifies the cached non-pagination query so agents can fetch multiple pages safely.
+  - **Standardized Responses**: Successful calls return `{ "data": ..., "_meta": ... }`; business validation failures return `{ "error": ..., "_meta": ... }`.
 - **Performance**:
   - **Async Execution**: Non-blocking celestial calculations.
   - **Caching**: Intelligent caching for Simbad queries and regional analysis.
@@ -119,9 +121,11 @@ python -m src.main --mode shttp --port 3001 --path /shttp --proxy http://127.0.0
 python -m src.main --mode sse --port 3001 --path /sse
 ```
 
+`dev` mode is still accepted by the CLI for backwards compatibility, but current FastMCP versions no longer provide `run_dev()`. Prefer `shttp`, `sse`, or `local`.
+
 ### 3. Response Format
 
-All tools return data in a standardized JSON format:
+Successful business responses return data in a standardized JSON format:
 
 ```json
 {
@@ -137,6 +141,26 @@ All tools return data in a standardized JSON format:
 }
 ```
 
+Business validation failures use the same envelope style:
+
+```json
+{
+  "error": {
+    "code": "INVALID_TIME_FORMAT",
+    "message": "Invalid time format: invalid-time-format",
+    "details": {
+      "time_string": "invalid-time-format"
+    }
+  },
+  "_meta": {
+    "version": "1.0.0",
+    "status": "error"
+  }
+}
+```
+
+At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned, and JSON-RPC request ids are preserved in both SHTTP and SSE transport tests.
+
 ### 4. Available Tools
 
 - **`get_celestial_pos`**: Calculate altitude/azimuth.
@@ -151,6 +175,7 @@ All tools return data in a standardized JSON format:
 - **`analysis_area`**: Find best stargazing spots in a region.
   - **Inputs**: `south`, `west`, `north`, `east`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`, `page`, `page_size`.
   - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters.
+  - **Validation**: `page >= 1` and `page_size >= 1`; invalid pagination arguments return `CONFIGURATION_ERROR`.
 
 ### 5. Error Handling
 
@@ -158,7 +183,8 @@ All tools return JSON-serializable data and use structured error handling:
 
 - **Standard Error Codes**: `INVALID_COORDINATES`, `INVALID_TIMEZONE`, `INVALID_TIME_FORMAT`, `MISSING_API_KEY`, `API_AUTH_FAILURE`, `API_TIMEOUT`, `API_RATE_LIMIT`, `EXTERNAL_API_ERROR`, `NETWORK_ERROR`, `CONFIGURATION_ERROR`
 - **Weather Tools**: Include automatic retry logic for network failures (up to 3 attempts with exponential backoff)
-- **Error Responses**: Structured MCPError objects with actionable error messages for calling agents
+- **Business Error Responses**: Structured MCPError-derived payloads with actionable messages for calling agents
+- **Protocol Tests**: `tools/list`, `get_tool_catalog`, and SSE request-id behavior are covered by protocol-level tests
 - **Validation**: Input parameters are validated before processing with clear error messages
 
 ## Examples
@@ -188,6 +214,7 @@ The project is modularized for better maintainability and code execution support
 ├── src/
 │   ├── functions/            # Tool implementations grouped by domain
 │   │   ├── celestial/        # Celestial calculations (pos, rise/set)
+│   │   ├── metadata/         # Tool discovery surface (`get_tool_catalog`)
 │   │   ├── weather/          # Weather API integration
 │   │   ├── places/           # Location and area analysis
 │   │   └── time/             # Time utilities
@@ -197,11 +224,14 @@ The project is modularized for better maintainability and code execution support
 │   ├── main.py               # Entry point and tool registration
 │   ├── celestial.py          # Core astronomy logic (Astropy wrappers)
 │   ├── placefinder.py        # Grid analysis logic
-│   └── qweather_interaction.py # Weather API client
+│   └── qweather_interaction.py # Legacy QWeather helpers
 ├── tests/                    # Unified test suite
 │   ├── test_celestial.py
+│   ├── test_mcp_client.py    # MCP protocol and transport contract tests
+│   ├── test_server_instance.py # Tool metadata registry behavior
 │   ├── test_weather.py
 │   ├── test_serialization.py # Validates JSON return formats
+│   ├── test_structured_errors.py # Structured business error expectations
 │   └── test_integration.py   # End-to-end flow tests
 ├── examples/                 # Usage examples
 ├── docs/                     # Documentation and improvement plans
@@ -213,12 +243,14 @@ The project is modularized for better maintainability and code execution support
 Run the unified test suite:
 
 ```bash
-pytest tests/
+uv run pytest -v tests/
 ```
 
 Key tests include:
 - `test_serialization.py`: Ensures all tools return valid JSON with the correct schema.
 - `test_integration.py`: Mocks external APIs to verify the entire toolchain.
+- `test_mcp_client.py`: Verifies `tools/list`, `tools/call`, and SSE request-id protocol behavior.
+- `test_structured_errors.py`: Verifies business validation failures stay in the structured response envelope.
 
 ## Contributing
 
