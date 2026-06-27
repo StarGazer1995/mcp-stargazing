@@ -8,7 +8,8 @@ from src.celestial import (
     celestial_rise_set,
     get_constellation_center,
 )
-from src.models import (
+from src.response import MCPError, format_response
+from src.schemas import (
     CelestialPosition,
     ConstellationInfo,
     MoonInfo,
@@ -16,7 +17,6 @@ from src.models import (
     RiseSet,
     VisiblePlanet,
 )
-from src.response import MCPError, format_response
 from src.server_instance import mcp
 from src.utils import parse_observation_time, process_location_and_time
 
@@ -193,7 +193,7 @@ async def get_nightly_forecast(
         # Run in thread
         result = await asyncio.to_thread(calculate_nightly_forecast, location, time_info, limit)
 
-        from src.models.celestial import DeepSkyObject
+        from src.schemas.celestial import DeepSkyObject
 
         forecast = NightlyForecast(
             moon_phase=MoonInfo(**result['moon_phase']),

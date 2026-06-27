@@ -1,9 +1,9 @@
 """Re-exports of weather Pydantic models for backward compatibility.
 
-New code should import directly from src.models or src.models.weather.
+New code should import directly from src.schemas or src.schemas.weather.
 """
 
-from src.models.weather import (
+from src.schemas.weather import (
     AggregatedWeatherResponse,
     CurrentWeather,
     DailyForecastItem,

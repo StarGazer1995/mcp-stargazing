@@ -6,8 +6,9 @@ Public API functions return AggregatedWeatherResponse (a Pydantic model).
 
 from src.functions.weather.geocoding import resolve_place_name
 from src.functions.weather.providers import open_meteo, qweather, wttr
-from src.models import ProviderType
-from src.models.weather import (
+from src.response import MCPError
+from src.schemas import ProviderType
+from src.schemas.weather import (
     AggregatedWeatherResponse,
     LocationInfo,
     ProviderError,
@@ -16,7 +17,6 @@ from src.models.weather import (
     SourceMeta,
     WeatherSummary,
 )
-from src.response import MCPError
 
 PROVIDER_ORDER = ['open-meteo', 'qweather', 'wttr']
 

@@ -2,7 +2,13 @@
 
 import os
 
-from src.models.weather import (
+from src.qweather_interaction import (
+    qweather_get_weather_by_coord_in_ten_days,
+    qweather_get_weather_by_coord_in_twenty_four_hours,
+    qweather_get_weather_by_coord_real_time,
+)
+from src.response import MCPError
+from src.schemas.weather import (
     CurrentWeather,
     DailyForecastItem,
     HourlyForecastItem,
@@ -10,12 +16,6 @@ from src.models.weather import (
     NormalizedWeatherData,
     ProviderSuccess,
 )
-from src.qweather_interaction import (
-    qweather_get_weather_by_coord_in_ten_days,
-    qweather_get_weather_by_coord_in_twenty_four_hours,
-    qweather_get_weather_by_coord_real_time,
-)
-from src.response import MCPError
 
 
 def get_qweather_auth_from_env() -> tuple[str | None, str | None, str | None]:

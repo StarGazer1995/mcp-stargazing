@@ -3,14 +3,14 @@ from pathlib import Path
 from typing import Any
 
 from src.cache import ANALYSIS_CACHE, generate_cache_key
-from src.models.places import (
+from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
+from src.response import MCPError, format_error, format_response
+from src.schemas.places import (
     AnalysisAreaResult,
     LightPollutionGrid,
     LightPollutionGridPoint,
     StargazingLocation,
 )
-from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
-from src.response import MCPError, format_error, format_response
 from src.server_instance import mcp
 
 

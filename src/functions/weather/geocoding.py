@@ -3,8 +3,8 @@
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 from geopy.geocoders import Nominatim
 
-from src.models.weather import LocationInfo
 from src.response import MCPError
+from src.schemas.weather import LocationInfo
 
 
 def resolve_place_name(place_name: str) -> LocationInfo:

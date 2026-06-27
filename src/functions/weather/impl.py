@@ -3,9 +3,9 @@ from src.functions.weather.service import (
     get_aggregated_weather_by_name,
     get_aggregated_weather_by_position,
 )
-from src.models.weather import AggregatedWeatherResponse
 from src.response import MCPError, format_error, format_response
 from src.retry import RetryConfig, retry_on_failure
+from src.schemas.weather import AggregatedWeatherResponse
 from src.server_instance import mcp
 from src.utils import validate_coordinates
 

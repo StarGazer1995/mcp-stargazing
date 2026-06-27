@@ -4,7 +4,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SRC_ROOT = PROJECT_ROOT / 'src'
-MODELS_DIR = SRC_ROOT / 'models'
+SCHEMAS_DIR = SRC_ROOT / 'schemas'
 DATA_DIR = SRC_ROOT / 'data'
 TESTS_DIR = PROJECT_ROOT / 'tests'
 EXAMPLES_DIR = PROJECT_ROOT / 'examples'
@@ -30,9 +30,9 @@ def is_within_path(path: str | Path | None, base_dir: Path) -> bool:
     return True
 
 
-def is_repo_models_origin(origin: str | None) -> bool:
-    """Return whether a module origin resolves under this repository's `src/models`."""
-    return is_within_path(origin, MODELS_DIR)
+def is_repo_schemas_origin(origin: str | None) -> bool:
+    """Return whether a module origin resolves under this repository's ``src/schemas``."""
+    return is_within_path(origin, SCHEMAS_DIR)
 
 
 def find_module_origin(module_name: str) -> str | None:

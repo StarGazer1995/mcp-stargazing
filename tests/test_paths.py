@@ -14,30 +14,30 @@ def test_resolve_repo_path_returns_project_relative_path():
 
 
 def test_is_within_path_detects_nested_path():
-    nested_path = paths.MODELS_DIR / '__init__.py'
+    nested_path = paths.SCHEMAS_DIR / '__init__.py'
 
-    assert paths.is_within_path(nested_path, paths.MODELS_DIR) is True
+    assert paths.is_within_path(nested_path, paths.SCHEMAS_DIR) is True
 
 
 def test_is_within_path_rejects_none_and_external_path():
-    assert paths.is_within_path(None, paths.MODELS_DIR) is False
-    assert paths.is_within_path('/tmp/external.py', paths.MODELS_DIR) is False
+    assert paths.is_within_path(None, paths.SCHEMAS_DIR) is False
+    assert paths.is_within_path('/tmp/external.py', paths.SCHEMAS_DIR) is False
 
 
-def test_is_repo_models_origin_matches_ci_style_path():
-    original_models_dir = paths.MODELS_DIR
+def test_is_repo_schemas_origin_matches_ci_style_path():
+    original_schemas_dir = paths.SCHEMAS_DIR
 
     try:
-        paths.MODELS_DIR = Path('/app/src/models')
-        assert paths.is_repo_models_origin('/app/src/models/__init__.py') is True
+        paths.SCHEMAS_DIR = Path('/app/src/schemas')
+        assert paths.is_repo_schemas_origin('/app/src/schemas/__init__.py') is True
         assert (
-            paths.is_repo_models_origin(
-                '/usr/local/lib/python3.13/site-packages/models/__init__.py'
+            paths.is_repo_schemas_origin(
+                '/usr/local/lib/python3.13/site-packages/schemas/__init__.py'
             )
             is False
         )
     finally:
-        paths.MODELS_DIR = original_models_dir
+        paths.SCHEMAS_DIR = original_schemas_dir
 
 
 def test_find_module_origin_returns_expected_origin():
@@ -91,11 +91,11 @@ def test_prioritize_sys_path_moves_entry_to_front_without_duplicates():
 def test_discard_shadowing_module_removes_module_under_base_dir():
     original_models_module = sys.modules.get('models')
     fake_models = ModuleType('models')
-    fake_models.__file__ = '/app/src/models/__init__.py'
+    fake_models.__file__ = '/app/src/schemas/__init__.py'
 
     try:
         sys.modules['models'] = fake_models
-        paths.discard_shadowing_module('models', Path('/app/src/models'))
+        paths.discard_shadowing_module('models', Path('/app/src/schemas'))
         assert 'models' not in sys.modules
     finally:
         if original_models_module is None:
@@ -111,7 +111,7 @@ def test_discard_shadowing_module_keeps_external_module():
 
     try:
         sys.modules['models'] = fake_models
-        paths.discard_shadowing_module('models', Path('/app/src/models'))
+        paths.discard_shadowing_module('models', Path('/app/src/schemas'))
         assert sys.modules['models'] is fake_models
     finally:
         if original_models_module is None:
@@ -122,7 +122,7 @@ def test_discard_shadowing_module_keeps_external_module():
 
 def test_path_constants_point_to_expected_locations():
     assert paths.SRC_ROOT == paths.PROJECT_ROOT / 'src'
-    assert paths.MODELS_DIR == paths.SRC_ROOT / 'models'
+    assert paths.SCHEMAS_DIR == paths.SRC_ROOT / 'schemas'
     assert paths.DATA_DIR == paths.SRC_ROOT / 'data'
     assert paths.TESTS_DIR == paths.PROJECT_ROOT / 'tests'
     assert paths.EXAMPLES_DIR == paths.PROJECT_ROOT / 'examples'
