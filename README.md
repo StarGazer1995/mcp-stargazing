@@ -122,7 +122,7 @@ python -m src.main --mode shttp --port 3001 --path /shttp --proxy http://127.0.0
 python -m src.main --mode sse --port 3001 --path /sse
 ```
 
-`dev` mode is still accepted by the CLI for backwards compatibility, but current FastMCP versions no longer provide `run_dev()`. Prefer `shttp`, `sse`, or `local`.
+`dev` mode is no longer supported because current FastMCP versions no longer provide `run_dev()`. Use `local`, `shttp`, or `sse`.
 
 ### 3. Response Format
 
@@ -177,6 +177,9 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
   - **Inputs**: `south`, `west`, `north`, `east`, `time`, `time_zone`, `candidate_limit`, `target_limit`, `weather_provider`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`.
   - **Returns**: `query`, `summary`, and `candidates`, where `query.analysis_resource_id` links the plan back to the underlying `analysis_area` search when available.
   - **Degradation**: Weather or forecast sub-queries may degrade into `summary.warnings` and per-candidate `notes`, while the overall planning response remains successful.
+- **`light_pollution_map`**: Query light pollution data for a bounding box area.
+  - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).
+  - **Returns**: A grid of data points with Bortle class, brightness, and SQM values.
 - **`analysis_area`**: Find best stargazing spots in a region.
   - **Inputs**: `south`, `west`, `north`, `east`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`, `page`, `page_size`.
   - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters.

@@ -7,6 +7,7 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
 - Tool discovery is available through the registered `get_tool_catalog` tool.
+- `light_pollution_map` provides per-coordinate light pollution data (Bortle class, brightness, SQM) through a dedicated MCP tool.
 - Tool metadata is exposed programmatically and kept aligned with `tools/list`.
 - Business validation failures are normalized into the standard `{error, _meta}` payload shape.
 - Weather tools already include retry behavior for transient network failures.

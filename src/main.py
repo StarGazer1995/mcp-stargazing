@@ -17,7 +17,7 @@ def arg_parse():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='MCP Server')
     parser.add_argument(
-        '--mode', type=str, default='local', help='Mode of operation (dev local or server)'
+        '--mode', type=str, default='local', help='Mode of operation (local, shttp, or sse)'
     )
     parser.add_argument('--port', type=int, default=3001, help='Port to run the server on')
     parser.add_argument('--path', type=str, default='/shttp')
@@ -41,9 +41,7 @@ def main():
         os.environ['https_proxy'] = arg.proxy
         print(f'Proxy set to {arg.proxy}')
 
-    if arg.mode == 'dev':
-        mcp.run_dev()
-    elif arg.mode == 'local':
+    if arg.mode == 'local':
         mcp.run()
     elif arg.mode == 'shttp':
         mcp.run(
