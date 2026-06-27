@@ -23,12 +23,20 @@ RUN apt-get update && \
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 
+# --- Shared data stage (runs download once, reused by test & production) ---
+FROM base AS data
+
+RUN python -m pip install --no-cache-dir setuptools wheel && \
+    uv sync --frozen --no-install-project --no-dev && \
+    uv cache clean
+
+COPY scripts/download_data.py ./scripts/
+RUN uv run python scripts/download_data.py
+
 # --- Test Stage ---
 FROM base AS test
 
 # Install dependencies including dev dependencies.
-# Docker's predefined proxy build args are available to RUN steps without
-# being declared in the Dockerfile, so they do not persist in image metadata.
 RUN python -m pip install --no-cache-dir setuptools wheel && \
     uv sync --frozen --no-install-project && \
     uv cache clean
@@ -40,8 +48,8 @@ COPY . .
 RUN uv sync --frozen && \
     uv cache clean
 
-# Initialize data (download astronomical catalogs)
-RUN uv run python scripts/download_data.py
+# Copy pre-downloaded catalog data from shared stage
+COPY --from=data /app/src/data/ ./src/data/
 
 # Run tests from the synced virtual environment.
 ENTRYPOINT ["pytest"]
@@ -51,7 +59,6 @@ CMD ["-v"]
 FROM base AS production
 
 # Install dependencies and clean cache to minimize image size
-# We run sync and cache clean in the same layer
 RUN python -m pip install --no-cache-dir setuptools wheel && \
     uv sync --frozen --no-install-project --no-dev && \
     uv cache clean
@@ -63,9 +70,8 @@ COPY . .
 RUN uv sync --frozen --no-dev && \
     uv cache clean
 
-# Initialize data (download astronomical catalogs)
-# This step requires internet access.
-RUN uv run python scripts/download_data.py
+# Copy pre-downloaded catalog data from shared stage
+COPY --from=data /app/src/data/ ./src/data/
 
 # Expose port
 EXPOSE 3001

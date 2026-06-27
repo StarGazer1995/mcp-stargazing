@@ -190,39 +190,53 @@ def download_ngc_objects(max_mag: float = 10.0) -> list[dict[str, Any]]:
         return []
 
 
+def _build_spatial_index(
+    objects: list[dict[str, Any]], grid_size: float = 1.0
+) -> dict[tuple[int, int], list[int]]:
+    """Bucket objects into a 2-D spatial grid for fast proximity lookup."""
+    from collections import defaultdict
+
+    grid: dict[tuple[int, int], list[int]] = defaultdict(list)
+    for i, obj in enumerate(objects):
+        ra_bin = int(obj['ra'] / grid_size)
+        dec_bin = int(obj['dec'] / grid_size)
+        grid[(ra_bin, dec_bin)].append(i)
+    return grid
+
+
 def main():
     messier = download_messier_objects()
     ngc = download_ngc_objects(max_mag=8.0)  # Conservative limit for "Showpiece"
 
-    # Merge
-    all_objects = messier + ngc
+    final_list: list[dict[str, Any]] = list(messier)
 
-    # Deduplicate based on position (very simple check)
-    # Some NGC objects ARE Messier objects (e.g. M1 = NGC 1952)
-    # We prefer the "M" name.
-
-    # Create a spatial index or just simple distance check?
-    # For < 500 objects, simple O(N^2) is fine or just check if we have a mapping.
-    # Let's just save them all for now, duplicates aren't fatal.
-    # Actually, let's remove NGC items if they are close to an existing Messier item.
-
-    final_list = []
-    final_list.extend(messier)
-
+    # Spatial-index deduplication: 1° grid avoids O(N×M) pairwise SkyCoord
+    # separation calls.  With ~110 Messier objects spread across the sky, each
+    # NGC object only checks the Messier objects in its own + adjacent cells
+    # (typically 0-2 objects rather than all 110).
     messier_coords = [SkyCoord(m['ra'], m['dec'], unit='deg') for m in messier]
+    grid = _build_spatial_index(messier, grid_size=1.0)
+
+    separation_threshold_deg = 0.1  # 6 arcmin — same object, different catalog
 
     print('Deduplicating...')
     duplicates = 0
     for n in ngc:
         n_coord = SkyCoord(n['ra'], n['dec'], unit='deg')
+        ra_bin = int(n['ra'] / 1.0)
+        dec_bin = int(n['dec'] / 1.0)
         is_dup = False
 
-        # Check against all Messier
-        # Threshold: 0.1 degree (6 arcmin)
-        for idx, m_coord in enumerate(messier_coords):
-            sep = n_coord.separation(m_coord)
-            if sep.deg < 0.1:
-                is_dup = True
+        # Only check Messier objects in this cell + 8 neighbours
+        for dra in (-1, 0, 1):
+            for ddec in (-1, 0, 1):
+                for idx in grid.get((ra_bin + dra, dec_bin + ddec), []):
+                    if n_coord.separation(messier_coords[idx]).deg < separation_threshold_deg:
+                        is_dup = True
+                        break
+                if is_dup:
+                    break
+            if is_dup:
                 break
 
         if not is_dup:
