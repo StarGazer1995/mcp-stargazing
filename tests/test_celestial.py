@@ -6,6 +6,7 @@ import pytz
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 
+import src.celestial as celestial_module
 from src.celestial import (
     _generate_time_grid,
     _get_celestial_object,
@@ -84,6 +85,69 @@ def test__generate_time_grid():
     time_grid = _generate_time_grid(date)
     assert len(time_grid) == 288
     assert abs((time_grid[-1] - time_grid[0]).to_datetime().total_seconds() / 3600 - 24) < 1e-3
+
+
+def test_load_data_resource_reads_packaged_json(monkeypatch):
+    """打包资源读取应通过 `importlib.resources` 成功解析 JSON。"""
+
+    class FakeResource:
+        def read_text(self, encoding='utf-8'):
+            assert encoding == 'utf-8'
+            return '[{"name": "M42"}]'
+
+    class FakeDataDir:
+        def joinpath(self, name):
+            assert name == 'objects.json'
+            return FakeResource()
+
+    class FakePackageRoot:
+        def joinpath(self, name):
+            assert name == 'data'
+            return FakeDataDir()
+
+    monkeypatch.setattr(
+        celestial_module.resources,
+        'files',
+        lambda package_name: FakePackageRoot(),
+    )
+
+    assert celestial_module._load_data_resource('objects.json') == [{'name': 'M42'}]
+
+
+def test_load_objects_returns_empty_list_when_resource_missing(monkeypatch, capsys):
+    """对象资源缺失时应降级为空列表并打印提示。"""
+    original_cache = celestial_module.OBJECTS_CACHE
+    celestial_module.OBJECTS_CACHE = None
+
+    monkeypatch.setattr(
+        celestial_module,
+        '_load_data_resource',
+        lambda filename: (_ for _ in ()).throw(FileNotFoundError(filename)),
+    )
+
+    try:
+        assert celestial_module._load_objects() == []
+        captured = capsys.readouterr()
+        assert 'objects.json' in captured.out
+    finally:
+        celestial_module.OBJECTS_CACHE = original_cache
+
+
+def test_load_constellation_centers_returns_empty_list_when_resource_missing(monkeypatch):
+    """星座中心资源缺失时应降级为空列表。"""
+    original_cache = celestial_module.CONSTELLATIONS_CACHE
+    celestial_module.CONSTELLATIONS_CACHE = None
+
+    monkeypatch.setattr(
+        celestial_module,
+        '_load_data_resource',
+        lambda filename: (_ for _ in ()).throw(FileNotFoundError(filename)),
+    )
+
+    try:
+        assert celestial_module._load_constellation_centers() == []
+    finally:
+        celestial_module.CONSTELLATIONS_CACHE = original_cache
 
 
 if __name__ == '__main__':

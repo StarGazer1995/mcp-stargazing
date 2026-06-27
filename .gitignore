@@ -175,3 +175,7 @@ cython_debug/
 .pypirc
 *-dev*
 .trae/
+package*json
+launch.json
+settings.json
+*workspace

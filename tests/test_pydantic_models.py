@@ -163,6 +163,77 @@ class TestStargazingLocation:
         loc = StargazingLocation(lat=0.0, lon=0.0)
         assert loc.name is None
 
+    def test_from_spf_location_uses_model_dump(self):
+        class SPFLocationWithModelDump:
+            def model_dump(self, exclude_none=True):
+                assert exclude_none is True
+                return {
+                    'name': 'Model Dump Site',
+                    'latitude': 35.0,
+                    'longitude': -120.0,
+                    'elevation': 1500.0,
+                    'light_pollution_level': 'dark',
+                    'light_pollution_bortle': 2,
+                    'distance_to_road_km': 3.5,
+                    'stargazing_score': 95.0,
+                }
+
+        loc = StargazingLocation.from_spf_location(SPFLocationWithModelDump())
+
+        assert loc.name == 'Model Dump Site'
+        assert loc.lat == 35.0
+        assert loc.lon == -120.0
+        assert loc.bortle_class == 2
+        assert loc.score == 95.0
+
+    def test_from_spf_location_uses_dict_method(self):
+        class SPFLocationWithDict:
+            def dict(self, exclude_none=True):
+                assert exclude_none is True
+                return {
+                    'name': 'Dict Site',
+                    'lat': 36.0,
+                    'lon': -121.0,
+                    'elevation': 1200.0,
+                    'light_pollution_level': 'rural',
+                    'light_pollution_bortle': 3,
+                    'distance_to_road_km': 2.0,
+                    'stargazing_score': 88.0,
+                }
+
+        loc = StargazingLocation.from_spf_location(SPFLocationWithDict())
+
+        assert loc.name == 'Dict Site'
+        assert loc.lat == 36.0
+        assert loc.lon == -121.0
+        assert loc.road_distance_km == 2.0
+        assert loc.score == 88.0
+
+    def test_from_spf_location_falls_back_to_dict_conversion(self):
+        class DictLikeLocation(dict):
+            pass
+
+        loc = StargazingLocation.from_spf_location(
+            DictLikeLocation(
+                {
+                    'name': 'Dict Fallback Site',
+                    'latitude': 37.0,
+                    'longitude': -122.0,
+                    'elevation': 900.0,
+                    'light_pollution_level': 'suburban',
+                    'light_pollution_bortle': 4,
+                    'distance_to_road_km': 1.2,
+                    'stargazing_score': 72.0,
+                }
+            )
+        )
+
+        assert loc.name == 'Dict Fallback Site'
+        assert loc.lat == 37.0
+        assert loc.lon == -122.0
+        assert loc.bortle_class == 4
+        assert loc.score == 72.0
+
 
 class TestAnalysisAreaResult:
     def test_valid_result(self):

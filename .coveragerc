@@ -1,0 +1,20 @@
+[run]
+source = src
+omit =
+    src/__init__.py
+    tests/*
+
+[report]
+show_missing = true
+skip_covered = false
+exclude_also =
+    def __repr__
+    if __name__ == .__main__.:
+    raise AssertionError
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+
+[html]
+directory = htmlcov

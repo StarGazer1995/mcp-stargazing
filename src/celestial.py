@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 from functools import lru_cache
+from importlib import resources
 from typing import Any
 
 import astropy.units as u
@@ -266,6 +267,12 @@ OBJECTS_CACHE = None
 CONSTELLATIONS_CACHE = None
 
 
+def _load_data_resource(filename: str) -> list[dict[str, Any]]:
+    """Load packaged JSON data from the `src/data` resource directory."""
+    resource = resources.files('src').joinpath('data').joinpath(filename)
+    return json.loads(resource.read_text(encoding='utf-8'))
+
+
 def _load_objects():
     global OBJECTS_CACHE
     if OBJECTS_CACHE is not None:
@@ -273,8 +280,7 @@ def _load_objects():
 
     data_path = os.path.join(os.path.dirname(__file__), 'data/objects.json')
     try:
-        with open(data_path) as f:
-            OBJECTS_CACHE = json.load(f)
+        OBJECTS_CACHE = _load_data_resource('objects.json')
     except FileNotFoundError:
         OBJECTS_CACHE = []  # Should handle gracefully
         print(f'Warning: Objects data file not found at {data_path}')
@@ -286,10 +292,8 @@ def _load_constellation_centers():
     global CONSTELLATIONS_CACHE
     if CONSTELLATIONS_CACHE is not None:
         return CONSTELLATIONS_CACHE
-    data_path = os.path.join(os.path.dirname(__file__), 'data/constellation_centers.json')
     try:
-        with open(data_path) as f:
-            CONSTELLATIONS_CACHE = json.load(f)
+        CONSTELLATIONS_CACHE = _load_data_resource('constellation_centers.json')
     except FileNotFoundError:
         CONSTELLATIONS_CACHE = []
     return CONSTELLATIONS_CACHE

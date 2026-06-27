@@ -3,6 +3,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from src.paths import MODELS_DIR, is_within_path
+
+
+def _is_repo_models_origin(origin: str | None) -> bool:
+    """Return whether the resolved `models` module comes from this repo's `src/models`."""
+    return is_within_path(origin, MODELS_DIR)
+
+
 # ---------------------------------------------------------------------------
 # Defensive guard: ensure stargazingplacefinder's 'models' package is not
 # shadowed by mcp-stargazing's own src/models/ directory when src/ is on
@@ -15,11 +23,7 @@ except (ImportError, ValueError, ModuleNotFoundError):
     pass
 
 if _site_models is not None and _site_models.origin is not None:
-    _origin = _site_models.origin
-    _is_mcp_models = (
-        'mcp-stargazing' in _origin or 'mcp_stargazing' in _origin
-    ) and 'site-packages' not in _origin
-    if _is_mcp_models:
+    if _is_repo_models_origin(_site_models.origin):
         # 'models' resolves to mcp-stargazing's own models — this will break
         # stargazingplacefinder below.  Restore site-packages priority.
         _site_pkgs = [p for p in sys.path if 'site-packages' in p]
