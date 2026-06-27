@@ -27,6 +27,15 @@ from src.models.places import (
     LightPollutionGridPoint,
     StargazingLocation,
 )
+from src.models.planning import (
+    BestStargazingPlan,
+    ObservationWindow,
+    PlannedLocationCandidate,
+    PlanningQuery,
+    PlanningSummary,
+    PlanningTarget,
+    WeatherPlanningSummary,
+)
 from src.models.weather import (
     AggregatedWeatherResponse,
     CurrentWeather,
@@ -57,6 +66,14 @@ __all__ = [
     'ConstellationInfo',
     'DeepSkyObject',
     'NightlyForecast',
+    # Planning
+    'PlanningQuery',
+    'ObservationWindow',
+    'WeatherPlanningSummary',
+    'PlanningTarget',
+    'PlannedLocationCandidate',
+    'PlanningSummary',
+    'BestStargazingPlan',
     # Places
     'LightPollutionGridPoint',
     'LightPollutionGrid',

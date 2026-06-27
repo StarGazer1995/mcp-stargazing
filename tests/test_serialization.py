@@ -7,6 +7,7 @@ import pytz
 
 from src.functions.celestial.impl import get_celestial_pos, get_celestial_rise_set
 from src.functions.places.impl import analysis_area
+from src.functions.planning.impl import get_best_stargazing_plan
 
 
 def test_celestial_rise_set_serialization():
@@ -283,3 +284,40 @@ async def test_analysis_area_rejects_invalid_pagination_inputs(
     assert result['error']['code'] == 'CONFIGURATION_ERROR'
     assert result['error']['message'] == expected_message
     assert result['error']['details'] == {field_name: field_value}
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_rejects_invalid_candidate_limit():
+    """Invalid planning limits should return the standard structured error payload."""
+    result = await get_best_stargazing_plan.fn(
+        south=30.0,
+        west=100.0,
+        north=31.0,
+        east=101.0,
+        time='2024-06-15 20:00:00',
+        time_zone='UTC',
+        candidate_limit=0,
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == 'CONFIGURATION_ERROR'
+    assert result['error']['message'] == 'candidate_limit must be greater than or equal to 1.'
+    assert result['error']['details'] == {'candidate_limit': 0}
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_rejects_invalid_bounds():
+    """Invalid bounding boxes should return the standard structured error payload."""
+    result = await get_best_stargazing_plan.fn(
+        south=31.0,
+        west=100.0,
+        north=30.0,
+        east=101.0,
+        time='2024-06-15 20:00:00',
+        time_zone='UTC',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == 'CONFIGURATION_ERROR'
+    assert result['error']['message'] == 'south must be less than north.'
+    assert result['error']['details'] == {'south': 31.0, 'north': 30.0}

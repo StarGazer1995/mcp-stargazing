@@ -4,6 +4,7 @@ EXPECTED_TOOLS = {
     'analysis_area',
     'get_celestial_pos',
     'get_celestial_rise_set',
+    'get_best_stargazing_plan',
     'get_constellation',
     'get_local_datetime_info',
     'get_moon_info',

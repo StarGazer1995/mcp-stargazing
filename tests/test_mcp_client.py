@@ -18,6 +18,7 @@ EXPECTED_TOOLS = {
     'analysis_area',
     'get_celestial_pos',
     'get_celestial_rise_set',
+    'get_best_stargazing_plan',
     'get_constellation',
     'get_local_datetime_info',
     'get_moon_info',
@@ -140,6 +141,40 @@ def test_tools_call_get_tool_catalog_returns_expected_tools(running_mcp_server):
     assert weather_tool['description'] == '通过地点名称获取综合天气（当前 + 小时预报 + 日预报）。'
     assert any(param['name'] == 'place_name' for param in weather_tool['parameters'])
     assert any(param['name'] == 'provider' for param in weather_tool['parameters'])
+
+
+def test_tools_call_get_best_stargazing_plan_validation_error_stays_structured(running_mcp_server):
+    """Planning validation failures should remain in the structured business payload."""
+    host, port, path, session_id = running_mcp_server
+    payload = _call_tool(
+        host,
+        port,
+        path,
+        session_id,
+        'get_best_stargazing_plan',
+        {
+            'south': 39.5,
+            'west': 115.5,
+            'north': 39.4,
+            'east': 115.6,
+            'time': '2024-06-15 20:00:00',
+            'time_zone': 'UTC',
+        },
+    )
+
+    assert payload['jsonrpc'] == '2.0'
+    assert payload['id'] == 'call-get_best_stargazing_plan'
+    assert 'error' not in payload, payload
+    assert 'result' in payload, payload
+
+    result = payload['result']
+    assert result['isError'] is False
+    structured_content = result['structuredContent']
+    assert structured_content['_meta']['status'] == 'error'
+    assert structured_content['error']['code'] == 'CONFIGURATION_ERROR'
+    assert structured_content['error']['message'] == 'south must be less than north.'
+    assert structured_content['error']['details'] == {'south': 39.5, 'north': 39.4}
+    assert json.loads(result['content'][0]['text']) == structured_content
 
 
 def test_tools_list_matches_get_tool_catalog_names(running_mcp_server):
@@ -280,6 +315,7 @@ def test_tools_list_returns_all_expected_tools(running_mcp_server):
         'analysis_area',
         'get_celestial_pos',
         'get_celestial_rise_set',
+        'get_best_stargazing_plan',
         'get_constellation',
         'get_local_datetime_info',
         'get_moon_info',

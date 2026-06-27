@@ -29,6 +29,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 - Example domains:
   - `src/functions/celestial/impl.py`
   - `src/functions/metadata/impl.py`
+  - `src/functions/planning/impl.py`
   - `src/functions/weather/impl.py`
   - `src/functions/places/impl.py`
   - `src/functions/time/impl.py`
