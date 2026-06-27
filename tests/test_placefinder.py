@@ -1,6 +1,9 @@
+import importlib
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
+import src.placefinder as placefinder_module
 from src.placefinder import StargazingPlaceFinder
 
 
@@ -87,6 +90,45 @@ class TestStargazingPlaceFinder(unittest.TestCase):
             )
             self.assertEqual(pf.min_height_difference, 150.0)
             self.assertEqual(pf.road_search_radius_km, 3.0)
+            self.assertEqual(mock_init.call_count, 3)
+
+    def test_analyze_area_reuses_existing_analyzer_when_params_unchanged(self):
+        """相同空间参数下不应重复初始化 analyzer。"""
+        with patch('stargazingplacefinder.init_stargazing_analyzer') as mock_init:
+            mock_analyzer = MagicMock()
+            mock_analyzer.analyze_area.return_value = []
+            mock_init.return_value = mock_analyzer
+
+            pf = StargazingPlaceFinder(min_height_difference=50.0, road_search_radius_km=5.0)
+            pf.analyze_area(
+                39.98,
+                116.18,
+                40.02,
+                116.22,
+                max_locations=1,
+                min_height_diff=50.0,
+                road_radius_km=5.0,
+                network_type='drive',
+            )
+
+            self.assertEqual(mock_init.call_count, 1)
+
+    def test_reload_placefinder_ignores_find_spec_errors(self):
+        """模块初始化时，find_spec 异常应被安全忽略。"""
+        original_find_spec = importlib.util.find_spec
+        original_sys_path = list(sys.path)
+
+        def _raise_import_error(name):
+            raise ImportError(f'boom: {name}')
+
+        try:
+            importlib.util.find_spec = _raise_import_error
+            reloaded = importlib.reload(placefinder_module)
+            self.assertIsNotNone(reloaded)
+            self.assertEqual(sys.path, original_sys_path)
+        finally:
+            importlib.util.find_spec = original_find_spec
+            importlib.reload(placefinder_module)
 
     def test_init_with_db_config(self):
         """验证支持 db_config_path 参数初始化"""
