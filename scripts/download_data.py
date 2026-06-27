@@ -1,5 +1,5 @@
 import json
-import os
+from pathlib import Path
 from typing import Any
 
 import astropy.units as u
@@ -234,10 +234,10 @@ def main():
     print(f'Total objects: {len(final_list)}')
 
     # Save to file
-    output_path = os.path.join(os.path.dirname(__file__), '../src/data/objects.json')
-    output_path = os.path.abspath(output_path)
+    output_path = Path(__file__).resolve().parents[1] / 'src' / 'data' / 'objects.json'
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, 'w') as f:
+    with output_path.open('w') as f:
         json.dump(final_list, f, indent=2)
 
     print(f'Saved to {output_path}')

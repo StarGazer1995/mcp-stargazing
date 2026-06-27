@@ -1,13 +1,9 @@
-import os
-import sys
 from datetime import datetime
 
 import pytz
+from _bootstrap import ensure_project_root
 
-# Add project root to python path so we can import src
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+ensure_project_root()
 
 from src.celestial import get_visible_planets
 from src.utils import create_earth_location

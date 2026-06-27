@@ -2,11 +2,14 @@ import http.client
 import json
 import socket
 import subprocess
+import sys
 import time
 from collections.abc import Generator
 
 import pytest
 from astropy.utils.iers import conf
+
+from src.paths import PROJECT_ROOT
 
 # Prevent pytest run-time from failing because of stale IERS predictive data.
 conf.auto_download = False
@@ -147,10 +150,11 @@ def running_mcp_server() -> Generator[tuple[str, int, str, str]]:
     port = _get_free_port()
     path = '/shttp'
     process = subprocess.Popen(
-        ['python', '-m', 'src.main', '--mode', 'shttp', '--port', str(port), '--path', path],
+        [sys.executable, '-m', 'src.main', '--mode', 'shttp', '--port', str(port), '--path', path],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        cwd=str(PROJECT_ROOT),
     )
 
     try:

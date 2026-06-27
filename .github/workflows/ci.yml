@@ -70,11 +70,11 @@ jobs:
       - name: Run Tests in Docker
         run: |
           mkdir -p reports
-          docker run --rm -v ${{ github.workspace }}/reports:/app/reports test-image \
-            tests/ -v \
-            --junitxml=/app/reports/test-report.xml \
+          docker run --rm -v ${{ github.workspace }}/reports:/reports test-image \
+            -v \
+            --junitxml=/reports/test-report.xml \
             --cov=src \
-            --cov-report=xml:/app/reports/coverage.xml
+            --cov-report=xml:/reports/coverage.xml
 
       - name: Install diff-cover
         run: python -m pip install --upgrade diff-cover

@@ -45,7 +45,7 @@ RUN uv run python scripts/download_data.py
 
 # Run tests from the synced virtual environment.
 ENTRYPOINT ["pytest"]
-CMD ["tests/", "-v"]
+CMD ["-v"]
 
 # --- Production Stage ---
 FROM base AS production

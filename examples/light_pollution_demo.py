@@ -1,5 +1,9 @@
 import asyncio
 
+from _bootstrap import ensure_project_root
+
+ensure_project_root()
+
 from src.placefinder import get_light_pollution_grid
 from src.response import format_response
 

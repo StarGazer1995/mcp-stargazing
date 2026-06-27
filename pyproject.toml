@@ -41,6 +41,9 @@ Issues = "https://github.com/StarGazer1995/mcp-stargazing/issues"
 [tool.setuptools.packages.find]
 include = ["src*"]
 
+[tool.setuptools.package-data]
+"src" = ["data/*.json"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
