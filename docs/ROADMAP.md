@@ -7,11 +7,13 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
 - Tool discovery is available through the registered `get_tool_catalog` tool.
+- `light_pollution_map` provides per-coordinate light pollution data (Bortle class, brightness, SQM) through a dedicated MCP tool.
 - Tool metadata is exposed programmatically and kept aligned with `tools/list`.
 - Business validation failures are normalized into the standard `{error, _meta}` payload shape.
 - Weather tools already include retry behavior for transient network failures.
 - `analysis_area` now has explicit pagination validation and stable `resource_id` semantics based only on non-pagination query parameters.
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
+- `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets.
 
 ## Priority 1: Finish contract hardening
 
@@ -31,8 +33,8 @@ The following baseline capabilities are already implemented and should no longer
 ## Priority 2: Composite planning tools
 
 1.  `get_best_stargazing_plan`
-    - Combine weather, moon phase, visibility, and local light pollution.
-    - Return an ordered list of recommended targets plus best observation windows.
+    - Extend the shipped MVP with richer ranking policies, observer preferences, and stronger explanation fields.
+    - Improve how the planner balances weather quality, moonlight, place quality, and target mix.
 
 2.  `get_best_targets_for_telescope`
     - Provide object recommendations by telescope aperture, season, and difficulty.

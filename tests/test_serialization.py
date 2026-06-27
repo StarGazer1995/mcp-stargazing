@@ -7,6 +7,7 @@ import pytz
 
 from src.functions.celestial.impl import get_celestial_pos, get_celestial_rise_set
 from src.functions.places.impl import analysis_area
+from src.functions.planning.impl import get_best_stargazing_plan
 
 
 def test_celestial_rise_set_serialization():
@@ -283,3 +284,108 @@ async def test_analysis_area_rejects_invalid_pagination_inputs(
     assert result['error']['code'] == 'CONFIGURATION_ERROR'
     assert result['error']['message'] == expected_message
     assert result['error']['details'] == {field_name: field_value}
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_rejects_invalid_candidate_limit():
+    """Invalid planning limits should return the standard structured error payload."""
+    result = await get_best_stargazing_plan.fn(
+        south=30.0,
+        west=100.0,
+        north=31.0,
+        east=101.0,
+        time='2024-06-15 20:00:00',
+        time_zone='UTC',
+        candidate_limit=0,
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == 'CONFIGURATION_ERROR'
+    assert result['error']['message'] == 'candidate_limit must be greater than or equal to 1.'
+    assert result['error']['details'] == {'candidate_limit': 0}
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_rejects_invalid_bounds():
+    """Invalid bounding boxes should return the standard structured error payload."""
+    result = await get_best_stargazing_plan.fn(
+        south=31.0,
+        west=100.0,
+        north=30.0,
+        east=101.0,
+        time='2024-06-15 20:00:00',
+        time_zone='UTC',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == 'CONFIGURATION_ERROR'
+    assert result['error']['message'] == 'south must be less than north.'
+    assert result['error']['details'] == {'south': 31.0, 'north': 30.0}
+
+
+class TestResponseReservedFields:
+    """Tests for reserved _meta fields for future long-task / streaming support."""
+
+    def test_format_response_without_reserved_fields(self):
+        """Legacy behavior: format_response without progress/task_id keeps minimal _meta."""
+        from src.response import format_response
+
+        result = format_response({'key': 'value'})
+        assert result['_meta'] == {'version': '1.0.0', 'status': 'success'}
+
+    def test_format_response_with_progress(self):
+        """format_response with progress adds the field to _meta."""
+        from src.response import format_response
+
+        result = format_response({'key': 'value'}, progress=0.5)
+        assert result['_meta']['progress'] == 0.5
+        assert result['_meta']['status'] == 'success'
+
+    def test_format_response_with_task_id(self):
+        """format_response with task_id adds the field to _meta."""
+        from src.response import format_response
+
+        result = format_response({'key': 'value'}, task_id='task-abc-123')
+        assert result['_meta']['task_id'] == 'task-abc-123'
+        assert result['_meta']['status'] == 'success'
+
+    def test_format_response_with_both_reserved_fields(self):
+        """format_response with both progress and task_id adds both to _meta."""
+        from src.response import format_response
+
+        result = format_response({'key': 'value'}, progress=0.75, task_id='task-xyz')
+        assert result['_meta']['progress'] == 0.75
+        assert result['_meta']['task_id'] == 'task-xyz'
+        assert result['_meta']['status'] == 'success'
+        assert result['_meta']['version'] == '1.0.0'
+
+    def test_format_response_reserved_fields_combine_with_custom_meta(self):
+        """Reserved fields don't conflict with custom meta passed via the meta kwarg."""
+        from src.response import format_response
+
+        result = format_response(
+            {'key': 'value'},
+            meta={'custom': 'field'},
+            progress=0.3,
+            task_id='t-1',
+        )
+        assert result['_meta']['progress'] == 0.3
+        assert result['_meta']['task_id'] == 't-1'
+        assert result['_meta']['custom'] == 'field'
+
+    def test_format_error_without_task_id(self):
+        """Legacy behavior: format_error without task_id keeps minimal _meta."""
+        from src.response import format_error
+
+        result = format_error('TEST_ERR', 'something went wrong')
+        assert result['_meta'] == {'version': '1.0.0', 'status': 'error'}
+        assert 'task_id' not in result['_meta']
+
+    def test_format_error_with_task_id(self):
+        """format_error with task_id adds the field to _meta."""
+        from src.response import format_error
+
+        result = format_error('TEST_ERR', 'something went wrong', task_id='task-err')
+        assert result['_meta']['task_id'] == 'task-err'
+        assert result['_meta']['status'] == 'error'
+        assert result['error']['code'] == 'TEST_ERR'

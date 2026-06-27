@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from src.models import (
     AggregatedWeatherResponse,
     AnalysisAreaResult,
+    BestStargazingPlan,
     CelestialPosition,
     CurrentWeather,
     DeepSkyObject,
@@ -16,10 +17,16 @@ from src.models import (
     MoonInfo,
     NightlyForecast,
     NormalizedWeatherData,
+    ObservationWindow,
+    PlannedLocationCandidate,
+    PlanningQuery,
+    PlanningSummary,
+    PlanningTarget,
     ProviderError,
     ProviderSuccess,
     StargazingLocation,
     VisiblePlanet,
+    WeatherPlanningSummary,
 )
 
 # ── Base Models ─────────────────────────────────────────────────────────────
@@ -131,6 +138,82 @@ class TestNightlyForecast:
         )
         assert forecast.planets == []
         assert forecast.deep_sky == []
+
+
+class TestBestStargazingPlan:
+    def test_valid_plan(self):
+        plan = BestStargazingPlan(
+            query=PlanningQuery(
+                south=30.0,
+                west=100.0,
+                north=31.0,
+                east=101.0,
+                time='2024-06-15 20:00:00',
+                time_zone='UTC',
+                candidate_limit=2,
+                target_limit=3,
+                weather_provider='all',
+                max_locations=10,
+                min_height_diff=100.0,
+                road_radius_km=10.0,
+                network_type='drive',
+                analysis_resource_id='analysis-123',
+            ),
+            summary=PlanningSummary(
+                generated_at='2026-06-27T12:00:00+00:00',
+                requested_time='2024-06-15 20:00:00',
+                time_zone='UTC',
+                total_candidates=1,
+                recommended_location_name='Alpha Ridge',
+                warnings=['天气摘要降级处理：EXTERNAL_API_ERROR'],
+            ),
+            candidates=[
+                PlannedLocationCandidate(
+                    rank=1,
+                    recommendation_score=88.5,
+                    recommendation_reasons=['波特尔等级约为 2，暗空条件较清晰。'],
+                    location=StargazingLocation(name='Alpha Ridge', lat=35.0, lon=-120.0),
+                    weather_summary=WeatherPlanningSummary(
+                        weather_text='Clear',
+                        cloud_cover_percent=10.0,
+                        visibility_km=20.0,
+                        wind_speed_kph=8.0,
+                    ),
+                    best_observation_window=ObservationWindow(
+                        start_time='2024-06-15T21:00:00+00:00',
+                        cloud_cover_percent=8.0,
+                        precipitation_probability=0.0,
+                        wind_speed_kph=6.0,
+                        weather_text='Clear',
+                    ),
+                    moon_phase='New Moon',
+                    moon_illumination=0.05,
+                    top_targets=[PlanningTarget(name='M31', category='galaxy', score=91.0)],
+                    notes=[],
+                )
+            ],
+        )
+        assert plan.query.analysis_resource_id == 'analysis-123'
+        assert plan.summary.recommended_location_name == 'Alpha Ridge'
+        assert plan.candidates[0].top_targets[0].name == 'M31'
+
+    def test_candidate_limit_must_be_positive(self):
+        with pytest.raises(ValidationError):
+            PlanningQuery(
+                south=30.0,
+                west=100.0,
+                north=31.0,
+                east=101.0,
+                time='2024-06-15 20:00:00',
+                time_zone='UTC',
+                candidate_limit=0,
+                target_limit=3,
+                weather_provider='all',
+                max_locations=10,
+                min_height_diff=100.0,
+                road_radius_km=10.0,
+                network_type='drive',
+            )
 
 
 # ── Places Models ───────────────────────────────────────────────────────────

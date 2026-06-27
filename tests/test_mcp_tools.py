@@ -1,6 +1,7 @@
 """Tests for MCP tool wrappers not covered by other test files."""
 
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -12,6 +13,7 @@ from src.functions.celestial.impl import (
 )
 from src.functions.metadata.impl import get_tool_catalog
 from src.functions.places.impl import light_pollution_map
+from src.functions.planning.impl import get_best_stargazing_plan
 from src.functions.time.impl import get_local_datetime_info
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
 from src.response import MCPError
@@ -20,6 +22,7 @@ EXPECTED_TOOLS = {
     'analysis_area',
     'get_celestial_pos',
     'get_celestial_rise_set',
+    'get_best_stargazing_plan',
     'get_constellation',
     'get_local_datetime_info',
     'get_moon_info',
@@ -30,6 +33,208 @@ EXPECTED_TOOLS = {
     'light_pollution_map',
     'list_visible_planets',
 }
+
+# ---------------------------------------------------------------------------
+# Planning tool
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_fn():
+    """``get_best_stargazing_plan.fn`` returns ranked composite recommendations."""
+    with (
+        patch('src.functions.planning.impl.datetime') as mock_datetime,
+        patch('src.functions.planning.impl.analysis_area') as mock_analysis_area,
+        patch('src.functions.planning.impl.get_weather_by_position') as mock_weather,
+        patch('src.functions.planning.impl.get_nightly_forecast') as mock_forecast,
+    ):
+        mock_datetime.now.return_value = datetime(2026, 6, 27, 12, 0, tzinfo=UTC)
+        mock_analysis_area.fn = AsyncMock(
+            return_value={
+                'data': {
+                    'resource_id': 'analysis-abc123',
+                    'items': [
+                        {
+                            'name': 'Alpha Ridge',
+                            'lat': 40.1,
+                            'lon': 116.1,
+                            'score': 88.0,
+                            'bortle_class': 3,
+                        },
+                        {
+                            'name': 'Beta Valley',
+                            'lat': 40.2,
+                            'lon': 116.2,
+                            'score': 72.0,
+                            'bortle_class': 4,
+                        },
+                    ],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+        mock_weather.fn = AsyncMock(
+            side_effect=[
+                {
+                    'data': {
+                        'summary': {
+                            'current': {
+                                'weather_text': 'Clear',
+                                'cloud_cover_percent': 12.0,
+                                'visibility_km': 22.0,
+                                'wind_speed_kph': 8.0,
+                            },
+                            'hourly': [
+                                {
+                                    'time': '2024-06-15T21:00:00+08:00',
+                                    'cloud_cover_percent': 10.0,
+                                    'precipitation_probability': 0.0,
+                                    'wind_speed_kph': 7.0,
+                                    'weather_text': 'Clear',
+                                }
+                            ],
+                        }
+                    },
+                    '_meta': {'status': 'success'},
+                },
+                {
+                    'data': {
+                        'summary': {
+                            'current': {
+                                'weather_text': 'Partly cloudy',
+                                'cloud_cover_percent': 35.0,
+                                'visibility_km': 16.0,
+                                'wind_speed_kph': 12.0,
+                            },
+                            'hourly': [
+                                {
+                                    'time': '2024-06-15T22:00:00+08:00',
+                                    'cloud_cover_percent': 28.0,
+                                    'precipitation_probability': 0.1,
+                                    'wind_speed_kph': 10.0,
+                                    'weather_text': 'Partly cloudy',
+                                }
+                            ],
+                        }
+                    },
+                    '_meta': {'status': 'success'},
+                },
+            ]
+        )
+        mock_forecast.fn = AsyncMock(
+            side_effect=[
+                {
+                    'data': {
+                        'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.1},
+                        'planets': [{'name': 'Jupiter'}],
+                        'deep_sky': [
+                            {'name': 'M31', 'type': 'galaxy', 'score': 91.0},
+                            {'name': 'M45', 'type': 'cluster', 'score': 82.0},
+                        ],
+                    },
+                    '_meta': {'status': 'success'},
+                },
+                {
+                    'data': {
+                        'moon_phase': {'phase_name': 'First Quarter', 'illumination': 0.5},
+                        'planets': [{'name': 'Mars'}],
+                        'deep_sky': [{'name': 'M13', 'type': 'cluster', 'score': 78.0}],
+                    },
+                    '_meta': {'status': 'success'},
+                },
+            ]
+        )
+
+        result = await get_best_stargazing_plan.fn(
+            south=40.0,
+            west=116.0,
+            north=40.5,
+            east=116.5,
+            time='2024-06-15 20:00:00',
+            time_zone='Asia/Shanghai',
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['query']['analysis_resource_id'] == 'analysis-abc123'
+    assert data['query']['max_locations'] == 10
+    assert data['summary']['total_candidates'] == 2
+    assert data['summary']['generated_at'] == '2026-06-27T12:00:00+00:00'
+    assert data['summary']['recommended_location_name'] == 'Alpha Ridge'
+    assert len(data['candidates']) == 2
+    assert data['candidates'][0]['rank'] == 1
+    assert data['candidates'][0]['location']['name'] == 'Alpha Ridge'
+    assert data['candidates'][0]['top_targets'][0]['name'] == 'M31'
+    assert (
+        data['candidates'][0]['best_observation_window']['start_time']
+        == '2024-06-15T21:00:00+08:00'
+    )
+    assert (
+        data['candidates'][0]['recommendation_score']
+        >= data['candidates'][1]['recommendation_score']
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_keeps_partial_results_when_weather_fails():
+    """Weather failure should degrade gracefully into notes and warnings."""
+    with (
+        patch('src.functions.planning.impl.analysis_area') as mock_analysis_area,
+        patch('src.functions.planning.impl.get_weather_by_position') as mock_weather,
+        patch('src.functions.planning.impl.get_nightly_forecast') as mock_forecast,
+    ):
+        mock_analysis_area.fn = AsyncMock(
+            return_value={
+                'data': {
+                    'resource_id': 'analysis-soft-failure',
+                    'items': [
+                        {
+                            'name': 'Gamma Summit',
+                            'lat': 40.3,
+                            'lon': 116.3,
+                            'score': 81.0,
+                            'bortle_class': 2,
+                        }
+                    ],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+        mock_weather.fn = AsyncMock(
+            return_value={
+                'error': {'code': 'EXTERNAL_API_ERROR', 'message': '天气查询失败: timeout'},
+                '_meta': {'status': 'error'},
+            }
+        )
+        mock_forecast.fn = AsyncMock(
+            return_value={
+                'data': {
+                    'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.05},
+                    'planets': [{'name': 'Saturn'}],
+                    'deep_sky': [{'name': 'M8', 'type': 'nebula', 'score': 70.0}],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+
+        result = await get_best_stargazing_plan.fn(
+            south=40.0,
+            west=116.0,
+            north=40.5,
+            east=116.5,
+            time='2024-06-15 20:00:00',
+            time_zone='Asia/Shanghai',
+            candidate_limit=1,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['summary']['warnings']
+    assert '天气摘要降级处理' in data['summary']['warnings'][0]
+    assert data['candidates'][0]['weather_summary'] is None
+    assert data['candidates'][0]['notes']
+    assert data['candidates'][0]['top_targets'][0]['name'] == 'M8'
+
 
 # ---------------------------------------------------------------------------
 # Celestial tools

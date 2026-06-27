@@ -7,6 +7,7 @@ Calculate the altitude, rise, and set times of celestial objects (Sun, Moon, pla
 - **Altitude/Azimuth Calculation**: Get elevation and compass direction for any celestial object.
 - **Rise/Set Times**: Determine when objects appear/disappear above the horizon.
 - **Light Pollution Analysis**: Load and analyze light pollution maps (GeoTIFF format).
+- **Composite Planning**: Build a ranked observing plan that combines place quality, weather, moonlight, and top targets.
 - **Tool Discovery**: Inspect registered MCP tools programmatically through `get_tool_catalog`.
 - **Code Execution Ready**:
   - **Serializable Returns**: All tools return JSON-serializable data (ISO strings for dates), making them directly usable by LLMs.
@@ -121,7 +122,7 @@ python -m src.main --mode shttp --port 3001 --path /shttp --proxy http://127.0.0
 python -m src.main --mode sse --port 3001 --path /sse
 ```
 
-`dev` mode is still accepted by the CLI for backwards compatibility, but current FastMCP versions no longer provide `run_dev()`. Prefer `shttp`, `sse`, or `local`.
+`dev` mode is no longer supported because current FastMCP versions no longer provide `run_dev()`. Use `local`, `shttp`, or `sse`.
 
 ### 3. Response Format
 
@@ -172,6 +173,13 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
 - **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather with automatic retry on network failures.
 - **`get_local_datetime_info`**: Get current local time information.
 - **`get_tool_catalog`**: Discover available MCP tool metadata and parameters.
+- **`get_best_stargazing_plan`**: Build a ranked regional observing plan with candidate places, weather summaries, best observation windows, and top targets.
+  - **Inputs**: `south`, `west`, `north`, `east`, `time`, `time_zone`, `candidate_limit`, `target_limit`, `weather_provider`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`.
+  - **Returns**: `query`, `summary`, and `candidates`, where `query.analysis_resource_id` links the plan back to the underlying `analysis_area` search when available.
+  - **Degradation**: Weather or forecast sub-queries may degrade into `summary.warnings` and per-candidate `notes`, while the overall planning response remains successful.
+- **`light_pollution_map`**: Query light pollution data for a bounding box area.
+  - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).
+  - **Returns**: A grid of data points with Bortle class, brightness, and SQM values.
 - **`analysis_area`**: Find best stargazing spots in a region.
   - **Inputs**: `south`, `west`, `north`, `east`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`, `page`, `page_size`.
   - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters.
@@ -215,6 +223,7 @@ The project is modularized for better maintainability and code execution support
 │   ├── functions/            # Tool implementations grouped by domain
 │   │   ├── celestial/        # Celestial calculations (pos, rise/set)
 │   │   ├── metadata/         # Tool discovery surface (`get_tool_catalog`)
+│   │   ├── planning/         # Composite planning tools (`get_best_stargazing_plan`)
 │   │   ├── weather/          # Weather API integration
 │   │   ├── places/           # Location and area analysis
 │   │   └── time/             # Time utilities

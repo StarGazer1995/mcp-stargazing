@@ -53,16 +53,16 @@ class TestMain:
         src.main.iers_conf.auto_download = False
         src.main.iers_conf.auto_max_age = None
 
-    def test_mode_dev_raises_attribute_error(self):
-        """``main()`` mode='dev' raises AttributeError — ``run_dev`` removed in FastMCP 2.13+."""
+    def test_mode_dev_raises_value_error(self):
+        """``main()`` mode='dev' raises ValueError — ``run_dev`` removed in FastMCP 2.13+."""
         with (
             patch.object(sys, 'argv', ['mcp-stargazing', '--mode', 'dev']),
         ):
             from src.main import main
 
-            # FastMCP >=2.13 removed `run_dev`.  The project may need to migrate
-            # to `mcp.run(transport='stdio')` or a different dev workflow.
-            with pytest.raises(AttributeError, match='run_dev'):
+            # FastMCP >=2.13 removed `run_dev`.  Dev mode now falls through
+            # to the invalid-mode branch and raises ValueError.
+            with pytest.raises(ValueError, match='Invalid mode'):
                 main()
 
     def test_mode_local_calls_run(self):

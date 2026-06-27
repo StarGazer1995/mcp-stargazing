@@ -29,6 +29,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 - Example domains:
   - `src/functions/celestial/impl.py`
   - `src/functions/metadata/impl.py`
+  - `src/functions/planning/impl.py`
   - `src/functions/weather/impl.py`
   - `src/functions/places/impl.py`
   - `src/functions/time/impl.py`
@@ -90,7 +91,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
     ```bash
     python -m src.main --mode shttp --port 3001 --path /shttp
     ```
-    Prefer `shttp`, `sse`, or `local`; `dev` mode is not a reliable local workflow on current FastMCP versions because `run_dev()` has been removed upstream.
+    Prefer `shttp`, `sse`, or `local`. `dev` mode has been removed because `run_dev()` is no longer available in current FastMCP versions.
 3.  Use examples for agent integration patterns:
     - `examples/shttp_tools_demo.py`
     - `examples/stream_http_analysis_area.py`
@@ -107,10 +108,48 @@ This is not a runtime requirement, but it is the best place for team-level regul
 
 ## Documentation and repo hygiene
 
-- Document new tools in `README.md` and `AGENTS.md` when they affect agent-facing behavior.
-- Keep example scripts updated when the tool surface changes.
-- Keep the `tests/` harness up to date with any interface changes.
-- If a tool is removed, update both `README.md` and `AGENTS.md` to reflect the change.
+### 文档体系
+
+| 文档 | 定位 | 受众 |
+|------|------|------|
+| `README.md` | 工具目录、特性总览、安装与使用 | 所有用户（agent 开发者、最终用户） |
+| `AGENTS.md` | 开发规范、注册约定、错误处理规则 | 本 repo 开发者 |
+| `docs/ROADMAP.md` | 能力面状态、已完成 / 计划中的工作 | 本 repo 开发者、PM |
+| `docs/bridge-boundary.md` | `placefinder` bridge 的接口、职责边界与调用链 | 跨 repo 开发者 |
+| `docs/analysis-area-semantics.md` | `analysis_area` 的分页、缓存、`resource_id` 语义 | agent 集成者、本 repo 开发者 |
+| `docs/workspace-action-checklist.md` | workspace 级任务清单与验收标准 | 本 repo 开发者 |
+| `docs/workspace-technical-map.md` | workspace 级架构总览与技术债热点 | 本 repo 开发者 |
+
+### 何时更新哪份文档
+
+| 变更类型 | 必须更新 | 可选更新 |
+|---------|---------|---------|
+| 新增 MCP 工具 | `README.md`（Available Tools）、`docs/ROADMAP.md`（Recently completed） | `AGENTS.md`（如涉及新 domain） |
+| 修改工具参数或返回值 | `README.md`（Available Tools）、`docs/ROADMAP.md` | `docs/analysis-area-semantics.md`（如涉及分页/缓存语义） |
+| 删除工具 | `README.md`、`docs/ROADMAP.md`、`AGENTS.md` | — |
+| Bridge 层变更 | `docs/bridge-boundary.md` | `docs/workspace-technical-map.md` |
+| 新增下层能力到 bridge | `docs/bridge-boundary.md` | `docs/workspace-technical-map.md` |
+| 错误码新增 | `AGENTS.md`（Error handling）、`README.md`（Error Handling） | — |
+| 协议/transport 变更 | `AGENTS.md`、`docs/ROADMAP.md` | `README.md` |
+| 缓存策略变更 | `docs/analysis-area-semantics.md` | `docs/ROADMAP.md` |
+
+### 最小更新规则
+
+1. **新增 agent-facing 能力**（新工具、新参数、新错误码）→ 必须同步更新 `README.md` + `docs/ROADMAP.md`
+2. **删除或重命名** → 必须同步更新 `README.md` + `AGENTS.md` + `docs/ROADMAP.md`
+3. **Bridge 层变更** → 必须同步更新 `docs/bridge-boundary.md`
+4. **分页/缓存/`resource_id` 语义变更** → 必须同步更新 `docs/analysis-area-semantics.md`
+5. **Workspace 级架构变更** → 必须同步更新 `docs/workspace-technical-map.md`
+
+### 同步检查清单
+
+每次发布前执行：
+
+- [ ] `README.md` 的 Available Tools 列表与 `@mcp.tool()` 注册集合一致
+- [ ] `docs/ROADMAP.md` 的 Recently completed 反映最新交付
+- [ ] `AGENTS.md` 的错误码列表与 `src/response.py:MCPError` 一致
+- [ ] 文档中没有引用已删除的文件路径或工具名
+- [ ] 示例脚本 (`examples/`) 的参数与工具签名一致
 
 ## Future roadmap
 
