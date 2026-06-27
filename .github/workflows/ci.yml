@@ -56,6 +56,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
 
       - name: Build Test Image
         run: docker build --target test -t test-image .
@@ -63,7 +70,35 @@ jobs:
       - name: Run Tests in Docker
         run: |
           mkdir -p reports
-          docker run --rm -v ${{ github.workspace }}/reports:/app/reports test-image tests/ -v --junitxml=/app/reports/test-report.xml
+          docker run --rm -v ${{ github.workspace }}/reports:/app/reports test-image \
+            tests/ -v \
+            --junitxml=/app/reports/test-report.xml \
+            --cov=src \
+            --cov-report=xml:/app/reports/coverage.xml
+
+      - name: Install diff-cover
+        run: python -m pip install --upgrade diff-cover
+
+      - name: Enforce 100% diff coverage
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            COMPARE_REF="origin/$BASE_REF"
+            git fetch origin "$BASE_REF" --depth=1
+          else
+            COMPARE_REF="$BEFORE_SHA"
+          fi
+
+          if [ -z "$COMPARE_REF" ]; then
+            COMPARE_REF="origin/$DEFAULT_BRANCH"
+            git fetch origin "$DEFAULT_BRANCH" --depth=1
+          fi
+
+          diff-cover reports/coverage.xml --compare-branch="$COMPARE_REF" --fail-under=100
 
       - name: Build Production Image
         run: docker build --target production -t prod-image .
@@ -74,3 +109,10 @@ jobs:
         with:
           name: test-report
           path: reports/test-report.xml
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: reports/coverage.xml
