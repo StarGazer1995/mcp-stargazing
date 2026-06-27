@@ -7,6 +7,7 @@ FastMCP 服务实例。
   仅满足 `@mcp.tool()` 装饰器与 `.fn` 调用方式（测试用）。
 """
 
+import copy
 import inspect
 from typing import Any
 
@@ -121,7 +122,7 @@ class MCP:
         }
 
     def get_tool_catalog(self):
-        return list(self._tool_metadata.values())
+        return copy.deepcopy(list(self._tool_metadata.values()))
 
     def __getattr__(self, item):
         return getattr(self._mcp, item)

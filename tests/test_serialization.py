@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
 import pytz
 
 from src.functions.celestial.impl import get_celestial_pos, get_celestial_rise_set
@@ -129,3 +130,156 @@ def test_analysis_area_pagination_serialization():
             assert MockPF.call_count == 1
 
     asyncio.run(run_test())
+
+
+@pytest.mark.asyncio
+async def test_analysis_area_resource_id_is_stable_across_pages():
+    """The same non-pagination query should reuse the same cached resource identifier."""
+
+    class MockCache:
+        def __init__(self):
+            self.store = {}
+
+        def get(self, key):
+            return self.store.get(key)
+
+        def set(self, key, value):
+            self.store[key] = value
+
+    with (
+        patch('src.functions.places.impl.StargazingPlaceFinder') as mock_placefinder,
+        patch('src.functions.places.impl.ANALYSIS_CACHE', new=MockCache()),
+    ):
+        mock_placefinder.return_value.analyze_area.return_value = [
+            {'name': f'Loc {i}', 'score': i, 'lat': 35.0 + i * 0.01, 'lon': -120.0 - i * 0.01}
+            for i in range(12)
+        ]
+
+        result_page_1 = await analysis_area.fn(
+            south=30.0,
+            west=100.0,
+            north=31.0,
+            east=101.0,
+            page=1,
+            page_size=5,
+        )
+        result_page_2 = await analysis_area.fn(
+            south=30.0,
+            west=100.0,
+            north=31.0,
+            east=101.0,
+            page=2,
+            page_size=5,
+        )
+
+    assert result_page_1['_meta']['status'] == 'success'
+    assert result_page_2['_meta']['status'] == 'success'
+    assert result_page_1['data']['resource_id'] == result_page_2['data']['resource_id']
+    assert mock_placefinder.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_analysis_area_resource_id_changes_with_calc_params():
+    """Changing a calculation parameter should produce a distinct resource identifier."""
+
+    class MockCache:
+        def get(self, key):
+            return None
+
+        def set(self, key, value):
+            return None
+
+    with (
+        patch('src.functions.places.impl.StargazingPlaceFinder') as mock_placefinder,
+        patch('src.functions.places.impl.ANALYSIS_CACHE', new=MockCache()),
+    ):
+        mock_placefinder.return_value.analyze_area.return_value = []
+
+        result_a = await analysis_area.fn(
+            south=30.0,
+            west=100.0,
+            north=31.0,
+            east=101.0,
+            min_height_diff=100.0,
+        )
+        result_b = await analysis_area.fn(
+            south=30.0,
+            west=100.0,
+            north=31.0,
+            east=101.0,
+            min_height_diff=150.0,
+        )
+
+    assert result_a['_meta']['status'] == 'success'
+    assert result_b['_meta']['status'] == 'success'
+    assert result_a['data']['resource_id'] != result_b['data']['resource_id']
+
+
+@pytest.mark.asyncio
+async def test_analysis_area_returns_empty_items_for_out_of_range_page():
+    """Out-of-range pages should remain successful and return an empty item list."""
+
+    class MockCache:
+        def __init__(self):
+            self.store = {}
+
+        def get(self, key):
+            return self.store.get(key)
+
+        def set(self, key, value):
+            self.store[key] = value
+
+    with (
+        patch('src.functions.places.impl.StargazingPlaceFinder') as mock_placefinder,
+        patch('src.functions.places.impl.ANALYSIS_CACHE', new=MockCache()),
+    ):
+        mock_placefinder.return_value.analyze_area.return_value = [
+            {'name': f'Loc {i}', 'score': i, 'lat': 35.0 + i * 0.01, 'lon': -120.0 - i * 0.01}
+            for i in range(3)
+        ]
+
+        result = await analysis_area.fn(
+            south=30.0,
+            west=100.0,
+            north=31.0,
+            east=101.0,
+            page=5,
+            page_size=2,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    assert result['data']['items'] == []
+    assert result['data']['total'] == 3
+    assert result['data']['total_pages'] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('field_name', 'field_value', 'expected_message'),
+    [
+        ('page', 0, 'page must be greater than or equal to 1.'),
+        ('page_size', 0, 'page_size must be greater than or equal to 1.'),
+    ],
+)
+async def test_analysis_area_rejects_invalid_pagination_inputs(
+    field_name: str,
+    field_value: int,
+    expected_message: str,
+):
+    """Invalid pagination inputs should return the standard structured error payload."""
+    kwargs = {
+        'south': 30.0,
+        'west': 100.0,
+        'north': 31.0,
+        'east': 101.0,
+        'page': 1,
+        'page_size': 10,
+    }
+    kwargs[field_name] = field_value
+
+    result = await analysis_area.fn(**kwargs)
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == 'CONFIGURATION_ERROR'
+    assert result['error']['message'] == expected_message
+    assert result['error']['details'] == {field_name: field_value}

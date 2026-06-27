@@ -142,15 +142,15 @@ All tools return data in a standardized JSON format:
 - **`get_celestial_pos`**: Calculate altitude/azimuth.
 - **`get_celestial_rise_set`**: Calculate rise/set times (Returns ISO strings).
 - **`get_moon_info`**: Detailed moon phase, illumination, and age.
-- **`get_visible_planets`**: List of all planets currently above the horizon with positions.
+- **`list_visible_planets`**: List of all planets currently above the horizon with positions.
 - **`get_constellation`**: Find the position (Alt/Az) of a constellation center.
 - **`get_nightly_forecast`**: Smart planner returning curated list of best objects to view tonight (Planets + Deep Sky).
 - **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather with automatic retry on network failures.
 - **`get_local_datetime_info`**: Get current local time information.
 - **`get_tool_catalog`**: Discover available MCP tool metadata and parameters.
 - **`analysis_area`**: Find best stargazing spots in a region.
-  - **Inputs**: `top_left`, `bottom_right`, `time`, `page`, `page_size`.
-  - **Returns**: List of spots with viewing conditions, plus pagination metadata (`total`, `resource_id`).
+  - **Inputs**: `south`, `west`, `north`, `east`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`, `page`, `page_size`.
+  - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters.
 
 ### 5. Error Handling
 

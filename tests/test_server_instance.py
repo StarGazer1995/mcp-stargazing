@@ -188,7 +188,7 @@ def test_get_tool_catalog_returns_list():
 
 
 def test_get_tool_catalog_is_a_copy():
-    """Modifying the returned list does not affect internal metadata."""
+    """Modifying the returned catalog should not affect internal metadata."""
     fresh_mcp = MCP('test-server')
 
     @fresh_mcp.tool()
@@ -200,6 +200,24 @@ def test_get_tool_catalog_is_a_copy():
     catalog.clear()
     # Internal metadata should be unaffected
     assert len(fresh_mcp.get_tool_catalog()) == 1
+
+
+def test_get_tool_catalog_returns_deep_copy_entries():
+    """Mutating nested metadata in the returned catalog must not leak back into the MCP wrapper."""
+    fresh_mcp = MCP('test-server')
+
+    @fresh_mcp.tool()
+    def nested_tool(query: str, limit: int = 10) -> dict[str, Any]:
+        """Nested metadata tool."""
+        return {'query': query, 'limit': limit}
+
+    catalog = fresh_mcp.get_tool_catalog()
+    catalog[0]['description'] = 'mutated'
+    catalog[0]['parameters'][0]['name'] = 'changed'
+
+    internal_catalog = fresh_mcp.get_tool_catalog()
+    assert internal_catalog[0]['description'] == 'Nested metadata tool.'
+    assert internal_catalog[0]['parameters'][0]['name'] == 'query'
 
 
 # ---------------------------------------------------------------------------
