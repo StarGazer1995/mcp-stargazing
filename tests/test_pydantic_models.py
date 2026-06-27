@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.models import (
+from src.schemas import (
     AggregatedWeatherResponse,
     AnalysisAreaResult,
     BestStargazingPlan,

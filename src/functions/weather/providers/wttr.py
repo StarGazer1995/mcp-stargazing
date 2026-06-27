@@ -2,7 +2,8 @@
 
 import requests
 
-from src.models.weather import (
+from src.response import MCPError
+from src.schemas.weather import (
     CurrentWeather,
     DailyForecastItem,
     HourlyForecastItem,
@@ -10,7 +11,6 @@ from src.models.weather import (
     NormalizedWeatherData,
     ProviderSuccess,
 )
-from src.response import MCPError
 
 
 def get_weather_by_position(

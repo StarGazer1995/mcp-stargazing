@@ -4,13 +4,13 @@ These models define the contract between modules — any internal function
 should accept and return these models rather than raw dicts.
 """
 
-from src.models.base import (
+from src.schemas.base import (
     GeoBounds,
     GeoPoint,
     ProviderType,
     TimeInfo,
 )
-from src.models.celestial import (
+from src.schemas.celestial import (
     CelestialPosition,
     ConstellationInfo,
     DeepSkyObject,
@@ -19,15 +19,15 @@ from src.models.celestial import (
     RiseSet,
     VisiblePlanet,
 )
-from src.models.error import ErrorCode
-from src.models.pagination import PaginatedResult
-from src.models.places import (
+from src.schemas.error import ErrorCode
+from src.schemas.pagination import PaginatedResult
+from src.schemas.places import (
     AnalysisAreaResult,
     LightPollutionGrid,
     LightPollutionGridPoint,
     StargazingLocation,
 )
-from src.models.planning import (
+from src.schemas.planning import (
     BestStargazingPlan,
     ObservationWindow,
     PlannedLocationCandidate,
@@ -36,7 +36,7 @@ from src.models.planning import (
     PlanningTarget,
     WeatherPlanningSummary,
 )
-from src.models.weather import (
+from src.schemas.weather import (
     AggregatedWeatherResponse,
     CurrentWeather,
     DailyForecastItem,

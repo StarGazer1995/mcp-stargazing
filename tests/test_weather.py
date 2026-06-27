@@ -4,8 +4,8 @@ from unittest.mock import patch
 import pytest
 
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
-from src.models import AggregatedWeatherResponse
 from src.response import MCPError
+from src.schemas import AggregatedWeatherResponse
 
 
 def test_get_weather_by_name_no_api_key():

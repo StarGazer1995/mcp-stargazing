@@ -1,39 +1,36 @@
 import importlib
-import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from src.paths import (
-    MODELS_DIR,
-    discard_shadowing_module,
-    find_module_origin,
-    is_repo_models_origin,
-    prioritize_sys_path,
-    resolve_package_source_root,
-)
+from src.paths import prioritize_sys_path, resolve_package_source_root
 
 SPF_PACKAGE_NAME = 'stargazingplacefinder'
-MODELS_MODULE_NAME = 'models'
+
+# Track last-configured analyzer parameters so we avoid re-creating the
+# SPF singleton (closing/reopening GeoTIFF handles and PostGIS pools)
+# when nothing has changed.
+_last_params: dict[str, Any] | None = None
 
 
 def _prepare_spf_import_path() -> Path | None:
-    """Ensure `stargazingplacefinder` resolves its own top-level modules first."""
+    """Ensure ``stargazingplacefinder`` resolves its own top-level modules first.
+
+    Since MCP's Pydantic schemas live under ``src/schemas/`` (not ``src/models/``),
+    there is no longer a bare ``models`` package conflict.  We only need to put the
+    SPF source root at the front of ``sys.path`` so that SPF's internal imports
+    (e.g. ``from models import ...``) resolve correctly.
+    """
     source_root = resolve_package_source_root(SPF_PACKAGE_NAME)
     if source_root is None:
         return None
-
-    if is_repo_models_origin(find_module_origin(MODELS_MODULE_NAME)):
-        discard_shadowing_module(MODELS_MODULE_NAME, MODELS_DIR)
-    elif is_repo_models_origin(getattr(sys.modules.get(MODELS_MODULE_NAME), '__file__', None)):
-        discard_shadowing_module(MODELS_MODULE_NAME, MODELS_DIR)
 
     prioritize_sys_path(source_root)
     return source_root
 
 
 def _load_spf() -> ModuleType:
-    """Import `stargazingplacefinder` after preparing its dependency source root."""
+    """Import ``stargazingplacefinder`` after preparing its dependency source root."""
     _prepare_spf_import_path()
     try:
         return importlib.import_module(SPF_PACKAGE_NAME)
@@ -46,7 +43,11 @@ def _load_spf() -> ModuleType:
 
 
 class StargazingPlaceFinder:
-    """Bridge wrapper around the `stargazingplacefinder` public API."""
+    """Bridge wrapper around the ``stargazingplacefinder`` public API.
+
+    Only calls the public API surface (``analyze_area``, ``get_light_pollution_grid``)
+    — never reaches into internal SPF types like ``StargazingLocationAnalyzer``.
+    """
 
     def __init__(
         self,
@@ -60,16 +61,29 @@ class StargazingPlaceFinder:
         self.road_search_radius_km = road_search_radius_km
         self.db_config_path = db_config_path
         self._spf = _load_spf()
-        self.stargazing_analyzer = self._init_analyzer()
+        self._init_analyzer()
 
-    def _init_analyzer(self) -> Any:
-        """Initialize the dependency analyzer using the bridge's current parameters."""
-        return self._spf.init_stargazing_analyzer(
+    def _init_analyzer(self) -> None:
+        """Configure the SPF singleton analyzer — skipped when params are unchanged."""
+        global _last_params
+
+        new_params = {
+            'geotiff_path': self.geotiff_path,
+            'min_height_difference': self.min_height_difference,
+            'road_search_radius_km': self.road_search_radius_km,
+            'db_config_path': self.db_config_path,
+        }
+
+        if _last_params == new_params:
+            return  # nothing changed — reuse the existing singleton
+
+        self._spf.init_stargazing_analyzer(
             geotiff_path=self.geotiff_path,
             min_height_difference=self.min_height_difference,
             road_search_radius_km=self.road_search_radius_km,
             db_config_path=self.db_config_path,
         )
+        _last_params = new_params
 
     def analyze_area(
         self,
@@ -91,11 +105,13 @@ class StargazingPlaceFinder:
         ):
             self.min_height_difference = min_height_diff
             self.road_search_radius_km = road_radius_km
-            self.stargazing_analyzer = self._init_analyzer()
-        return self.stargazing_analyzer.analyze_area(
+            self._init_analyzer()
+        # Use the public API which returns already-serialized dicts,
+        # avoiding SPF Pydantic model instances leaking into MCP's process
+        # space where they would conflict with MCP's own StargazingLocation.
+        return self._spf.analyze_area(
             bbox=(south, west, north, east),
             max_locations=max_locations,
-            location_types=None,
             network_type=network_type,
             include_light_pollution=True,
             include_road_connectivity=True,
@@ -105,7 +121,7 @@ class StargazingPlaceFinder:
 def get_light_pollution_grid(
     north: float, south: float, east: float, west: float, zoom: int = 10
 ) -> dict[str, Any]:
-    """Proxy the light pollution grid helper from `stargazingplacefinder`."""
+    """Proxy the light pollution grid helper from ``stargazingplacefinder``."""
     spf_module = _load_spf()
     return spf_module.get_light_pollution_grid(
         north=north,

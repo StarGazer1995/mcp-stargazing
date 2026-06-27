@@ -5,8 +5,9 @@ from typing import Any
 from src.functions.celestial.impl import get_nightly_forecast
 from src.functions.places.impl import analysis_area
 from src.functions.weather.impl import get_weather_by_position
-from src.models.places import StargazingLocation
-from src.models.planning import (
+from src.response import MCPError, format_response
+from src.schemas.places import StargazingLocation
+from src.schemas.planning import (
     BestStargazingPlan,
     ObservationWindow,
     PlannedLocationCandidate,
@@ -15,7 +16,6 @@ from src.models.planning import (
     PlanningTarget,
     WeatherPlanningSummary,
 )
-from src.response import MCPError, format_response
 from src.server_instance import mcp
 from src.utils import (
     ensure_timezone,

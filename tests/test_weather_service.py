@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from src.functions.weather.service import get_aggregated_weather_by_position
-from src.models.weather import (
+from src.schemas.weather import (
     CurrentWeather,
     DailyForecastItem,
     HourlyForecastItem,

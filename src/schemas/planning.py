@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from src.models.places import StargazingLocation
+from src.schemas.places import StargazingLocation
 
 
 class PlanningQuery(BaseModel):
