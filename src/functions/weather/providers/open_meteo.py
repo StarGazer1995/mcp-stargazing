@@ -11,6 +11,7 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+PROVIDER_NAME = 'open-meteo'
 OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast'
 OPEN_METEO_GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search'
 
@@ -31,7 +32,7 @@ def get_weather_by_position(
         location_name=location_name,
         timezone=timezone,
     )
-    return ProviderSuccess(provider='open-meteo', data=normalized)
+    return ProviderSuccess(provider=PROVIDER_NAME, data=normalized)
 
 
 def fetch_open_meteo_raw_weather(

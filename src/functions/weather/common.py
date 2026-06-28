@@ -1,8 +1,28 @@
 """Shared utilities for weather providers."""
 
+from typing import TYPE_CHECKING, Protocol
+
 import requests
 
 from src.response import MCPError
+
+if TYPE_CHECKING:
+    from src.schemas.weather import ProviderSuccess
+
+
+class WeatherProvider(Protocol):
+    """Protocol that every weather provider module must satisfy."""
+
+    def get_weather_by_position(
+        self,
+        lat: float,
+        lon: float,
+        location_name: str | None = None,
+        timezone: str | None = None,
+    ) -> 'ProviderSuccess': ...
+
+    def get_weather_by_name(self, place_name: str) -> 'ProviderSuccess': ...
+
 
 # ── HTTP ─────────────────────────────────────────────────────────────────
 
@@ -75,11 +95,14 @@ def http_get_json(
 
 
 def to_float(value: str | int | float | None) -> float | None:
-    """将输入值安全转换为浮点数（None / 空字符串 → None）。"""
+    """将输入值安全转换为浮点数（None / 空字符串 / 非数字 → None）。"""
 
     if value in (None, ''):
         return None
-    return float(value)
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
 
 
 def to_ratio(value: str | int | float | None) -> float | None:

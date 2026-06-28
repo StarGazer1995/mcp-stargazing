@@ -13,6 +13,8 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+PROVIDER_NAME = 'wttr'
+
 
 def get_weather_by_position(
     lat: float,
@@ -30,7 +32,7 @@ def get_weather_by_position(
         location_name=location_name,
         timezone=timezone,
     )
-    return ProviderSuccess(provider='wttr', data=normalized)
+    return ProviderSuccess(provider=PROVIDER_NAME, data=normalized)
 
 
 def fetch_wttr_raw_weather(lat: float, lon: float) -> dict:
@@ -223,7 +225,7 @@ def get_weather_by_name(place_name: str) -> ProviderSuccess:
         location_name=location_name,
         timezone=None,
     )
-    return ProviderSuccess(provider='wttr', data=normalized)
+    return ProviderSuccess(provider=PROVIDER_NAME, data=normalized)
 
 
 def _fetch_wttr_raw_weather_by_name(place_name: str) -> dict:

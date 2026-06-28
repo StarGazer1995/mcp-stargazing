@@ -1,3 +1,4 @@
+from src.functions.weather.providers import open_meteo, qweather, wttr
 from src.functions.weather.providers.qweather import get_qweather_auth_from_env
 from src.functions.weather.service import (
     get_aggregated_weather_by_name,
@@ -8,7 +9,12 @@ from src.schemas.weather import AggregatedWeatherResponse
 from src.server_instance import mcp
 from src.utils import validate_coordinates
 
-WEATHER_PROVIDERS = {'all', 'qweather', 'open-meteo', 'wttr'}
+WEATHER_PROVIDERS = {
+    'all',
+    open_meteo.PROVIDER_NAME,
+    qweather.PROVIDER_NAME,
+    wttr.PROVIDER_NAME,
+}
 
 
 def _normalize_provider(provider: str) -> str:

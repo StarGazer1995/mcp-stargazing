@@ -4,6 +4,7 @@ Internally uses Pydantic models for type-safe data handling.
 Public API functions return AggregatedWeatherResponse (a Pydantic model).
 """
 
+from src.functions.weather.common import WeatherProvider
 from src.functions.weather.providers import open_meteo, qweather, wttr
 from src.response import MCPError
 from src.schemas import ProviderType
@@ -17,12 +18,12 @@ from src.schemas.weather import (
     WeatherSummary,
 )
 
-PROVIDER_ORDER = ['open-meteo', 'qweather', 'wttr']
+PROVIDER_ORDER = [open_meteo.PROVIDER_NAME, qweather.PROVIDER_NAME, wttr.PROVIDER_NAME]
 
-_PROVIDER_MODULES: dict[str, object] = {
-    'open-meteo': open_meteo,
-    'qweather': qweather,
-    'wttr': wttr,
+_PROVIDER_MODULES: dict[str, WeatherProvider] = {
+    open_meteo.PROVIDER_NAME: open_meteo,
+    qweather.PROVIDER_NAME: qweather,
+    wttr.PROVIDER_NAME: wttr,
 }
 
 
@@ -297,23 +298,14 @@ def _build_location_from_providers(
 ) -> LocationInfo:
     """从成功 provider 的返回数据中提取位置信息（按地名查询时使用）。
 
-    优先使用第一个成功 provider 的坐标和时区，名称合并所有 provider 的结果。
+    坐标取自第一个成功 provider，name/timezone 通过 _build_location 统一补充。
     """
 
-    primary = successful_providers[0]
-    loc = primary.data.location
-
-    lat = loc.lat
-    lon = loc.lon
-    resolved_name = loc.name or fallback_name
-    resolved_timezone = loc.timezone
-
-    # 后续 provider 可补充缺失的 name / timezone
-    for p in successful_providers[1:]:
-        ploc = p.data.location
-        if resolved_name is None and ploc.name is not None:
-            resolved_name = ploc.name
-        if resolved_timezone is None and ploc.timezone is not None:
-            resolved_timezone = ploc.timezone
-
-    return LocationInfo(name=resolved_name, lat=lat, lon=lon, timezone=resolved_timezone)
+    primary = successful_providers[0].data.location
+    return _build_location(
+        lat=primary.lat,
+        lon=primary.lon,
+        location_name=primary.name or fallback_name,
+        timezone=primary.timezone,
+        successful_providers=successful_providers,
+    )

@@ -19,6 +19,8 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+PROVIDER_NAME = 'qweather'
+
 
 def get_qweather_auth_from_env() -> tuple[str | None, str | None, str | None]:
     """从环境变量读取 QWeather 鉴权与 Host 配置。"""
@@ -51,13 +53,24 @@ def get_weather_by_position(
         location_name=location_name,
         timezone=timezone,
     )
-    return ProviderSuccess(provider='qweather', data=normalized)
+    return ProviderSuccess(provider=PROVIDER_NAME, data=normalized)
 
 
-def fetch_qweather_raw_weather(lat: float, lon: float) -> dict:
-    """查询 QWeather 原始天气数据。"""
+def fetch_qweather_raw_weather(
+    lat: float,
+    lon: float,
+    api_key: str | None = None,
+    jwt_token: str | None = None,
+    api_host: str | None = None,
+) -> dict:
+    """查询 QWeather 原始天气数据。
 
-    api_key, jwt_token, api_host = get_qweather_auth_from_env()
+    鉴权参数可选——未提供时从环境变量读取。
+    调用方可传入已获取的凭证以避免重复读取。
+    """
+
+    if api_key is None and jwt_token is None and api_host is None:
+        api_key, jwt_token, api_host = get_qweather_auth_from_env()
     return {
         'current': qweather_get_weather_by_coord_real_time(
             lon,
@@ -256,7 +269,13 @@ def get_weather_by_name(place_name: str) -> ProviderSuccess:
     lon = float(first_poi['lon'])
     location_name = first_poi.get('name') or place_name
 
-    raw_data = fetch_qweather_raw_weather(lat, lon)
+    raw_data = fetch_qweather_raw_weather(
+        lat,
+        lon,
+        api_key=api_key,
+        jwt_token=jwt_token,
+        api_host=api_host,
+    )
     normalized = normalize_qweather_weather(
         raw_data,
         lat,
@@ -264,4 +283,4 @@ def get_weather_by_name(place_name: str) -> ProviderSuccess:
         location_name=location_name,
         timezone=None,
     )
-    return ProviderSuccess(provider='qweather', data=normalized)
+    return ProviderSuccess(provider=PROVIDER_NAME, data=normalized)
