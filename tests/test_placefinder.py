@@ -41,7 +41,10 @@ def test_init_uses_dependency_analyzer_factory():
     mock_analyzer = MagicMock()
     fake_spf = _make_fake_spf(mock_analyzer)
 
-    with patch.object(placefinder_module, '_load_spf', return_value=fake_spf):
+    with (
+        patch.object(placefinder_module, '_load_spf', return_value=fake_spf),
+        patch('config.load_stargazing_config', return_value=None, create=True),
+    ):
         StargazingPlaceFinder()
 
     fake_spf.init_stargazing_analyzer.assert_called_once_with(
@@ -174,7 +177,10 @@ def test_init_with_db_config_path_forwards_path():
     fake_spf = _make_fake_spf(mock_analyzer)
     db_config_path = Path('/tmp/db_config.json')
 
-    with patch.object(placefinder_module, '_load_spf', return_value=fake_spf):
+    with (
+        patch.object(placefinder_module, '_load_spf', return_value=fake_spf),
+        patch('config.load_stargazing_config', return_value=None, create=True),
+    ):
         pf = StargazingPlaceFinder(db_config_path=db_config_path)
 
     assert pf.db_config_path == db_config_path
