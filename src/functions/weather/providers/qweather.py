@@ -4,6 +4,7 @@ import os
 
 from src.functions.weather.common import to_float, to_ratio
 from src.qweather_interaction import (
+    qweather_city_lookup,
     qweather_get_poi,
     qweather_get_weather_by_coord_in_ten_days,
     qweather_get_weather_by_coord_in_twenty_four_hours,
@@ -247,35 +248,53 @@ def map_qweather_condition_code(code: str | None) -> str | None:
 
 
 def get_weather_by_name(place_name: str) -> ProviderSuccess:
-    """通过地点名称查询 QWeather 天气（内部 POI geocoding + 天气）。"""
+    """通过地点名称查询 QWeather 天气（城市搜索 → 景区 POI 兜底 → 天气）。"""
 
     api_key, jwt_token, api_host = get_qweather_auth_from_env()
 
-    poi_result = qweather_get_poi(
-        place_name,
-        api_key,
-        api_host=api_host,
-        jwt_token=jwt_token,
-    )
-    if not poi_result or not poi_result.get('poi'):
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            f'QWeather POI 未找到地点: {place_name}',
-            {'place_name': place_name},
+    # ① 城市搜索（优先专属 host，不可用时自动回退公共 host）
+    city_result = None
+    try:
+        city_result = qweather_city_lookup(
+            place_name,
+            api_key,
+            api_host=api_host,
+            jwt_token=jwt_token,
         )
+    except MCPError:
+        pass  # 城市搜索不可用，降级到 POI
 
-    first_poi = _pick_best_poi(poi_result['poi'], place_name)
-    if first_poi is None:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            f'QWeather POI 未找到匹配 {place_name} 的城市级结果'
-            f'（此部署仅支持景区 POI，城市地理编码不可用）。',
-            {'place_name': place_name},
+    if city_result and city_result.get('location'):
+        loc = city_result['location'][0]
+        lat = float(loc['lat'])
+        lon = float(loc['lon'])
+        location_name = loc.get('name') or place_name
+    else:
+        # ② 景区 POI 兜底
+        poi_result = qweather_get_poi(
+            place_name,
+            api_key,
+            api_host=api_host,
+            jwt_token=jwt_token,
         )
+        if not poi_result or not poi_result.get('poi'):
+            raise MCPError(
+                MCPError.EXTERNAL_API_ERROR,
+                f'QWeather 地理编码未找到地点: {place_name}',
+                {'place_name': place_name},
+            )
 
-    lat = float(first_poi['lat'])
-    lon = float(first_poi['lon'])
-    location_name = first_poi.get('name') or place_name
+        first_poi = _pick_best_poi(poi_result['poi'], place_name)
+        if first_poi is None:
+            raise MCPError(
+                MCPError.EXTERNAL_API_ERROR,
+                f'QWeather 未找到匹配 {place_name} 的地点（城市搜索和景区 POI 均无匹配结果）。',
+                {'place_name': place_name},
+            )
+
+        lat = float(first_poi['lat'])
+        lon = float(first_poi['lon'])
+        location_name = first_poi.get('name') or place_name
 
     raw_data = fetch_qweather_raw_weather(
         lat,

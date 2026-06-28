@@ -145,6 +145,44 @@ def fetch_gzipped_json(
     return data
 
 
+def qweather_city_lookup(
+    city: str,
+    api_token: str | None,
+    *,
+    api_host: str | None = None,
+    jwt_token: str | None = None,
+    range: str = 'cn',
+) -> dict | None:
+    """城市搜索——返回城市级别的经纬度和 LocationID。
+
+    优先使用账号专属 host，若不可用则回退公共 geo host。
+    """
+
+    # 文档：/v2/city/lookup
+    custom_host = api_host.strip().rstrip('/') if api_host else None
+    params = f'location={city}&range={range}'
+
+    # 先尝试专属 host（可能未部署此端点 → HTTP 错误）
+    if custom_host:
+        try:
+            result = fetch_gzipped_json(
+                f'https://{custom_host}/v2/city/lookup?{params}',
+                api_token,
+                jwt_token=jwt_token,
+            )
+            if result and result.get('location'):
+                return result
+        except MCPError:
+            pass  # 专属 host 不可用，回退公共 host
+
+    # 回退到公共 geo host
+    return fetch_gzipped_json(
+        f'https://geoapi.qweather.com/v2/city/lookup?{params}',
+        api_token,
+        jwt_token=jwt_token,
+    )
+
+
 def qweather_get_poi(
     position: str,
     api_token: str | None,
