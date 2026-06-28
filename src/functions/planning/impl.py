@@ -243,7 +243,12 @@ async def _evaluate_candidate(
 ) -> PlannedLocationCandidate:
     """Evaluate one candidate place by attaching weather and target summaries."""
     weather_result, forecast_result = await asyncio.gather(
-        get_weather_by_position.fn(lat=location.lat, lon=location.lon, provider=weather_provider),
+        asyncio.to_thread(
+            get_weather_by_position.fn,
+            lat=location.lat,
+            lon=location.lon,
+            provider=weather_provider,
+        ),
         get_nightly_forecast.fn(
             lon=location.lon, lat=location.lat, time=time, time_zone=time_zone, limit=target_limit
         ),

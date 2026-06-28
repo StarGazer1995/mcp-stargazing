@@ -1,7 +1,7 @@
 """Tests for MCP tool wrappers not covered by other test files."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -73,7 +73,7 @@ async def test_get_best_stargazing_plan_fn():
                 '_meta': {'status': 'success'},
             }
         )
-        mock_weather.fn = AsyncMock(
+        mock_weather.fn = Mock(
             side_effect=[
                 {
                     'data': {
@@ -200,7 +200,7 @@ async def test_get_best_stargazing_plan_keeps_partial_results_when_weather_fails
                 '_meta': {'status': 'success'},
             }
         )
-        mock_weather.fn = AsyncMock(
+        mock_weather.fn = Mock(
             return_value={
                 'error': {'code': 'EXTERNAL_API_ERROR', 'message': '天气查询失败: timeout'},
                 '_meta': {'status': 'error'},
