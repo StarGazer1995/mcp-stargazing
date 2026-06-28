@@ -49,6 +49,7 @@ def test_init_uses_dependency_analyzer_factory():
         min_height_difference=100.0,
         road_search_radius_km=10.0,
         db_config_path=None,
+        config=None,
     )
 
 
@@ -182,6 +183,7 @@ def test_init_with_db_config_path_forwards_path():
         min_height_difference=100.0,
         road_search_radius_km=10.0,
         db_config_path=db_config_path,
+        config=None,
     )
 
 
