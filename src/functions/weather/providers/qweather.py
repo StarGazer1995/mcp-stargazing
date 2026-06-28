@@ -264,7 +264,15 @@ def get_weather_by_name(place_name: str) -> ProviderSuccess:
             {'place_name': place_name},
         )
 
-    first_poi = poi_result['poi'][0]
+    first_poi = _pick_best_poi(poi_result['poi'], place_name)
+    if first_poi is None:
+        raise MCPError(
+            MCPError.EXTERNAL_API_ERROR,
+            f'QWeather POI 未找到匹配 {place_name} 的城市级结果'
+            f'（此部署仅支持景区 POI，城市地理编码不可用）。',
+            {'place_name': place_name},
+        )
+
     lat = float(first_poi['lat'])
     lon = float(first_poi['lon'])
     location_name = first_poi.get('name') or place_name
@@ -284,3 +292,20 @@ def get_weather_by_name(place_name: str) -> ProviderSuccess:
         timezone=None,
     )
     return ProviderSuccess(provider=PROVIDER_NAME, data=normalized)
+
+
+def _pick_best_poi(poi_list: list[dict], place_name: str) -> dict | None:
+    """从 QWeather POI 列表中选出最可能的城市级结果。
+
+    此部署的 geo API 仅返回 type=scenic 景区结果，没有真正的城市地理编码。
+    只接受名称与搜索词相近的结果，优先最短名称（更可能是地名）。
+    """
+
+    candidates = [
+        p for p in poi_list if place_name in p.get('name', '') or p.get('name', '') in place_name
+    ]
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda p: len(p.get('name', '')))
+    return candidates[0]

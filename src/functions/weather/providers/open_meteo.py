@@ -271,12 +271,47 @@ def get_weather_by_name(place_name: str) -> ProviderSuccess:
 def _geocode_open_meteo(place_name: str) -> dict:
     """使用 Open-Meteo Geocoding API 解析地点名称为坐标。
 
+    首选用中文搜索，若结果质量不佳（非省会/省会二级城市且人口少）
+    则追加「市」后缀重试，最后降级英文搜索，确保覆盖简称语料缺口。
+
     Returns:
         dict with keys: name, lat, lon, timezone (optional).
 
     Raises:
-        MCPError: 网络错误或未找到地点。
+        MCPError: 所有策略均未找到合适地点。
     """
+
+    candidates: list[dict] = []
+
+    # 策略 1：中文原名
+    candidates.extend(_fetch_geocode_results(place_name, 'zh'))
+
+    # 策略 2：追加「市」后缀
+    if not _has_high_quality_match(candidates):
+        candidates.extend(_fetch_geocode_results(f'{place_name}市', 'zh'))
+
+    # 策略 3：英文搜索
+    if not _has_high_quality_match(candidates):
+        candidates.extend(_fetch_geocode_results(place_name, 'en'))
+
+    if not candidates:
+        raise MCPError(
+            MCPError.EXTERNAL_API_ERROR,
+            f'Open-Meteo 地理编码未找到地点: {place_name}',
+            {'place_name': place_name},
+        )
+
+    best = _select_best_geocode_result(candidates)
+    return {
+        'name': _build_open_meteo_location_name(best),
+        'lat': float(best['latitude']),
+        'lon': float(best['longitude']),
+        'timezone': best.get('timezone'),
+    }
+
+
+def _fetch_geocode_results(place_name: str, language: str) -> list[dict]:
+    """单次 geocoding 查询，返回结果列表。"""
 
     data = http_get_json(
         OPEN_METEO_GEOCODING_URL,
@@ -285,27 +320,24 @@ def _geocode_open_meteo(place_name: str) -> dict:
         params={
             'name': place_name,
             'count': 5,
-            'language': 'zh',
+            'language': language,
             'format': 'json',
         },
-        context={'place_name': place_name},
+        context={'place_name': place_name, 'language': language},
     )
+    return data.get('results') or []
 
-    results = data.get('results') or []
-    if not results:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            f'Open-Meteo 地理编码未找到地点: {place_name}',
-            {'place_name': place_name},
-        )
 
-    best = _select_best_geocode_result(results)
-    return {
-        'name': _build_open_meteo_location_name(best),
-        'lat': float(best['latitude']),
-        'lon': float(best['longitude']),
-        'timezone': best.get('timezone'),
-    }
+def _has_high_quality_match(results: list[dict]) -> bool:
+    """是否有省会 / 人口 > 50k 的结果。"""
+
+    for r in results:
+        feature = r.get('feature_code', '')
+        if feature in {'PPLA', 'PPLA2', 'PPLA3', 'PPLA4'}:
+            return True
+        if (r.get('population') or 0) >= 50000:
+            return True
+    return False
 
 
 def _select_best_geocode_result(results: list[dict]) -> dict:
