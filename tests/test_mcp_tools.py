@@ -74,75 +74,49 @@ async def test_get_best_stargazing_plan_fn():
             }
         )
         mock_weather.fn = Mock(
-            side_effect=[
-                {
-                    'data': {
-                        'summary': {
-                            'current': {
-                                'weather_text': 'Clear',
-                                'cloud_cover_percent': 12.0,
-                                'visibility_km': 22.0,
-                                'wind_speed_kph': 8.0,
-                            },
-                            'hourly': [
-                                {
-                                    'time': '2024-06-15T21:00:00+08:00',
-                                    'cloud_cover_percent': 10.0,
-                                    'precipitation_probability': 0.0,
-                                    'wind_speed_kph': 7.0,
-                                    'weather_text': 'Clear',
-                                }
-                            ],
-                        }
-                    },
-                    '_meta': {'status': 'success'},
+            side_effect=lambda lat, lon, provider: {
+                'data': {
+                    'summary': {
+                        'current': {
+                            'weather_text': 'Clear' if lat == 40.1 else 'Partly cloudy',
+                            'cloud_cover_percent': 12.0 if lat == 40.1 else 35.0,
+                            'visibility_km': 22.0 if lat == 40.1 else 16.0,
+                            'wind_speed_kph': 8.0 if lat == 40.1 else 12.0,
+                        },
+                        'hourly': [
+                            {
+                                'time': '2024-06-15T21:00:00+08:00'
+                                if lat == 40.1
+                                else '2024-06-15T22:00:00+08:00',
+                                'cloud_cover_percent': 10.0 if lat == 40.1 else 28.0,
+                                'precipitation_probability': 0.0 if lat == 40.1 else 0.1,
+                                'wind_speed_kph': 7.0 if lat == 40.1 else 10.0,
+                                'weather_text': 'Clear' if lat == 40.1 else 'Partly cloudy',
+                            }
+                        ],
+                    }
                 },
-                {
-                    'data': {
-                        'summary': {
-                            'current': {
-                                'weather_text': 'Partly cloudy',
-                                'cloud_cover_percent': 35.0,
-                                'visibility_km': 16.0,
-                                'wind_speed_kph': 12.0,
-                            },
-                            'hourly': [
-                                {
-                                    'time': '2024-06-15T22:00:00+08:00',
-                                    'cloud_cover_percent': 28.0,
-                                    'precipitation_probability': 0.1,
-                                    'wind_speed_kph': 10.0,
-                                    'weather_text': 'Partly cloudy',
-                                }
-                            ],
-                        }
-                    },
-                    '_meta': {'status': 'success'},
-                },
-            ]
+                '_meta': {'status': 'success'},
+            }
         )
         mock_forecast.fn = AsyncMock(
-            side_effect=[
-                {
-                    'data': {
-                        'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.1},
-                        'planets': [{'name': 'Jupiter'}],
-                        'deep_sky': [
+            side_effect=lambda lon, lat, time, time_zone, limit: {
+                'data': {
+                    'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.1}
+                    if lat == 40.1
+                    else {'phase_name': 'First Quarter', 'illumination': 0.5},
+                    'planets': [{'name': 'Jupiter'}] if lat == 40.1 else [{'name': 'Mars'}],
+                    'deep_sky': (
+                        [
                             {'name': 'M31', 'type': 'galaxy', 'score': 91.0},
                             {'name': 'M45', 'type': 'cluster', 'score': 82.0},
-                        ],
-                    },
-                    '_meta': {'status': 'success'},
+                        ]
+                        if lat == 40.1
+                        else [{'name': 'M13', 'type': 'cluster', 'score': 78.0}]
+                    ),
                 },
-                {
-                    'data': {
-                        'moon_phase': {'phase_name': 'First Quarter', 'illumination': 0.5},
-                        'planets': [{'name': 'Mars'}],
-                        'deep_sky': [{'name': 'M13', 'type': 'cluster', 'score': 78.0}],
-                    },
-                    '_meta': {'status': 'success'},
-                },
-            ]
+                '_meta': {'status': 'success'},
+            }
         )
 
         result = await get_best_stargazing_plan.fn(

@@ -43,7 +43,7 @@ def test_init_uses_dependency_analyzer_factory():
 
     with (
         patch.object(placefinder_module, '_load_spf', return_value=fake_spf),
-        patch('config.load_stargazing_config', return_value=None),
+        patch('config.load_stargazing_config', return_value=None, create=True),
     ):
         StargazingPlaceFinder()
 
@@ -179,7 +179,7 @@ def test_init_with_db_config_path_forwards_path():
 
     with (
         patch.object(placefinder_module, '_load_spf', return_value=fake_spf),
-        patch('config.load_stargazing_config', return_value=None),
+        patch('config.load_stargazing_config', return_value=None, create=True),
     ):
         pf = StargazingPlaceFinder(db_config_path=db_config_path)
 
