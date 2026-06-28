@@ -77,11 +77,21 @@ class StargazingPlaceFinder:
         if _last_params == new_params:
             return  # nothing changed — reuse the existing singleton
 
+        # Load SPF config from TOML file (env STARGAZING_CONFIG or default path),
+        # then pass it through to RoadConnectivityChecker (tile size, etc.).
+        try:
+            from config import load_stargazing_config  # type: ignore[import-untyped]
+
+            spf_config = load_stargazing_config()
+        except Exception:
+            spf_config = None
+
         self._spf.init_stargazing_analyzer(
             geotiff_path=self.geotiff_path,
             min_height_difference=self.min_height_difference,
             road_search_radius_km=self.road_search_radius_km,
             db_config_path=self.db_config_path,
+            config=spf_config,
         )
         _last_params = new_params
 
