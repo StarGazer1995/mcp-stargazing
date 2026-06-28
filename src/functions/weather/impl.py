@@ -4,7 +4,6 @@ from src.functions.weather.service import (
     get_aggregated_weather_by_position,
 )
 from src.response import MCPError, format_error, format_response
-from src.retry import RetryConfig, retry_on_failure
 from src.schemas.weather import AggregatedWeatherResponse
 from src.server_instance import mcp
 from src.utils import validate_coordinates
@@ -62,17 +61,14 @@ def _format_weather_result(result: AggregatedWeatherResponse | dict) -> dict:
 
 
 def _execute_weather_fetch(fetch_weather, error_details: dict) -> dict:
-    """Run a retried weather fetch and translate external failures once."""
+    """Run a weather fetch and translate failures into standard error payloads.
 
-    @retry_on_failure(
-        RetryConfig(max_attempts=3, base_delay=1.0, max_delay=10.0),
-        retryable_errors=(ConnectionError, TimeoutError, OSError),
-    )
-    def _fetch_weather():
-        return fetch_weather()
+    Individual provider failures are handled at the service layer —
+    this wrapper only catches failures that escape the aggregation.
+    """
 
     try:
-        return _format_weather_result(_fetch_weather())
+        return _format_weather_result(fetch_weather())
     except MCPError as exc:
         return exc.to_response()
     except Exception as exc:
@@ -94,9 +90,10 @@ def get_weather_by_name(place_name: str, provider: str = 'all'):
     """
     通过地点名称获取综合天气（当前 + 小时预报 + 日预报）。
 
-    Geocoding uses Nominatim (free).  Weather data is aggregated from
-    multiple providers with graceful fallback — open-meteo is always
-    available without an API key.
+    每个天气 provider 内部自行处理地名→坐标解析（Open-Meteo Geocoding、
+    wttr.in 原生地名支持、QWeather POI lookup），不再依赖统一 geocoding 层。
+    Weather data is aggregated from multiple providers with graceful
+    fallback — open-meteo is always available without an API key.
 
     Args:
         place_name: 地点名称（例如城市/区县）。

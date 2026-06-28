@@ -4,7 +4,6 @@ Internally uses Pydantic models for type-safe data handling.
 Public API functions return AggregatedWeatherResponse (a Pydantic model).
 """
 
-from src.functions.weather.geocoding import resolve_place_name
 from src.functions.weather.providers import open_meteo, qweather, wttr
 from src.response import MCPError
 from src.schemas import ProviderType
@@ -20,20 +19,32 @@ from src.schemas.weather import (
 
 PROVIDER_ORDER = ['open-meteo', 'qweather', 'wttr']
 
+_PROVIDER_MODULES: dict[str, object] = {
+    'open-meteo': open_meteo,
+    'qweather': qweather,
+    'wttr': wttr,
+}
+
 
 def get_aggregated_weather_by_name(
     place_name: str,
     provider: str = 'all',
 ) -> AggregatedWeatherResponse:
-    """根据地点名称查询并聚合多个天气提供商的结果。"""
+    """根据地点名称查询并聚合多个天气提供商的结果。
 
-    location = resolve_place_name(place_name)
-    return get_aggregated_weather_by_position(
-        location.lat,
-        location.lon,
+    每个 provider 内部自行处理地名→坐标的转换，无需统一 geocoding 层。
+    """
+
+    provider_type = ProviderType.from_str(provider)
+    provider_names = _get_enabled_providers(provider_type)
+
+    return _aggregate_weather(
         provider=provider,
-        location_name=location.name,
-        timezone=location.timezone,
+        provider_names=provider_names,
+        query_fn=lambda pname: _query_single_provider_by_name(pname, place_name),
+        build_location_fn=lambda sp: _build_location_from_providers(sp, place_name),
+        error_label='(by_name) ',
+        error_context={'place_name': place_name},
     )
 
 
@@ -49,16 +60,37 @@ def get_aggregated_weather_by_position(
     provider_type = ProviderType.from_str(provider)
     provider_names = _get_enabled_providers(provider_type)
 
+    return _aggregate_weather(
+        provider=provider,
+        provider_names=provider_names,
+        query_fn=lambda pname: _query_single_provider(
+            pname, lat, lon, location_name=location_name, timezone=timezone
+        ),
+        build_location_fn=lambda sp: _build_location(lat, lon, location_name, timezone, sp),
+        error_label='',
+        error_context={'lat': lat, 'lon': lon},
+    )
+
+
+def _aggregate_weather(
+    provider: str,
+    provider_names: list[str],
+    query_fn,
+    build_location_fn,
+    error_label: str,
+    error_context: dict,
+) -> AggregatedWeatherResponse:
+    """Generic provider-iteration + aggregation template.
+
+    Both by_name and by_position paths share the same loop → result →
+    build-location → summary flow.  Only the per-provider query function
+    and the location-construction logic differ.
+    """
+
     provider_results: dict[str, ProviderSuccess | ProviderError] = {}
     for pname in provider_names:
         try:
-            provider_results[pname] = _query_single_provider(
-                pname,
-                lat,
-                lon,
-                location_name=location_name,
-                timezone=timezone,
-            )
+            provider_results[pname] = query_fn(pname)
         except MCPError as exc:
             provider_results[pname] = ProviderError(
                 provider=pname,
@@ -69,8 +101,8 @@ def get_aggregated_weather_by_position(
                 provider=pname,
                 error=ProviderErrorDetail(
                     code=MCPError.EXTERNAL_API_ERROR,
-                    message=f'{pname} provider 查询失败: {exc}',
-                    details={'lat': lat, 'lon': lon},
+                    message=f'{pname} provider {error_label}查询失败: {exc}',
+                    details=error_context,
                 ),
             )
 
@@ -78,7 +110,7 @@ def get_aggregated_weather_by_position(
 
     successful_providers = [r for r in provider_results.values() if isinstance(r, ProviderSuccess)]
 
-    location = _build_location(lat, lon, location_name, timezone, successful_providers)
+    location = build_location_fn(successful_providers)
     summary = _build_summary(successful_providers)
     source = _build_source_meta(provider, provider_results)
 
@@ -104,6 +136,19 @@ def _get_enabled_providers(provider_type: ProviderType) -> list[str]:
     )
 
 
+def _get_provider_module(provider_name: str):
+    """根据名称获取 provider 模块，未知时抛出 MCPError。"""
+
+    mod = _PROVIDER_MODULES.get(provider_name)
+    if mod is None:
+        raise MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            f'未知 provider: {provider_name}',
+            {'provider': provider_name},
+        )
+    return mod
+
+
 def _query_single_provider(
     provider_name: str,
     lat: float,
@@ -111,25 +156,20 @@ def _query_single_provider(
     location_name: str | None = None,
     timezone: str | None = None,
 ) -> ProviderSuccess:
-    """查询单个 provider 并返回 ProviderSuccess 模型。"""
+    """查询单个 provider（按坐标）并返回 ProviderSuccess 模型。"""
 
-    if provider_name == 'open-meteo':
-        return open_meteo.get_weather_by_position(
-            lat, lon, location_name=location_name, timezone=timezone
-        )
-    if provider_name == 'qweather':
-        return qweather.get_weather_by_position(
-            lat, lon, location_name=location_name, timezone=timezone
-        )
-    if provider_name == 'wttr':
-        return wttr.get_weather_by_position(
-            lat, lon, location_name=location_name, timezone=timezone
-        )
-    raise MCPError(
-        MCPError.CONFIGURATION_ERROR,
-        f'未知 provider: {provider_name}',
-        {'provider': provider_name},
+    return _get_provider_module(provider_name).get_weather_by_position(
+        lat, lon, location_name=location_name, timezone=timezone
     )
+
+
+def _query_single_provider_by_name(
+    provider_name: str,
+    place_name: str,
+) -> ProviderSuccess:
+    """查询单个 provider（按地名）并返回 ProviderSuccess 模型。"""
+
+    return _get_provider_module(provider_name).get_weather_by_name(place_name)
 
 
 def _build_summary(successful_providers: list[ProviderSuccess]) -> WeatherSummary:
@@ -238,7 +278,7 @@ def _build_location(
     timezone: str | None,
     successful_providers: list[ProviderSuccess],
 ) -> LocationInfo:
-    """构造聚合结果的位置对象。"""
+    """构造聚合结果的位置对象（按坐标查询时使用）。"""
 
     resolved_name = location_name
     resolved_timezone = timezone
@@ -248,4 +288,32 @@ def _build_location(
             resolved_name = loc.name
         if resolved_timezone is None and loc.timezone is not None:
             resolved_timezone = loc.timezone
+    return LocationInfo(name=resolved_name, lat=lat, lon=lon, timezone=resolved_timezone)
+
+
+def _build_location_from_providers(
+    successful_providers: list[ProviderSuccess],
+    fallback_name: str,
+) -> LocationInfo:
+    """从成功 provider 的返回数据中提取位置信息（按地名查询时使用）。
+
+    优先使用第一个成功 provider 的坐标和时区，名称合并所有 provider 的结果。
+    """
+
+    primary = successful_providers[0]
+    loc = primary.data.location
+
+    lat = loc.lat
+    lon = loc.lon
+    resolved_name = loc.name or fallback_name
+    resolved_timezone = loc.timezone
+
+    # 后续 provider 可补充缺失的 name / timezone
+    for p in successful_providers[1:]:
+        ploc = p.data.location
+        if resolved_name is None and ploc.name is not None:
+            resolved_name = ploc.name
+        if resolved_timezone is None and ploc.timezone is not None:
+            resolved_timezone = ploc.timezone
+
     return LocationInfo(name=resolved_name, lat=lat, lon=lon, timezone=resolved_timezone)

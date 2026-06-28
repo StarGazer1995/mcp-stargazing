@@ -27,7 +27,6 @@ dependencies = [
     "requests",
     "rasterio",
     "tzlocal",
-    "geopy",
     "stargazing-place-finder>=0.6.6,<1",
 ]
 

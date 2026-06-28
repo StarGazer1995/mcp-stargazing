@@ -1,7 +1,6 @@
 """Open-Meteo provider adapter."""
 
-import requests
-
+from src.functions.weather.common import http_get_json, to_float
 from src.response import MCPError
 from src.schemas.weather import (
     CurrentWeather,
@@ -13,6 +12,7 @@ from src.schemas.weather import (
 )
 
 OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast'
+OPEN_METEO_GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search'
 
 
 def get_weather_by_position(
@@ -34,26 +34,6 @@ def get_weather_by_position(
     return ProviderSuccess(provider='open-meteo', data=normalized)
 
 
-def build_open_meteo_url(
-    lat: float,
-    lon: float,
-    timezone: str | None = None,
-) -> str:
-    """构造 Open-Meteo 请求 URL。"""
-
-    request = requests.Request(
-        'GET', OPEN_METEO_URL, params=_build_open_meteo_params(lat, lon, timezone)
-    )
-    prepared = request.prepare()
-    if prepared.url is None:
-        raise MCPError(
-            MCPError.CONFIGURATION_ERROR,
-            'Open-Meteo 请求 URL 构造失败。',
-            {'lat': lat, 'lon': lon},
-        )
-    return prepared.url
-
-
 def fetch_open_meteo_raw_weather(
     lat: float,
     lon: float,
@@ -61,46 +41,13 @@ def fetch_open_meteo_raw_weather(
 ) -> dict:
     """查询 Open-Meteo 原始天气数据。"""
 
-    try:
-        response = requests.get(
-            OPEN_METEO_URL,
-            params=_build_open_meteo_params(lat, lon, timezone),
-            timeout=15.0,
-        )
-        response.raise_for_status()
-    except requests.exceptions.Timeout as exc:
-        raise MCPError(
-            MCPError.API_TIMEOUT,
-            'Open-Meteo 请求超时。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-    except requests.exceptions.ConnectionError as exc:
-        raise MCPError(
-            MCPError.NETWORK_ERROR,
-            'Open-Meteo 网络连接失败。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-    except requests.exceptions.HTTPError as exc:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            f'Open-Meteo 返回 HTTP {response.status_code}。',
-            {'lat': lat, 'lon': lon, 'status_code': response.status_code},
-        ) from exc
-    except requests.exceptions.RequestException as exc:
-        raise MCPError(
-            MCPError.NETWORK_ERROR,
-            f'Open-Meteo 请求失败: {exc}',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            'Open-Meteo 返回了无效 JSON。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
+    return http_get_json(
+        OPEN_METEO_URL,
+        label='Open-Meteo',
+        timeout=15.0,
+        params=_build_open_meteo_params(lat, lon, timezone),
+        context={'lat': lat, 'lon': lon},
+    )
 
 
 def normalize_open_meteo_weather(
@@ -125,17 +72,17 @@ def normalize_open_meteo_weather(
             timezone=resolved_timezone,
         ),
         current=CurrentWeather(
-            temperature_c=_to_float(current.get('temperature_2m')),
-            feels_like_c=_to_float(current.get('apparent_temperature')),
-            humidity=_to_float(current.get('relative_humidity_2m')),
-            wind_speed_kph=_to_float(current.get('wind_speed_10m')),
-            wind_direction_deg=_to_float(current.get('wind_direction_10m')),
-            pressure_hpa=_to_float(current.get('pressure_msl')),
+            temperature_c=to_float(current.get('temperature_2m')),
+            feels_like_c=to_float(current.get('apparent_temperature')),
+            humidity=to_float(current.get('relative_humidity_2m')),
+            wind_speed_kph=to_float(current.get('wind_speed_10m')),
+            wind_direction_deg=to_float(current.get('wind_direction_10m')),
+            pressure_hpa=to_float(current.get('pressure_msl')),
             visibility_km=_meters_to_km(current.get('visibility')),
-            cloud_cover_percent=_to_float(current.get('cloud_cover')),
-            cloud_cover_low_percent=_to_float(current.get('cloud_cover_low')),
-            cloud_cover_mid_percent=_to_float(current.get('cloud_cover_mid')),
-            cloud_cover_high_percent=_to_float(current.get('cloud_cover_high')),
+            cloud_cover_percent=to_float(current.get('cloud_cover')),
+            cloud_cover_low_percent=to_float(current.get('cloud_cover_low')),
+            cloud_cover_mid_percent=to_float(current.get('cloud_cover_mid')),
+            cloud_cover_high_percent=to_float(current.get('cloud_cover_high')),
             weather_code=map_open_meteo_weather_code(current.get('weather_code')),
             weather_text=_weather_text_from_open_meteo_code(current.get('weather_code')),
             observation_time=current.get('time'),
@@ -280,14 +227,6 @@ def _weather_text_from_open_meteo_code(code: int | None) -> str | None:
     return mapping.get(code, 'Unknown') if code is not None else None
 
 
-def _to_float(value: int | float | None) -> float | None:
-    """将输入值安全转换为浮点数。"""
-
-    if value is None:
-        return None
-    return float(value)
-
-
 def _meters_to_km(value: int | float | None) -> float | None:
     """将米转换为千米。"""
 
@@ -311,3 +250,87 @@ def _percent_index_to_ratio(values: list | None, index: int) -> float | None:
     if value is None:
         return None
     return float(value) / 100.0
+
+
+# ── Name-based weather ──────────────────────────────────────────────────
+
+
+def get_weather_by_name(place_name: str) -> ProviderSuccess:
+    """通过地点名称查询 Open-Meteo 天气（内部 geocoding + 天气）。"""
+
+    result = _geocode_open_meteo(place_name)
+    return get_weather_by_position(
+        lat=result['lat'],
+        lon=result['lon'],
+        location_name=result['name'],
+        timezone=result.get('timezone'),
+    )
+
+
+def _geocode_open_meteo(place_name: str) -> dict:
+    """使用 Open-Meteo Geocoding API 解析地点名称为坐标。
+
+    Returns:
+        dict with keys: name, lat, lon, timezone (optional).
+
+    Raises:
+        MCPError: 网络错误或未找到地点。
+    """
+
+    data = http_get_json(
+        OPEN_METEO_GEOCODING_URL,
+        label='Open-Meteo 地理编码',
+        timeout=10.0,
+        params={
+            'name': place_name,
+            'count': 5,
+            'language': 'zh',
+            'format': 'json',
+        },
+        context={'place_name': place_name},
+    )
+
+    results = data.get('results') or []
+    if not results:
+        raise MCPError(
+            MCPError.EXTERNAL_API_ERROR,
+            f'Open-Meteo 地理编码未找到地点: {place_name}',
+            {'place_name': place_name},
+        )
+
+    best = _select_best_geocode_result(results)
+    return {
+        'name': _build_open_meteo_location_name(best),
+        'lat': float(best['latitude']),
+        'lon': float(best['longitude']),
+        'timezone': best.get('timezone'),
+    }
+
+
+def _select_best_geocode_result(results: list[dict]) -> dict:
+    """从多条地理编码结果中选最优（省会 > 普通城市，人口多优先）。"""
+
+    def _rank(result: dict) -> tuple[int, int]:
+        feature = result.get('feature_code', '')
+        is_ppla = 0 if feature == 'PPLA' else 1
+        population = result.get('population') or 0
+        return (is_ppla, -population)
+
+    results.sort(key=_rank)
+    return results[0]
+
+
+def _build_open_meteo_location_name(result: dict) -> str:
+    """从 Open-Meteo 地理编码结果构造可读地名。"""
+
+    parts = []
+    name = result.get('name', '')
+    if name:
+        parts.append(name)
+    admin1 = result.get('admin1', '')
+    if admin1:
+        parts.append(admin1)
+    country = result.get('country', '')
+    if country:
+        parts.append(country)
+    return ', '.join(parts) if parts else name

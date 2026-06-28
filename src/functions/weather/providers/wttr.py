@@ -1,7 +1,8 @@
 """wttr.in provider adapter."""
 
-import requests
+from urllib.parse import quote
 
+from src.functions.weather.common import http_get_json, to_float, to_ratio
 from src.response import MCPError
 from src.schemas.weather import (
     CurrentWeather,
@@ -32,55 +33,16 @@ def get_weather_by_position(
     return ProviderSuccess(provider='wttr', data=normalized)
 
 
-def build_wttr_query(lat: float, lon: float) -> str:
-    """构造 wttr.in 查询字符串。"""
-
-    return f'{lat},{lon}'
-
-
 def fetch_wttr_raw_weather(lat: float, lon: float) -> dict:
     """查询 wttr.in 原始天气数据。"""
 
-    try:
-        response = requests.get(
-            f'https://wttr.in/{build_wttr_query(lat, lon)}',
-            params={'format': 'j1'},
-            timeout=15.0,
-        )
-        response.raise_for_status()
-    except requests.exceptions.Timeout as exc:
-        raise MCPError(
-            MCPError.API_TIMEOUT,
-            'wttr.in 请求超时。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-    except requests.exceptions.ConnectionError as exc:
-        raise MCPError(
-            MCPError.NETWORK_ERROR,
-            'wttr.in 网络连接失败。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-    except requests.exceptions.HTTPError as exc:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            f'wttr.in 返回 HTTP {response.status_code}。',
-            {'lat': lat, 'lon': lon, 'status_code': response.status_code},
-        ) from exc
-    except requests.exceptions.RequestException as exc:
-        raise MCPError(
-            MCPError.NETWORK_ERROR,
-            f'wttr.in 请求失败: {exc}',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            'wttr.in 返回了无效 JSON。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
+    return http_get_json(
+        f'https://wttr.in/{lat},{lon}',
+        label='wttr.in',
+        timeout=15.0,
+        params={'format': 'j1'},
+        context={'lat': lat, 'lon': lon},
+    )
 
 
 def normalize_wttr_weather(
@@ -107,8 +69,8 @@ def normalize_wttr_weather(
         daily_items.append(
             DailyForecastItem(
                 date=weather_row.get('date'),
-                temp_min_c=_to_float(weather_row.get('mintempC')),
-                temp_max_c=_to_float(weather_row.get('maxtempC')),
+                temp_min_c=to_float(weather_row.get('mintempC')),
+                temp_max_c=to_float(weather_row.get('maxtempC')),
                 precipitation_probability=_hourly_max_ratio(hourly_rows, 'chanceofrain'),
                 cloud_cover_percent=_hourly_average(hourly_rows, 'cloudcover'),
                 weather_code_day=map_wttr_condition_text(
@@ -127,14 +89,14 @@ def normalize_wttr_weather(
             timezone=timezone,
         ),
         current=CurrentWeather(
-            temperature_c=_to_float(current.get('temp_C')),
-            feels_like_c=_to_float(current.get('FeelsLikeC')),
-            humidity=_to_float(current.get('humidity')),
-            wind_speed_kph=_to_float(current.get('windspeedKmph')),
-            wind_direction_deg=_to_float(current.get('winddirDegree')),
-            pressure_hpa=_to_float(current.get('pressure')),
-            visibility_km=_to_float(current.get('visibility')),
-            cloud_cover_percent=_to_float(current.get('cloudcover')),
+            temperature_c=to_float(current.get('temp_C')),
+            feels_like_c=to_float(current.get('FeelsLikeC')),
+            humidity=to_float(current.get('humidity')),
+            wind_speed_kph=to_float(current.get('windspeedKmph')),
+            wind_direction_deg=to_float(current.get('winddirDegree')),
+            pressure_hpa=to_float(current.get('pressure')),
+            visibility_km=to_float(current.get('visibility')),
+            cloud_cover_percent=to_float(current.get('cloudcover')),
             cloud_cover_low_percent=None,
             cloud_cover_mid_percent=None,
             cloud_cover_high_percent=None,
@@ -181,12 +143,12 @@ def _build_hourly_items(
         items.append(
             HourlyForecastItem(
                 time=time_value,
-                temperature_c=_to_float(row.get('tempC')),
-                humidity=_to_float(row.get('humidity')),
-                precipitation_probability=_percent_text_to_ratio(row.get('chanceofrain')),
-                wind_speed_kph=_to_float(row.get('windspeedKmph')),
-                wind_direction_deg=_to_float(row.get('winddirDegree')),
-                cloud_cover_percent=_to_float(row.get('cloudcover')),
+                temperature_c=to_float(row.get('tempC')),
+                humidity=to_float(row.get('humidity')),
+                precipitation_probability=to_ratio(row.get('chanceofrain')),
+                wind_speed_kph=to_float(row.get('windspeedKmph')),
+                wind_direction_deg=to_float(row.get('winddirDegree')),
+                cloud_cover_percent=to_float(row.get('cloudcover')),
                 cloud_cover_low_percent=None,
                 cloud_cover_mid_percent=None,
                 cloud_cover_high_percent=None,
@@ -217,27 +179,10 @@ def _condition_text_from_row(row: dict) -> str | None:
     return None
 
 
-def _to_float(value: str | int | float | None) -> float | None:
-    """将输入值安全转换为浮点数。"""
-
-    if value in (None, ''):
-        return None
-    return float(value)
-
-
-def _percent_text_to_ratio(value: str | int | float | None) -> float | None:
-    """将百分比文本转换为 0 到 1 之间的小数。"""
-
-    numeric = _to_float(value)
-    if numeric is None:
-        return None
-    return numeric / 100.0
-
-
 def _hourly_average(rows: list[dict], key: str) -> float | None:
     """计算逐小时字段的平均值。"""
 
-    values = [_to_float(row.get(key)) for row in rows if _to_float(row.get(key)) is not None]
+    values = [to_float(row.get(key)) for row in rows if to_float(row.get(key)) is not None]
     if not values:
         return None
     return sum(values) / len(values)
@@ -246,7 +191,63 @@ def _hourly_average(rows: list[dict], key: str) -> float | None:
 def _hourly_max_ratio(rows: list[dict], key: str) -> float | None:
     """计算逐小时百分比字段的最大值并转为小数。"""
 
-    values = [_to_float(row.get(key)) for row in rows if _to_float(row.get(key)) is not None]
+    values = [to_float(row.get(key)) for row in rows if to_float(row.get(key)) is not None]
     if not values:
         return None
     return max(values) / 100.0
+
+
+# ── Name-based weather ──────────────────────────────────────────────────
+
+
+def get_weather_by_name(place_name: str) -> ProviderSuccess:
+    """通过地点名称查询 wttr.in 天气（一步到位，原生支持地名 URL）。"""
+
+    raw_data = _fetch_wttr_raw_weather_by_name(place_name)
+    nearest = _extract_nearest_area(raw_data)
+    if nearest is None:
+        raise MCPError(
+            MCPError.EXTERNAL_API_ERROR,
+            f'wttr.in 无法从响应中解析位置: {place_name}',
+            {'place_name': place_name},
+        )
+
+    lat = float(nearest['latitude'])
+    lon = float(nearest['longitude'])
+    location_name = nearest.get('area_name') or place_name
+
+    normalized = normalize_wttr_weather(
+        raw_data,
+        lat,
+        lon,
+        location_name=location_name,
+        timezone=None,
+    )
+    return ProviderSuccess(provider='wttr', data=normalized)
+
+
+def _fetch_wttr_raw_weather_by_name(place_name: str) -> dict:
+    """通过地名直接查询 wttr.in 原始天气数据。"""
+
+    return http_get_json(
+        f'https://wttr.in/{quote(place_name)}',
+        label='wttr.in',
+        timeout=10.0,
+        params={'format': 'j1'},
+        context={'place_name': place_name},
+    )
+
+
+def _extract_nearest_area(raw_data: dict) -> dict | None:
+    """从 wttr.in 响应中提取 nearest_area 坐标和地名。"""
+
+    nearest_list = raw_data.get('nearest_area') or []
+    if not nearest_list:
+        return None
+    nearest = nearest_list[0]
+    area_names = nearest.get('areaName') or []
+    return {
+        'latitude': nearest.get('latitude'),
+        'longitude': nearest.get('longitude'),
+        'area_name': area_names[0].get('value') if area_names else None,
+    }

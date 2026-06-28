@@ -218,28 +218,20 @@ def test_weather_api_error_handling(mock_service):
 @patch('src.retry.time.sleep')  # Mock sleep to speed up test
 @patch('src.functions.weather.impl.get_aggregated_weather_by_name')
 def test_weather_retry_logic(mock_service, mock_sleep):
-    """Test that weather functions retry on network errors and eventually succeed."""
-    # First two calls fail with network error, third succeeds
-    mock_service.side_effect = [
-        ConnectionError('Network timeout'),
-        ConnectionError('Network timeout'),
-        {
-            'location': {'name': 'Test City', 'lat': 0.0, 'lon': 0.0, 'timezone': None},
-            'summary': {'current': {'temperature_c': 20.0}, 'daily': [], 'hourly': []},
-            'providers': {},
-            'source': {
-                'query_mode': 'all',
-                'successful_providers': ['open-meteo'],
-                'failed_providers': [],
-            },
-        },
-    ]
+    """Test that network errors from the service layer are caught and
+    returned as structured error responses (no retry at the impl layer).
+
+    Per-provider failures are handled inside the service aggregation;
+    the impl layer only formats the final result or error payload.
+    """
+    mock_service.side_effect = ConnectionError('Network timeout')
 
     result = get_weather_by_name.fn('Test City')
 
-    # Should have been called 3 times (initial + 2 retries)
-    assert mock_service.call_count == 3
-    # Should have slept twice (between retries)
-    assert mock_sleep.call_count == 2
-    # Should return success on third try
-    assert result['data']['summary']['current']['temperature_c'] == 20.0
+    # Called exactly once — no retry at this level
+    assert mock_service.call_count == 1
+    # No sleep calls (retry was removed)
+    assert mock_sleep.call_count == 0
+    # Returns structured error response
+    assert 'error' in result
+    assert 'Network timeout' in str(result['error'])

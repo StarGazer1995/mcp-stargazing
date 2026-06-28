@@ -2,7 +2,9 @@
 
 import os
 
+from src.functions.weather.common import to_float, to_ratio
 from src.qweather_interaction import (
+    qweather_get_poi,
     qweather_get_weather_by_coord_in_ten_days,
     qweather_get_weather_by_coord_in_twenty_four_hours,
     qweather_get_weather_by_coord_real_time,
@@ -102,14 +104,14 @@ def normalize_qweather_weather(
             timezone=timezone,
         ),
         current=CurrentWeather(
-            temperature_c=_to_float(current.get('temp')),
-            feels_like_c=_to_float(current.get('feelsLike')),
-            humidity=_to_float(current.get('humidity')),
-            wind_speed_kph=_to_float(current.get('windSpeed')),
-            wind_direction_deg=_to_float(current.get('wind360')),
-            pressure_hpa=_to_float(current.get('pressure')),
-            visibility_km=_to_float(current.get('vis')),
-            cloud_cover_percent=_to_float(current.get('cloud')),
+            temperature_c=to_float(current.get('temp')),
+            feels_like_c=to_float(current.get('feelsLike')),
+            humidity=to_float(current.get('humidity')),
+            wind_speed_kph=to_float(current.get('windSpeed')),
+            wind_direction_deg=to_float(current.get('wind360')),
+            pressure_hpa=to_float(current.get('pressure')),
+            visibility_km=to_float(current.get('vis')),
+            cloud_cover_percent=to_float(current.get('cloud')),
             cloud_cover_low_percent=None,
             cloud_cover_mid_percent=None,
             cloud_cover_high_percent=None,
@@ -120,10 +122,10 @@ def normalize_qweather_weather(
         daily=[
             DailyForecastItem(
                 date=row.get('fxDate'),
-                temp_min_c=_to_float(row.get('tempMin')),
-                temp_max_c=_to_float(row.get('tempMax')),
-                precipitation_probability=_to_ratio(row.get('precip')),
-                cloud_cover_percent=_to_float(row.get('cloud')),
+                temp_min_c=to_float(row.get('tempMin')),
+                temp_max_c=to_float(row.get('tempMax')),
+                precipitation_probability=to_ratio(row.get('precip')),
+                cloud_cover_percent=to_float(row.get('cloud')),
                 weather_code_day=map_qweather_condition_code(row.get('iconDay')),
                 weather_text_day=row.get('textDay'),
             )
@@ -133,12 +135,12 @@ def normalize_qweather_weather(
         hourly=[
             HourlyForecastItem(
                 time=row.get('fxTime'),
-                temperature_c=_to_float(row.get('temp')),
-                humidity=_to_float(row.get('humidity')),
-                precipitation_probability=_to_ratio(row.get('pop')),
-                wind_speed_kph=_to_float(row.get('windSpeed')),
-                wind_direction_deg=_to_float(row.get('wind360')),
-                cloud_cover_percent=_to_float(row.get('cloud')),
+                temperature_c=to_float(row.get('temp')),
+                humidity=to_float(row.get('humidity')),
+                precipitation_probability=to_ratio(row.get('pop')),
+                wind_speed_kph=to_float(row.get('windSpeed')),
+                wind_direction_deg=to_float(row.get('wind360')),
+                cloud_cover_percent=to_float(row.get('cloud')),
                 cloud_cover_low_percent=None,
                 cloud_cover_mid_percent=None,
                 cloud_cover_high_percent=None,
@@ -228,18 +230,38 @@ def map_qweather_condition_code(code: str | None) -> str | None:
     return 'unknown'
 
 
-def _to_float(value: str | int | float | None) -> float | None:
-    """将输入值安全转换为浮点数。"""
-
-    if value in (None, ''):
-        return None
-    return float(value)
+# ── Name-based weather ──────────────────────────────────────────────────
 
 
-def _to_ratio(value: str | int | float | None) -> float | None:
-    """将百分比值转换为 0 到 1 之间的小数。"""
+def get_weather_by_name(place_name: str) -> ProviderSuccess:
+    """通过地点名称查询 QWeather 天气（内部 POI geocoding + 天气）。"""
 
-    numeric = _to_float(value)
-    if numeric is None:
-        return None
-    return numeric / 100.0
+    api_key, jwt_token, api_host = get_qweather_auth_from_env()
+
+    poi_result = qweather_get_poi(
+        place_name,
+        api_key,
+        api_host=api_host,
+        jwt_token=jwt_token,
+    )
+    if not poi_result or not poi_result.get('poi'):
+        raise MCPError(
+            MCPError.EXTERNAL_API_ERROR,
+            f'QWeather POI 未找到地点: {place_name}',
+            {'place_name': place_name},
+        )
+
+    first_poi = poi_result['poi'][0]
+    lat = float(first_poi['lat'])
+    lon = float(first_poi['lon'])
+    location_name = first_poi.get('name') or place_name
+
+    raw_data = fetch_qweather_raw_weather(lat, lon)
+    normalized = normalize_qweather_weather(
+        raw_data,
+        lat,
+        lon,
+        location_name=location_name,
+        timezone=None,
+    )
+    return ProviderSuccess(provider='qweather', data=normalized)
