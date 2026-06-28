@@ -2,6 +2,8 @@
 
 This repository exposes MCP tools for AI agents and requires repo-level conventions for safe, consistent agent updates.
 
+See also `CLAUDE.md` for architecture overview, quick commands, design patterns, known sharp edges, and release process.
+
 ## Why this file exists
 
 `AGENTS.md` is the repo-level policy document for:
@@ -158,3 +160,5 @@ See `docs/ROADMAP.md` for the planned agent and harness feature roadmap, includi
 - composite planning tools
 - streamed large-search support
 - expanded astronomy domain features
+
+See `CLAUDE.md` → Known Sharp Edges for current technical debt items including the place-finder bridge `sys.path` manipulation, global cache thread safety, weather provider code duplication, and the Python 3.13+ version constraint.
