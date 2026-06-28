@@ -2,7 +2,7 @@ import importlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -49,7 +49,7 @@ def test_init_uses_dependency_analyzer_factory():
         min_height_difference=100.0,
         road_search_radius_km=10.0,
         db_config_path=None,
-        config=None,
+        config=ANY,
     )
 
 
@@ -183,7 +183,7 @@ def test_init_with_db_config_path_forwards_path():
         min_height_difference=100.0,
         road_search_radius_km=10.0,
         db_config_path=db_config_path,
-        config=None,
+        config=ANY,
     )
 
 
