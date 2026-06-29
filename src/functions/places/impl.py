@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,28 @@ from src.schemas.places import (
     StargazingLocation,
 )
 from src.server_instance import mcp
+
+logger = logging.getLogger(__name__)
+
+
+def _translate_spf_error(exc: Exception) -> MCPError:
+    """Translate SPF exceptions into MCPError for clean agent-facing messages."""
+    exc_name = type(exc).__name__
+
+    # Map known SPF exception types to MCPError codes
+    error_map = {
+        'ValidationError': (MCPError.CONFIGURATION_ERROR, 'SPF validation error'),
+        'ConfigError': (MCPError.CONFIGURATION_ERROR, 'SPF configuration error'),
+        'GeoError': (MCPError.INVALID_COORDINATES, 'SPF coordinate error'),
+        'NetworkError': (MCPError.NETWORK_ERROR, 'SPF network error'),
+        'DataError': (MCPError.EXTERNAL_API_ERROR, 'SPF data error'),
+        'NoDataError': (MCPError.EXTERNAL_API_ERROR, 'No data available'),
+        'CacheError': (MCPError.EXTERNAL_API_ERROR, 'SPF cache error'),
+        'StargazingError': (MCPError.EXTERNAL_API_ERROR, 'SPF internal error'),
+    }
+
+    code, prefix = error_map.get(exc_name, (MCPError.EXTERNAL_API_ERROR, 'SPF error'))
+    return MCPError(code, f'{prefix}: {exc}')
 
 
 @mcp.tool()
@@ -28,9 +51,25 @@ async def light_pollution_map(
     """
 
     def _compute():
-        return get_light_pollution_grid(north=north, south=south, east=east, west=west, zoom=zoom)
+        try:
+            return get_light_pollution_grid(
+                north=north, south=south, east=east, west=west, zoom=zoom
+            )
+        except ModuleNotFoundError:
+            raise MCPError(
+                MCPError.CONFIGURATION_ERROR,
+                'stargazing-place-finder is not installed — '
+                'place analysis features are unavailable',
+            )
+        except Exception as exc:
+            raise _translate_spf_error(exc) from exc
 
-    raw = await asyncio.to_thread(_compute)
+    try:
+        raw = await asyncio.to_thread(_compute)
+    except MCPError:
+        raise
+    except Exception as exc:
+        raise _translate_spf_error(exc) from exc
     grid = LightPollutionGrid(
         grid=[LightPollutionGridPoint.from_spf_point(p) for p in raw.get('data', [])],
         bounds={'south': south, 'west': west, 'north': north, 'east': east},
@@ -110,22 +149,36 @@ async def analysis_area(
     if cached is None:
 
         def _compute():
-            db_config_p = Path(db_config_path) if db_config_path else None
-            stargazing_place_finder = StargazingPlaceFinder(db_config_path=db_config_p)
-            results = stargazing_place_finder.analyze_area(
-                south=south,
-                west=west,
-                north=north,
-                east=east,
-                min_height_diff=min_height_diff,
-                road_radius_km=road_radius_km,
-                max_locations=max_locations,
-                network_type=network_type,
-            )
-            # Convert spf StargazingLocation objects to our models
-            return [StargazingLocation.from_spf_location(item) for item in results]
+            try:
+                db_config_p = Path(db_config_path) if db_config_path else None
+                stargazing_place_finder = StargazingPlaceFinder(db_config_path=db_config_p)
+                results = stargazing_place_finder.analyze_area(
+                    south=south,
+                    west=west,
+                    north=north,
+                    east=east,
+                    min_height_diff=min_height_diff,
+                    road_radius_km=road_radius_km,
+                    max_locations=max_locations,
+                    network_type=network_type,
+                )
+                # Convert spf StargazingLocation objects to our models
+                return [StargazingLocation.from_spf_location(item) for item in results]
+            except ModuleNotFoundError:
+                raise MCPError(
+                    MCPError.CONFIGURATION_ERROR,
+                    'stargazing-place-finder is not installed — '
+                    'place analysis features are unavailable',
+                )
+            except Exception as exc:
+                raise _translate_spf_error(exc) from exc
 
-        cached = await asyncio.to_thread(_compute)
+        try:
+            cached = await asyncio.to_thread(_compute)
+        except MCPError:
+            raise
+        except Exception as exc:
+            raise _translate_spf_error(exc) from exc
         ANALYSIS_CACHE.set(resource_id, cached)
 
     # 4. Pagination

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from datetime import datetime
 from functools import lru_cache
@@ -20,6 +21,8 @@ from astropy.coordinates import (
 )
 from astropy.time import Time
 from astroquery.simbad import Simbad
+
+logger = logging.getLogger(__name__)
 
 solar_system_ephemeris.set('builtin')
 
@@ -283,7 +286,7 @@ def _load_objects():
         OBJECTS_CACHE = _load_data_resource('objects.json')
     except FileNotFoundError:
         OBJECTS_CACHE = []  # Should handle gracefully
-        print(f'Warning: Objects data file not found at {data_path}')
+        logger.warning('Objects data file not found at %s', data_path)
 
     return OBJECTS_CACHE
 
@@ -367,6 +370,7 @@ def calculate_nightly_forecast(
     scored_objects = []
 
     altaz_frame = AltAz(obstime=time, location=observer_location)
+    moon_altaz = moon_coord.transform_to(altaz_frame)
 
     for obj in candidates:
         # Coordinate
@@ -392,7 +396,7 @@ def calculate_nightly_forecast(
 
         effective_mag = mag
 
-        if moon_illum > 0.1 and altaz.alt.deg > 0:  # If Moon is up and bright
+        if moon_illum > 0.1 and moon_altaz.alt.deg > 0:  # If Moon is up and bright
             if sep < 15:
                 # Too close to moon, skip
                 continue
@@ -442,20 +446,20 @@ def identify_constellation(sky_coord: SkyCoord) -> str:
 @lru_cache(maxsize=128)
 def _resolve_simbad_object(name: str) -> SkyCoord:
     """Resolve deep-space object name to SkyCoord using SIMBAD with caching."""
-    print(f"[DEBUG] Resolving object '{name}' via Simbad...")
+    logger.debug("Resolving object '%s' via Simbad...", name)
     # Query SIMBAD for the object
     # Note: Simbad query involves network request which can be SLOW.
     result = Simbad.query_object(name)
     if result is None:
         # Try capitalizing first letter (e.g. "sirius" -> "Sirius")
-        print(f"[DEBUG] '{name}' not found, trying '{name.capitalize()}'...")
+        logger.debug("'%s' not found, trying '%s'...", name, name.capitalize())
         result = Simbad.query_object(name.capitalize())
 
     if result is None:
-        print(f"[DEBUG] Object '{name}' not found in Simbad.")
+        logger.debug("Object '%s' not found in Simbad.", name)
         raise ValueError(f"Object '{name}' not found in SIMBAD.")
 
-    print(f"[DEBUG] Successfully resolved '{name}'.")
+    logger.debug("Successfully resolved '%s'.", name)
 
     # Check if we got any results
     if len(result) == 0:
