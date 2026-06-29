@@ -125,12 +125,16 @@
 
 ### 这个月该做的
 
-- [ ] SPF: 瓦片缓存 LRU 替代 `clear()`
-- [ ] SPF: Overpass 加总超时
-- [ ] MCP-SG: 并行天气查询
-- [ ] MCP-SG: 分析缓存加 maxsize
-- [ ] 两个: 加 structlog + request_id
-- [ ] MCP-SG: 加 `/health` 端点
+| # | Sprint | 项目 | 项 | 理由 |
+|---|--------|------|----|------|
+| 1 | 🔴 S1 | MCP-SG | 加 `/health` 端点 | 容器探活必需，10 行代码，无此无法正经部署 |
+| 2 | 🔴 S1 | MCP-SG | 并行天气查询 | `asyncio.gather` 三 provider，最坏延迟 45s→15s |
+| 3 | 🔴 S1 | MCP-SG | 分析缓存加 maxsize + LRU | 防内存泄漏，`AnalysisCache` 当前无界增长 |
+| 4 | 🟡 S2 | 两个 | structlog + request_id | 无日志的生产服务等于盲飞，贯穿 MCP-SG → SPF 调用链 |
+| 5 | 🟡 S2 | SPF | 瓦片缓存 LRU + TTL | Bug #3：替代 `_tile_cache.clear()` 暴力清空 |
+| 6 | 🟡 S2 | MCP-SG | `_last_params` 加锁 | Bug #5：并发安全，投入极小 |
+| 7 | 🟢 S3 | SPF | Overpass 加总超时 | Bug #7：避免用户挂死等 375s |
+| 8 | 🟢 S3 | MCP-SG | 降水惩罚系数统一 | Bug #9：先确认预期值再改 |
 
 ### 这个季度该做的
 
