@@ -4,7 +4,10 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from src.logging_config import get_logger
 from src.paths import prioritize_sys_path, resolve_package_source_root
+
+logger = get_logger(__name__)
 
 SPF_PACKAGE_NAME = 'stargazingplacefinder'
 
@@ -22,11 +25,21 @@ def _prepare_spf_import_path() -> Path | None:
     there is no longer a bare ``models`` package conflict.  We only need to put the
     SPF source root at the front of ``sys.path`` so that SPF's internal imports
     (e.g. ``from models import ...``) resolve correctly.
+
+    .. note::
+
+        This is a workaround.  The proper fix is for SPF to use package-relative
+        imports (e.g. ``from stargazingplacefinder.models import ...``) so that
+        sys.path manipulation is unnecessary.  Tracked as a quarterly item.
     """
     source_root = resolve_package_source_root(SPF_PACKAGE_NAME)
     if source_root is None:
+        logger.warning(
+            'Cannot resolve SPF package source root — place analysis will be unavailable'
+        )
         return None
 
+    logger.debug('Using sys.path workaround for SPF imports from %s', source_root)
     prioritize_sys_path(source_root)
     return source_root
 

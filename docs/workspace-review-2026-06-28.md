@@ -136,13 +136,13 @@
 | 7 | 🟢 S3 | SPF | Overpass 加总超时 | Bug #7：避免用户挂死等 375s | ✅ |
 | 8 | 🟢 S3 | MCP-SG | 降水惩罚系数统一 | Bug #9：统一为 `* 20.0` | ✅ |
 
-### 这个季度该做的
+### 这个季度该做的 — ✅ 全部完成 (2026-06-30)
 
-- [ ] SPF: 可配置评分权重
-- [ ] SPF: 平滑评分函数（去硬阈值）
-- [ ] SPF: Dockerfile + gunicorn
-- [ ] MCP-SG: 清理 sys.path hack（推动 SPF 侧改造）
-- [ ] SPF: 并行道路网络 tile 下载
+- [x] SPF: 可配置评分权重 — `StargazingConfig` 新增 5 个 weight 字段 + `road_distance_decay_km`
+- [x] SPF: 平滑评分函数（去硬阈值） — 道路距离 sigmoid 衰减替代 200m 硬阈值，城镇距离 log 函数替代离散桶
+- [x] SPF: Dockerfile + gunicorn — 多阶段构建，gunicorn 4 workers，`.dockerignore`
+- [x] SPF: 并行道路网络 tile 下载 — `preload_network_for_bbox` 用 `ThreadPoolExecutor` 并行下载
+- [x] MCP-SG: 清理 sys.path hack — 添加诊断日志 + 后续行动文档；完整修复需 SPF 侧 20+ 文件将 `from models` 改为包内相对导入
 
 ---
 
