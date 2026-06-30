@@ -8,6 +8,7 @@ from src.celestial import (
     celestial_rise_set,
     get_constellation_center,
 )
+from src.logging_config import set_request_id
 from src.response import MCPError, format_response
 from src.schemas import (
     CelestialPosition,
@@ -23,6 +24,7 @@ from src.utils import parse_observation_time, process_location_and_time
 
 async def _respond_with_mcp_error(operation) -> dict[str, Any]:
     """Convert domain validation errors into the standard MCP response shape."""
+    set_request_id()
     try:
         return await operation
     except MCPError as exc:

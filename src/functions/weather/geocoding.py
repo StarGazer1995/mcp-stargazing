@@ -13,7 +13,6 @@ Nominatim requires no key but enforces strict rate limits (~1 req/s).
 
 from __future__ import annotations
 
-import logging
 import os
 import re
 
@@ -21,10 +20,11 @@ import requests
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 from geopy.geocoders import Nominatim
 
+from src.logging_config import get_logger
 from src.response import MCPError
 from src.schemas.weather import LocationInfo
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── public entry point ────────────────────────────────────────────
 

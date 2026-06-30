@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from datetime import datetime
 from functools import lru_cache
@@ -22,7 +21,9 @@ from astropy.coordinates import (
 from astropy.time import Time
 from astroquery.simbad import Simbad
 
-logger = logging.getLogger(__name__)
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 solar_system_ephemeris.set('builtin')
 

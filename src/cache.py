@@ -1,6 +1,7 @@
 import hashlib
 import json
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -12,20 +13,30 @@ class AnalysisCacheItem:
 
 
 class AnalysisCache:
-    def __init__(self, ttl_seconds=3600):
-        self._cache: dict[str, AnalysisCacheItem] = {}
+    """TTL-based in-memory cache with LRU eviction when maxsize is exceeded."""
+
+    def __init__(self, ttl_seconds=3600, maxsize=128):
+        self._cache: OrderedDict[str, AnalysisCacheItem] = OrderedDict()
         self.ttl = ttl_seconds
+        self.maxsize = maxsize
 
     def get(self, key: str) -> list[dict[str, Any]] | None:
         item = self._cache.get(key)
-        if item:
-            if time.time() - item.created_at < self.ttl:
-                return item.results
-            else:
-                del self._cache[key]
+        if item is None:
+            return None
+        if time.time() - item.created_at < self.ttl:
+            self._cache.move_to_end(key)
+            return item.results
+        del self._cache[key]
         return None
 
     def set(self, key: str, results: list[dict[str, Any]]):
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            self._cache[key] = AnalysisCacheItem(results=results)
+            return
+        if len(self._cache) >= self.maxsize:
+            self._cache.popitem(last=False)
         self._cache[key] = AnalysisCacheItem(results=results)
 
 

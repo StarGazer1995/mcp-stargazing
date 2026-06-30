@@ -13,18 +13,18 @@
 |---|------|------|------|------|
 | 1 | SPF | `road_connectivity_checker.py:544,549` | **双重 PostGIS 查询** — `_try_postgis_info` 对同一个点连续调用 `query_road_connectivity` 两次 | ✅ 已修复 (2026-06-30) |
 | 2 | SPF | `stargazing_location_analyzer.py:286` + `road_connectivity_checker.py:421` | **NetworkX 图并发读** — `_shared_graph` 被 4 个 ThreadPoolExecutor worker 同时读取，NetworkX `MultiDiGraph` 非线程安全 | ✅ 已修复 (2026-06-30) |
-| 3 | SPF | `light_pollution_api.py:230-231` | **瓦片缓存整体清空** — 超 500 条时 `_tile_cache.clear()` 丢弃全部缓存，无 LRU、无 TTL | |
+| 3 | SPF | `light_pollution_api.py:230-231` | **瓦片缓存整体清空** — 超 500 条时 `_tile_cache.clear()` 丢弃全部缓存，无 LRU、无 TTL | ✅ 已修复 (2026-06-30) |
 | 4 | MCP-SG | `celestial.py:395-404` | **月相惩罚检查了错误对象的高度** — 应检查月亮高度但检查了目标天体高度。月亮在地平线以下时不应加光害惩罚 | ✅ 已修复 (2026-06-30) |
-| 5 | MCP-SG | `placefinder.py:13,68` | **`_last_params` 无锁读写** — 模块级全局变量在 `_init_analyzer()` 中无锁比较和写入，并发请求会竞态 | |
+| 5 | MCP-SG | `placefinder.py:13,68` | **`_last_params` 无锁读写** — 模块级全局变量在 `_init_analyzer()` 中无锁比较和写入，并发请求会竞态 | ✅ 已修复 (2026-06-30) |
 
 ### 中等（错误处理 / 静默失败）
 
 | # | 项目 | 位置 | 问题 | 状态 |
 |---|------|------|------|------|
 | 6 | SPF | `overpass_backend.py:218` | **Overpass 失败返回 `[]`** — 和"成功但无结果"无法区分 | |
-| 7 | SPF | `overpass_backend.py:137-218` | **无总超时** — 单请求 60s × 最多 6 次重试 = 最长 375 秒。无 deadline | |
+| 7 | SPF | `overpass_backend.py:137-218` | **无总超时** — 单请求 60s × 最多 6 次重试 = 最长 375 秒。无 deadline | ✅ 已修复 (2026-06-30) |
 | 8 | MCP-SG | `functions/places/impl.py` | **SPF 异常零捕获** — SPF 异常直接穿透到 FastMCP 层，变成无上下文泛化错误 | ✅ 已修复 (2026-06-30) |
-| 9 | MCP-SG | `planning/impl.py:86-134 vs 175-204` | **降水惩罚系数不一致** — 窗口排序 `* 20.0`，最终推荐 `* 10.0`，差 2 倍 | |
+| 9 | MCP-SG | `planning/impl.py:86-134 vs 175-204` | **降水惩罚系数不一致** — 窗口排序 `* 20.0`，最终推荐 `* 10.0`，差 2 倍 | ✅ 已修复 (2026-06-30) |
 | 10 | MCP-SG | `celestial.py:445-458` | **4 处 `print()` 调试语句** — `_resolve_simbad_object` 每次查询往 stdout 输出 `[DEBUG]` | ✅ 已修复 (2026-06-30) |
 
 ### 低（代码卫生）
@@ -123,18 +123,18 @@
 - [x] MCP-SG: 给 placefinder.py 加 SPF 异常翻译（`_translate_spf_error()` 映射 8 种 SPF 异常 → MCPError）
 - [x] 两个: 删掉生产代码里的 `print()` 调试语句（MCP-SG 5处 → `logging`，SPF 已干净）
 
-### 这个月该做的
+### 这个月该做的 — ✅ 全部完成 (2026-06-30)
 
-| # | Sprint | 项目 | 项 | 理由 |
-|---|--------|------|----|------|
-| 1 | 🔴 S1 | MCP-SG | 加 `/health` 端点 | 容器探活必需，10 行代码，无此无法正经部署 |
-| 2 | 🔴 S1 | MCP-SG | 并行天气查询 | `asyncio.gather` 三 provider，最坏延迟 45s→15s |
-| 3 | 🔴 S1 | MCP-SG | 分析缓存加 maxsize + LRU | 防内存泄漏，`AnalysisCache` 当前无界增长 |
-| 4 | 🟡 S2 | 两个 | structlog + request_id | 无日志的生产服务等于盲飞，贯穿 MCP-SG → SPF 调用链 |
-| 5 | 🟡 S2 | SPF | 瓦片缓存 LRU + TTL | Bug #3：替代 `_tile_cache.clear()` 暴力清空 |
-| 6 | 🟡 S2 | MCP-SG | `_last_params` 加锁 | Bug #5：并发安全，投入极小 |
-| 7 | 🟢 S3 | SPF | Overpass 加总超时 | Bug #7：避免用户挂死等 375s |
-| 8 | 🟢 S3 | MCP-SG | 降水惩罚系数统一 | Bug #9：先确认预期值再改 |
+| # | Sprint | 项目 | 项 | 理由 | 状态 |
+|---|--------|------|----|------|------|
+| 1 | 🔴 S1 | MCP-SG | 加 `/health` 端点 | 容器探活必需，10 行代码，无此无法正经部署 | ✅ |
+| 2 | 🔴 S1 | MCP-SG | 并行天气查询 | `ThreadPoolExecutor` 三 provider 并行，最坏延迟 45s→15s | ✅ |
+| 3 | 🔴 S1 | MCP-SG | 分析缓存加 maxsize + LRU | 防内存泄漏，`AnalysisCache` 当前无界增长 | ✅ |
+| 4 | 🟡 S2 | 两个 | structlog + request_id | 无日志的生产服务等于盲飞，贯穿 MCP-SG → SPF 调用链 | ✅ |
+| 5 | 🟡 S2 | SPF | 瓦片缓存 LRU + TTL | Bug #3：替代 `_tile_cache.clear()` 暴力清空 | ✅ |
+| 6 | 🟡 S2 | MCP-SG | `_last_params` 加锁 | Bug #5：并发安全，投入极小 | ✅ |
+| 7 | 🟢 S3 | SPF | Overpass 加总超时 | Bug #7：避免用户挂死等 375s | ✅ |
+| 8 | 🟢 S3 | MCP-SG | 降水惩罚系数统一 | Bug #9：统一为 `* 20.0` | ✅ |
 
 ### 这个季度该做的
 
@@ -148,14 +148,52 @@
 
 ## 五、修复记录
 
-### 2026-06-30 — 本周 5 项全部完成
+### 2026-06-30 — 本周关键 Bug 修复（5 项）
 
 | 项目 | 分支 | Commit | 修复内容 |
 |------|------|--------|----------|
 | SPF | `fix/critical-bugs-week-26-06-30` | `1759cf0` | Bug #1 (去重PostGIS查询) + Bug #2 (graph_lock) |
 | MCP-SG | `fix/critical-bugs-week-26-06-30` | `c590c50` | Bug #4 (月相bug) + Bug #8 (SPF异常翻译) + Bug #10 (print→logging) |
 
-**本周残留**（未在 scope 内）：
-- Bug #3: SPF 瓦片缓存无 LRU — 划入"本月"
-- Bug #5: MCP-SG `_last_params` 无锁 — 单实例部署实际冲突概率极低，划入"本月"
-- Bug #9: 降水惩罚系数不一致 — 等 product owner 确认预期系数后再修
+### 2026-06-30 — 月度 Sprint 全部完成（8 项）
+
+#### 🔴 S1（本周优先）
+
+| # | 项 | 变更 | 说明 |
+|---|-----|------|------|
+| S1-1 | `/health` 端点 | `main.py` | FastMCP `custom_route` 注册 `GET /health`，返回 `{status, version, service}` |
+| S1-2 | 并行天气查询 | `service.py` | `ThreadPoolExecutor` + `as_completed` 并行三 provider，`_query_provider_safe` 异常包装，`successful_providers`/`failed_providers` 排序保证确定性 |
+| S1-3 | 缓存 maxsize + LRU | `cache.py` | `OrderedDict` 实现 LRU，默认 maxsize=128，get 时 `move_to_end` 标记热度，set 时 `popitem(last=False)` 淘汰最旧 |
+
+#### 🟡 S2（次周）
+
+| # | 项 | 变更 | 说明 |
+|---|-----|------|------|
+| S2-4 | structlog + request_id | 10 个文件 | 新增 `logging_config.py`（structlog 配置 + ContextVar request_id），6 个 tool 域注入 `set_request_id()`，替换 `celestial.py`/`geocoding.py`/`places/impl.py` 的 `logging.getLogger` 和 `main.py` 的 `print()` |
+| S2-5 | SPF 瓦片缓存 LRU + TTL | `light_pollution_api.py` | `dict.clear()` → `OrderedDict` + `popitem(last=False)` LRU 淘汰 + 1 小时 TTL，新增 `_set_tile_cache()` 辅助函数 |
+| S2-6 | `_last_params` 加锁 | `placefinder.py` | `threading.Lock()` 保护模块级参数比较和写入 |
+
+#### 🟢 S3（三周）
+
+| # | 项 | 变更 | 说明 |
+|---|-----|------|------|
+| S3-7 | Overpass 总超时 | `overpass_backend.py` | 新增 `total_timeout` 参数（默认 90s），`_request` 每次重试前检查 `elapsed >= total_timeout` |
+| S3-8 | 降水惩罚系数统一 | `planning/impl.py` | `* 10.0` → `* 20.0`，与窗口排序一致 |
+
+#### 新增测试
+
+| 文件 | 测试数 | 覆盖内容 |
+|------|--------|----------|
+| `tests/test_cache.py` | 12 | LRU 淘汰、TTL 过期、key 更新、maxsize=1、边界条件 |
+| `tests/test_main_entry.py` | +1 | `/health` 端点返回结构 |
+| `tests/test_weather_service.py` | +1 | Provider 抛出 MCPError 时正确转为 ProviderError |
+
+#### CI 通过情况
+
+| 检查项 | MCP-SG | SPF |
+|--------|--------|-----|
+| ruff check | ✅ | ✅ |
+| ruff format | ✅ | ✅ |
+| bandit | ✅ 0 issues | N/A |
+| pytest | ✅ 221 passed | N/A |
+| diff-cover (vs HEAD) | ✅ **100%** | N/A |

@@ -1,9 +1,9 @@
 import asyncio
-import logging
 from pathlib import Path
 from typing import Any
 
 from src.cache import ANALYSIS_CACHE, generate_cache_key
+from src.logging_config import get_logger, set_request_id
 from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
 from src.response import MCPError, format_error, format_response
 from src.schemas.places import (
@@ -14,7 +14,7 @@ from src.schemas.places import (
 )
 from src.server_instance import mcp
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _translate_spf_error(exc: Exception) -> MCPError:
@@ -49,6 +49,7 @@ async def light_pollution_map(
         south, west, north, east: Bounding box coordinates.
         zoom: Grid resolution zoom level (default: 10). Higher = more detailed.
     """
+    set_request_id()
 
     def _compute():
         try:
@@ -115,6 +116,7 @@ async def analysis_area(
         - page_size: Current page size.
         - resource_id: Cache key for the non-pagination search parameters.
     """
+    set_request_id()
     if page < 1:
         return format_error(
             MCPError.CONFIGURATION_ERROR,

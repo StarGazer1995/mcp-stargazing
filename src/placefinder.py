@@ -1,4 +1,5 @@
 import importlib
+import threading
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -11,6 +12,7 @@ SPF_PACKAGE_NAME = 'stargazingplacefinder'
 # SPF singleton (closing/reopening GeoTIFF handles and PostGIS pools)
 # when nothing has changed.
 _last_params: dict[str, Any] | None = None
+_last_params_lock = threading.Lock()
 
 
 def _prepare_spf_import_path() -> Path | None:
@@ -74,8 +76,9 @@ class StargazingPlaceFinder:
             'db_config_path': self.db_config_path,
         }
 
-        if _last_params == new_params:
-            return  # nothing changed — reuse the existing singleton
+        with _last_params_lock:
+            if _last_params == new_params:
+                return  # nothing changed — reuse the existing singleton
 
         # Load SPF config from TOML file (env STARGAZING_CONFIG or default path),
         # then pass it through to RoadConnectivityChecker (tile size, etc.).
@@ -93,7 +96,8 @@ class StargazingPlaceFinder:
             db_config_path=self.db_config_path,
             config=spf_config,
         )
-        _last_params = new_params
+        with _last_params_lock:
+            _last_params = new_params
 
     def analyze_area(
         self,

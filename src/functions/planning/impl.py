@@ -5,6 +5,7 @@ from typing import Any
 from src.functions.celestial.impl import get_nightly_forecast
 from src.functions.places.impl import analysis_area
 from src.functions.weather.impl import get_weather_by_position
+from src.logging_config import set_request_id
 from src.response import MCPError, format_response
 from src.schemas.places import StargazingLocation
 from src.schemas.planning import (
@@ -59,6 +60,7 @@ def _validate_positive_int(name: str, value: int) -> None:
 
 async def _respond_with_mcp_error(operation) -> dict[str, Any]:
     """Convert MCPError exceptions into the standard structured payload."""
+    set_request_id()
     try:
         return await operation
     except MCPError as exc:
@@ -195,7 +197,7 @@ def _compute_recommendation_score(
             weather_score -= min(20.0, (float(wind_speed) - 20.0) * 1.2)
 
     if best_window is not None and best_window.precipitation_probability is not None:
-        weather_score -= float(best_window.precipitation_probability) * 10.0
+        weather_score -= float(best_window.precipitation_probability) * 20.0
 
     if moon_illumination is not None and moon_illumination > 0.7:
         weather_score -= (moon_illumination - 0.7) * 25.0

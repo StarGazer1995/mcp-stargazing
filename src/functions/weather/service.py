@@ -4,6 +4,8 @@ Internally uses Pydantic models for type-safe data handling.
 Public API functions return AggregatedWeatherResponse (a Pydantic model).
 """
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from src.functions.weather.geocoding import resolve_place_name
 from src.functions.weather.providers import open_meteo, qweather, wttr
 from src.response import MCPError
@@ -37,6 +39,38 @@ def get_aggregated_weather_by_name(
     )
 
 
+def _query_provider_safe(
+    provider_name: str,
+    lat: float,
+    lon: float,
+    location_name: str | None = None,
+    timezone: str | None = None,
+) -> tuple[str, ProviderSuccess | ProviderError]:
+    """Query a single provider, always returning (provider_name, result_or_error)."""
+    try:
+        return provider_name, _query_single_provider(
+            provider_name,
+            lat,
+            lon,
+            location_name=location_name,
+            timezone=timezone,
+        )
+    except MCPError as exc:
+        return provider_name, ProviderError(
+            provider=provider_name,
+            error=ProviderErrorDetail(code=exc.code, message=exc.message, details=exc.details),
+        )
+    except Exception as exc:
+        return provider_name, ProviderError(
+            provider=provider_name,
+            error=ProviderErrorDetail(
+                code=MCPError.EXTERNAL_API_ERROR,
+                message=f'{provider_name} provider 查询失败: {exc}',
+                details={'lat': lat, 'lon': lon},
+            ),
+        )
+
+
 def get_aggregated_weather_by_position(
     lat: float,
     lon: float,
@@ -50,29 +84,21 @@ def get_aggregated_weather_by_position(
     provider_names = _get_enabled_providers(provider_type)
 
     provider_results: dict[str, ProviderSuccess | ProviderError] = {}
-    for pname in provider_names:
-        try:
-            provider_results[pname] = _query_single_provider(
+    with ThreadPoolExecutor(max_workers=len(provider_names)) as executor:
+        futures = [
+            executor.submit(
+                _query_provider_safe,
                 pname,
                 lat,
                 lon,
                 location_name=location_name,
                 timezone=timezone,
             )
-        except MCPError as exc:
-            provider_results[pname] = ProviderError(
-                provider=pname,
-                error=ProviderErrorDetail(code=exc.code, message=exc.message, details=exc.details),
-            )
-        except Exception as exc:
-            provider_results[pname] = ProviderError(
-                provider=pname,
-                error=ProviderErrorDetail(
-                    code=MCPError.EXTERNAL_API_ERROR,
-                    message=f'{pname} provider 查询失败: {exc}',
-                    details={'lat': lat, 'lon': lon},
-                ),
-            )
+            for pname in provider_names
+        ]
+        for future in as_completed(futures):
+            name, result = future.result()
+            provider_results[name] = result
 
     _ensure_any_provider_success(provider_results)
 
@@ -202,8 +228,10 @@ def _build_source_meta(
 ) -> SourceMeta:
     """根据 provider 查询结果构造来源元信息。"""
 
-    successful = [r.provider for r in provider_results.values() if isinstance(r, ProviderSuccess)]
-    failed = [r.provider for r in provider_results.values() if isinstance(r, ProviderError)]
+    successful = sorted(
+        r.provider for r in provider_results.values() if isinstance(r, ProviderSuccess)
+    )
+    failed = sorted(r.provider for r in provider_results.values() if isinstance(r, ProviderError))
     return SourceMeta(
         query_mode=requested_provider,
         successful_providers=successful,

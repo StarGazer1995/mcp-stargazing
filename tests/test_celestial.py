@@ -114,7 +114,7 @@ def test_load_data_resource_reads_packaged_json(monkeypatch):
     assert celestial_module._load_data_resource('objects.json') == [{'name': 'M42'}]
 
 
-def test_load_objects_returns_empty_list_when_resource_missing(monkeypatch, caplog):
+def test_load_objects_returns_empty_list_when_resource_missing(monkeypatch, capsys):
     """对象资源缺失时应降级为空列表并记录警告。"""
     original_cache = celestial_module.OBJECTS_CACHE
     celestial_module.OBJECTS_CACHE = None
@@ -127,7 +127,7 @@ def test_load_objects_returns_empty_list_when_resource_missing(monkeypatch, capl
 
     try:
         assert celestial_module._load_objects() == []
-        assert 'objects.json' in caplog.text
+        assert 'objects.json' in capsys.readouterr().out
     finally:
         celestial_module.OBJECTS_CACHE = original_cache
 

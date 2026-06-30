@@ -29,6 +29,7 @@ dependencies = [
     "tzlocal",
     "geopy",
     "stargazing-place-finder>=0.6.6,<1",
+    "structlog>=26.1.0",
 ]
 
 [project.scripts]
@@ -52,6 +53,7 @@ dev = [
     "ruff>=0.11.0",
     "pre-commit>=4.0.0",
     "bandit>=1.8.0",
+    "diff-cover>=10.3.0",
 ]
 
 [tool.bandit]
