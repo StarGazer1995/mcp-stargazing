@@ -5,15 +5,11 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
-class HasAltAz(BaseModel):
-    """Mixin providing altitude/azimuth fields for reuse across models."""
+class CelestialPosition(BaseModel):
+    """Altitude and azimuth of a celestial object."""
 
     altitude: float = Field(description='Altitude above horizon in degrees (0°=horizon, 90°=zenith)')
     azimuth: float = Field(description='Compass direction in degrees (0°=North, 90°=East)')
-
-
-class CelestialPosition(HasAltAz):
-    """Altitude and azimuth of a celestial object."""
 
 
 class RiseSet(BaseModel):
@@ -39,20 +35,20 @@ class MoonInfo(BaseModel):
     azimuth: float | None = Field(default=None, description='Compass direction in degrees (requires lat/lon)')
 
 
-class VisiblePlanet(HasAltAz):
+class VisiblePlanet(CelestialPosition):
     """A planet currently visible above the horizon."""
 
     name: str = Field(description='Planet name')
     constellation: str | None = Field(default=None, description='Constellation the planet is in')
 
 
-class ConstellationInfo(HasAltAz):
+class ConstellationInfo(CelestialPosition):
     """Position of a constellation's center point."""
 
     name: str = Field(description='Constellation name')
 
 
-class DeepSkyObject(HasAltAz):
+class DeepSkyObject(CelestialPosition):
     """A deep sky object (Messier/NGC) with viewing score."""
 
     name: str = Field(description='Object name')
