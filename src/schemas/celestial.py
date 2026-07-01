@@ -5,13 +5,15 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
-class CelestialPosition(BaseModel):
-    """Altitude and azimuth of a celestial object."""
+class HasAltAz(BaseModel):
+    """Mixin providing altitude/azimuth fields for reuse across models."""
 
-    altitude: float = Field(
-        description='Altitude above horizon in degrees (0°=horizon, 90°=zenith)'
-    )
+    altitude: float = Field(description='Altitude above horizon in degrees (0°=horizon, 90°=zenith)')
     azimuth: float = Field(description='Compass direction in degrees (0°=North, 90°=East)')
+
+
+class CelestialPosition(HasAltAz):
+    """Altitude and azimuth of a celestial object."""
 
 
 class RiseSet(BaseModel):
@@ -37,31 +39,25 @@ class MoonInfo(BaseModel):
     azimuth: float | None = Field(default=None, description='Compass direction in degrees (requires lat/lon)')
 
 
-class VisiblePlanet(BaseModel):
+class VisiblePlanet(HasAltAz):
     """A planet currently visible above the horizon."""
 
     name: str = Field(description='Planet name')
-    altitude: float = Field(description='Altitude above horizon in degrees')
-    azimuth: float = Field(description='Compass direction in degrees')
     constellation: str | None = Field(default=None, description='Constellation the planet is in')
 
 
-class ConstellationInfo(BaseModel):
+class ConstellationInfo(HasAltAz):
     """Position of a constellation's center point."""
 
     name: str = Field(description='Constellation name')
-    altitude: float = Field(description='Altitude above horizon in degrees')
-    azimuth: float = Field(description='Compass direction in degrees')
 
 
-class DeepSkyObject(BaseModel):
+class DeepSkyObject(HasAltAz):
     """A deep sky object (Messier/NGC) with viewing score."""
 
     name: str = Field(description='Object name')
     type: str = Field(description='Object type (galaxy, nebula, cluster, etc.)')
     magnitude: float = Field(description='Apparent magnitude')
-    altitude: float = Field(description='Altitude above horizon in degrees')
-    azimuth: float = Field(description='Compass direction in degrees')
     catalog: str = Field(description='Catalog identifier (Messier, NGC, etc.)')
     score: float = Field(description='Viewing score (lower is better)')
 
