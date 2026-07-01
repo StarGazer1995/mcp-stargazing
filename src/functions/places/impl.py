@@ -1,4 +1,5 @@
 import asyncio
+import os
 from pathlib import Path
 from typing import Any
 
@@ -150,7 +151,7 @@ async def analysis_area(
     west: float,
     north: float,
     east: float,
-    max_locations: int = 30,
+    max_locations: int = 10,
     min_height_diff: float = 100.0,
     road_radius_km: float = 10.0,
     network_type: str = 'drive',
@@ -217,7 +218,11 @@ async def analysis_area(
 
         def _compute():
             try:
-                db_config_p = Path(db_config_path) if db_config_path else None
+                # Resolve db_config_path: explicit arg → env var → None
+                resolved_db_path = db_config_path
+                if not resolved_db_path:
+                    resolved_db_path = os.environ.get('STARGAZING_DB_CONFIG')
+                db_config_p = Path(resolved_db_path) if resolved_db_path else None
                 stargazing_place_finder = StargazingPlaceFinder(db_config_path=db_config_p)
                 results = stargazing_place_finder.analyze_area(
                     south=south,

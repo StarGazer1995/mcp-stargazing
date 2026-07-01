@@ -1,4 +1,5 @@
 import importlib
+import os
 import threading
 from pathlib import Path
 from types import ModuleType
@@ -74,6 +75,12 @@ class StargazingPlaceFinder:
         self.geotiff_path = geotiff_path
         self.min_height_difference = min_height_difference
         self.road_search_radius_km = road_search_radius_km
+        # Auto-resolve db_config_path: explicit > STARGAZING_DB_CONFIG env > None
+        if db_config_path is None:
+            env_path = os.environ.get('STARGAZING_DB_CONFIG')
+            if env_path:
+                db_config_path = Path(env_path)
+                logger.info('Using STARGAZING_DB_CONFIG env var: %s', db_config_path)
         self.db_config_path = db_config_path
         self._spf = _load_spf()
         self._init_analyzer()
@@ -113,6 +120,10 @@ class StargazingPlaceFinder:
             db_config_path=self.db_config_path,
             config=spf_config,
         )
+        logger.info(
+            'SPF analyzer initialized (db_config=%s)',
+            self.db_config_path or 'env/None',
+        )
         with _last_params_lock:
             _last_params = new_params
 
@@ -124,7 +135,7 @@ class StargazingPlaceFinder:
         east: float,
         min_height_diff: float = 100.0,
         road_radius_km: float = 10.0,
-        max_locations: int = 30,
+        max_locations: int = 10,
         network_type: str = 'drive',
     ) -> list[dict[str, Any]]:
         # Only re-init the analyzer when spatial parameters actually change.
