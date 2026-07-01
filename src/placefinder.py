@@ -135,7 +135,7 @@ class StargazingPlaceFinder:
         east: float,
         min_height_diff: float = 100.0,
         road_radius_km: float = 10.0,
-        max_locations: int = 10,
+        max_locations: int = 30,
         network_type: str = 'drive',
     ) -> list[dict[str, Any]]:
         # Only re-init the analyzer when spatial parameters actually change.

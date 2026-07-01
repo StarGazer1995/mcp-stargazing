@@ -151,7 +151,7 @@ async def analysis_area(
     west: float,
     north: float,
     east: float,
-    max_locations: int = 10,
+    max_locations: int = 30,
     min_height_diff: float = 100.0,
     road_radius_km: float = 10.0,
     network_type: str = 'drive',

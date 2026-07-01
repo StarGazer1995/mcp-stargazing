@@ -7,6 +7,7 @@ from src.celestial import (
     celestial_pos,
     celestial_rise_set,
     get_constellation_center,
+    get_moon_altaz,
 )
 from src.logging_config import set_request_id
 from src.response import MCPError, format_response
@@ -91,21 +92,40 @@ async def get_celestial_rise_set(
 
 
 @mcp.tool()
-async def get_moon_info(time: str, time_zone: str) -> dict[str, Any]:
+async def get_moon_info(
+    time: str,
+    time_zone: str,
+    lat: float | None = None,
+    lon: float | None = None,
+) -> dict[str, Any]:
     """Get detailed information about the Moon's phase and position.
+
+    When ``lat`` and ``lon`` are provided, also returns the Moon's local
+    altitude and azimuth relative to the observer.
 
     Args:
         time: Date string "YYYY-MM-DD HH:MM:SS"
         time_zone: IANA timezone string
+        lat: Observer latitude in degrees (optional, for local position)
+        lon: Observer longitude in degrees (optional, for local position)
 
     Returns:
-        Dict with keys "data", "_meta". "data" contains illumination, phase_name, age_days, etc.
+        Dict with keys "data", "_meta". "data" contains illumination, phase_name,
+        age_days, elongation, earth_distance, and optionally altitude/azimuth.
     """
 
     async def operation() -> dict[str, Any]:
         dt = parse_observation_time(time, time_zone)
         result = await asyncio.to_thread(calculate_moon_info, dt)
         moon_info = MoonInfo(**result)
+
+        # Compute local altitude/azimuth if observer position is provided
+        if lat is not None and lon is not None:
+            location, _ = process_location_and_time(lon, lat, time, time_zone)
+            alt, az = await asyncio.to_thread(get_moon_altaz, location, dt)
+            moon_info.altitude = alt
+            moon_info.azimuth = az
+
         return format_response(moon_info.model_dump())
 
     return await _respond_with_mcp_error(operation())
