@@ -99,7 +99,11 @@ class StargazingPlaceFinder:
             from config import load_stargazing_config  # type: ignore[import-untyped]
 
             spf_config = load_stargazing_config()
+        except FileNotFoundError:
+            logger.debug('No SPF config file found, using defaults')
+            spf_config = None
         except Exception:
+            logger.warning('Failed to load SPF config, using defaults', exc_info=True)
             spf_config = None
 
         self._spf.init_stargazing_analyzer(
@@ -126,6 +130,11 @@ class StargazingPlaceFinder:
         # Only re-init the analyzer when spatial parameters actually change.
         # This avoids re-opening GeoTIFF files and re-creating PostGIS
         # connection pools on every call (e.g. pagination).
+        #
+        # Note: geotiff_path / db_config_path are constructor-only and cannot
+        # change across analyze_area calls on the same instance.  Cross-instance
+        # param changes are caught by __init__ → _init_analyzer() which compares
+        # the full param dict including data-source paths.
         if (
             min_height_diff != self.min_height_difference
             or road_radius_km != self.road_search_radius_km

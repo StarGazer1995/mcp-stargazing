@@ -25,6 +25,13 @@ from src.utils import (
     validate_coordinates,
 )
 
+# ── Cross-tool contract ─────────────────────────────────────────────────
+# Planning calls other MCP tools via their ``.fn`` attribute (the raw
+# function before FastMCP decorator wrapping).  This is the standard
+# FastMCP chaining pattern.  Signature contracts are documented inline
+# at each call site below; if an upstream tool changes its signature a
+# test in ``test_mcp_tools.py`` will catch the mismatch.
+
 
 def _validate_bounds(south: float, west: float, north: float, east: float) -> None:
     """Validate that the requested bounding box is geographically valid."""

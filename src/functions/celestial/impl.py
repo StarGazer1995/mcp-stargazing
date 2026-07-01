@@ -127,7 +127,8 @@ async def list_visible_planets(lon: float, lat: float, time: str, time_zone: str
 
     async def operation() -> dict[str, Any]:
         location, time_info = process_location_and_time(lon, lat, time, time_zone)
-        # Avoid collision with imported function `get_visible_planets` from src.celestial
+        # Local import with alias avoids shadowing the module-level
+        # `get_visible_planets = list_visible_planets` backward-compat alias (line below).
         from src.celestial import get_visible_planets as calc_visible_planets
 
         planets = await asyncio.to_thread(calc_visible_planets, location, time_info)

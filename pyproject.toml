@@ -19,8 +19,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
 ]
 dependencies = [
-    "fastmcp",
-    "astropy[all]",
+    "fastmcp>=2.13,<3.0",
+    "astropy>=7.0",
     "pytz",
     "numpy>=1.24,<2.4",
     "astroquery",

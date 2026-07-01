@@ -12,6 +12,9 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+from ._common import to_float as _to_float
+from ._common import to_ratio as _percent_text_to_ratio
+
 
 def get_weather_by_position(
     lat: float,
@@ -215,23 +218,6 @@ def _condition_text_from_row(row: dict) -> str | None:
     if values and isinstance(values, list):
         return values[0].get('value')
     return None
-
-
-def _to_float(value: str | int | float | None) -> float | None:
-    """将输入值安全转换为浮点数。"""
-
-    if value in (None, ''):
-        return None
-    return float(value)
-
-
-def _percent_text_to_ratio(value: str | int | float | None) -> float | None:
-    """将百分比文本转换为 0 到 1 之间的小数。"""
-
-    numeric = _to_float(value)
-    if numeric is None:
-        return None
-    return numeric / 100.0
 
 
 def _hourly_average(rows: list[dict], key: str) -> float | None:

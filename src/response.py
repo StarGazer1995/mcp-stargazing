@@ -1,5 +1,7 @@
 from typing import Any
 
+from src.schemas.error import ErrorCode
+
 API_VERSION = '1.0.0'
 
 
@@ -52,22 +54,32 @@ def format_error(
 
 
 class MCPError(Exception):
-    """Base exception for application errors that should be reported to the agent."""
+    """Base exception for application errors that should be reported to the agent.
 
-    # Standard error codes
-    INVALID_COORDINATES = 'INVALID_COORDINATES'
-    INVALID_TIMEZONE = 'INVALID_TIMEZONE'
-    INVALID_TIME_FORMAT = 'INVALID_TIME_FORMAT'
-    MISSING_API_KEY = 'MISSING_API_KEY'
-    API_AUTH_FAILURE = 'API_AUTH_FAILURE'
-    API_TIMEOUT = 'API_TIMEOUT'
-    API_RATE_LIMIT = 'API_RATE_LIMIT'
-    EXTERNAL_API_ERROR = 'EXTERNAL_API_ERROR'
-    NETWORK_ERROR = 'NETWORK_ERROR'
-    CONFIGURATION_ERROR = 'CONFIGURATION_ERROR'
+    Error codes are backed by the :class:`ErrorCode` StrEnum (see
+    ``src/schemas/error.py``).  Class-level constants are provided for
+    backward compatibility and resolve to the same string values.
+    """
 
-    def __init__(self, code: str, message: str, details: dict[str, Any] | None = None):
-        self.code = code
+    # Standard error codes — backed by ErrorCode StrEnum for type safety
+    INVALID_COORDINATES = ErrorCode.INVALID_COORDINATES.value
+    INVALID_TIMEZONE = ErrorCode.INVALID_TIMEZONE.value
+    INVALID_TIME_FORMAT = ErrorCode.INVALID_TIME_FORMAT.value
+    MISSING_API_KEY = ErrorCode.MISSING_API_KEY.value
+    API_AUTH_FAILURE = ErrorCode.API_AUTH_FAILURE.value
+    API_TIMEOUT = ErrorCode.API_TIMEOUT.value
+    API_RATE_LIMIT = ErrorCode.API_RATE_LIMIT.value
+    EXTERNAL_API_ERROR = ErrorCode.EXTERNAL_API_ERROR.value
+    NETWORK_ERROR = ErrorCode.NETWORK_ERROR.value
+    CONFIGURATION_ERROR = ErrorCode.CONFIGURATION_ERROR.value
+
+    def __init__(
+        self,
+        code: str | ErrorCode,
+        message: str,
+        details: dict[str, Any] | None = None,
+    ):
+        self.code = code if isinstance(code, str) else code.value
         self.message = message
         self.details = details
         super().__init__(message)

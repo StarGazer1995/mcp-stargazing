@@ -12,6 +12,11 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+from ._common import meters_to_km as _meters_to_km
+from ._common import percent_index_to_ratio as _percent_index_to_ratio
+from ._common import safe_index as _safe_index
+from ._common import to_float as _to_float
+
 OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast'
 
 
@@ -278,36 +283,3 @@ def _weather_text_from_open_meteo_code(code: int | None) -> str | None:
         99: 'Thunderstorm with hail',
     }
     return mapping.get(code, 'Unknown') if code is not None else None
-
-
-def _to_float(value: int | float | None) -> float | None:
-    """将输入值安全转换为浮点数。"""
-
-    if value is None:
-        return None
-    return float(value)
-
-
-def _meters_to_km(value: int | float | None) -> float | None:
-    """将米转换为千米。"""
-
-    if value is None:
-        return None
-    return float(value) / 1000.0
-
-
-def _safe_index(values: list | None, index: int) -> float | int | None:
-    """安全读取数组中的指定位置。"""
-
-    if values is None or index >= len(values):
-        return None
-    return values[index]
-
-
-def _percent_index_to_ratio(values: list | None, index: int) -> float | None:
-    """安全读取百分比数组并转换为 0 到 1 之间的小数。"""
-
-    value = _safe_index(values, index)
-    if value is None:
-        return None
-    return float(value) / 100.0

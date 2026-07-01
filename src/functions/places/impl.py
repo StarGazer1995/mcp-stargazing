@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from src.cache import ANALYSIS_CACHE, generate_cache_key
-from src.logging_config import get_logger, set_request_id
+from src.logging_config import get_logger, get_request_id, set_request_id
 from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
 from src.response import MCPError, format_error, format_response
 from src.schemas.places import (
@@ -16,12 +16,78 @@ from src.server_instance import mcp
 
 logger = get_logger(__name__)
 
+# Lazy-loaded SPF exception classes (populated on first use)
+_spf_exc_classes: dict[str, type] | None = None
+
+
+def _load_spf_exceptions() -> dict[str, type] | None:
+    """Try to import SPF exception classes for isinstance-based matching.
+
+    Returns None if SPF is not installed; in that case the caller should
+    fall back to string-based name matching.
+    """
+    global _spf_exc_classes
+    if _spf_exc_classes is not None:
+        return _spf_exc_classes
+
+    try:
+        import stargazingplacefinder as spf
+
+        _spf_exc_classes = {}
+        for name in (
+            'StargazingError',
+            'DataError',
+            'NoDataError',
+            'ValidationError',
+            'NetworkError',
+            'CacheError',
+            'ConfigError',
+            'GeoError',
+        ):
+            cls = getattr(spf, name, None)
+            if cls is not None:
+                _spf_exc_classes[name] = cls
+    except ImportError:
+        _spf_exc_classes = {}  # Sentinel: tried and failed
+
+    return _spf_exc_classes or None
+
 
 def _translate_spf_error(exc: Exception) -> MCPError:
-    """Translate SPF exceptions into MCPError for clean agent-facing messages."""
-    exc_name = type(exc).__name__
+    """Translate SPF exceptions into MCPError for clean agent-facing messages.
 
-    # Map known SPF exception types to MCPError codes
+    Uses isinstance checks against SPF's exception hierarchy when available;
+    falls back to string-based type-name matching when SPF is not installed.
+    """
+    spf_exc = _load_spf_exceptions()
+    if spf_exc:
+        # Robust isinstance-based matching (handles inheritance)
+        if isinstance(exc, spf_exc.get('ValidationError', ())):
+            return MCPError(MCPError.CONFIGURATION_ERROR, f'SPF validation error: {exc}')
+        if isinstance(exc, spf_exc.get('ConfigError', ())):
+            return MCPError(MCPError.CONFIGURATION_ERROR, f'SPF configuration error: {exc}')
+        if isinstance(exc, spf_exc.get('GeoError', ())):
+            return MCPError(MCPError.INVALID_COORDINATES, f'SPF coordinate error: {exc}')
+        if isinstance(exc, spf_exc.get('NetworkError', ())):
+            return MCPError(MCPError.NETWORK_ERROR, f'SPF network error: {exc}')
+        if isinstance(exc, spf_exc.get('NoDataError', ())):
+            return MCPError(MCPError.EXTERNAL_API_ERROR, f'No data available: {exc}')
+        if isinstance(exc, spf_exc.get('DataError', ())):
+            return MCPError(MCPError.EXTERNAL_API_ERROR, f'SPF data error: {exc}')
+        if isinstance(exc, spf_exc.get('CacheError', ())):
+            return MCPError(MCPError.EXTERNAL_API_ERROR, f'SPF cache error: {exc}')
+        if isinstance(exc, spf_exc.get('StargazingError', ())):
+            return MCPError(MCPError.EXTERNAL_API_ERROR, f'SPF internal error: {exc}')
+        # Unknown exception type — log so we can discover new SPF exception classes
+        logger.warning(
+            'Unrecognized SPF exception type %s (request_id=%s)',
+            type(exc).__name__,
+            get_request_id() or 'unknown',
+        )
+        return MCPError(MCPError.EXTERNAL_API_ERROR, f'SPF error: {exc}')
+
+    # Fallback: SPF not installed — use fragile string-based matching
+    exc_name = type(exc).__name__
     error_map = {
         'ValidationError': (MCPError.CONFIGURATION_ERROR, 'SPF validation error'),
         'ConfigError': (MCPError.CONFIGURATION_ERROR, 'SPF configuration error'),
@@ -32,7 +98,6 @@ def _translate_spf_error(exc: Exception) -> MCPError:
         'CacheError': (MCPError.EXTERNAL_API_ERROR, 'SPF cache error'),
         'StargazingError': (MCPError.EXTERNAL_API_ERROR, 'SPF internal error'),
     }
-
     code, prefix = error_map.get(exc_name, (MCPError.EXTERNAL_API_ERROR, 'SPF error'))
     return MCPError(code, f'{prefix}: {exc}')
 

@@ -1,7 +1,7 @@
 import json
 import os
+import threading
 from datetime import datetime
-from functools import lru_cache
 from importlib import resources
 from typing import Any
 
@@ -269,6 +269,8 @@ def get_constellation_center(
 
 OBJECTS_CACHE = None
 CONSTELLATIONS_CACHE = None
+_objects_lock = threading.Lock()
+_constellations_lock = threading.Lock()
 
 
 def _load_data_resource(filename: str) -> list[dict[str, Any]]:
@@ -282,12 +284,17 @@ def _load_objects():
     if OBJECTS_CACHE is not None:
         return OBJECTS_CACHE
 
-    data_path = os.path.join(os.path.dirname(__file__), 'data/objects.json')
-    try:
-        OBJECTS_CACHE = _load_data_resource('objects.json')
-    except FileNotFoundError:
-        OBJECTS_CACHE = []  # Should handle gracefully
-        logger.warning('Objects data file not found at %s', data_path)
+    with _objects_lock:
+        # Double-check: another thread may have loaded while we waited for the lock
+        if OBJECTS_CACHE is not None:
+            return OBJECTS_CACHE
+
+        data_path = os.path.join(os.path.dirname(__file__), 'data/objects.json')
+        try:
+            OBJECTS_CACHE = _load_data_resource('objects.json')
+        except FileNotFoundError:
+            OBJECTS_CACHE = []  # Should handle gracefully
+            logger.warning('Objects data file not found at %s', data_path)
 
     return OBJECTS_CACHE
 
@@ -296,86 +303,62 @@ def _load_constellation_centers():
     global CONSTELLATIONS_CACHE
     if CONSTELLATIONS_CACHE is not None:
         return CONSTELLATIONS_CACHE
-    try:
-        CONSTELLATIONS_CACHE = _load_data_resource('constellation_centers.json')
-    except FileNotFoundError:
-        CONSTELLATIONS_CACHE = []
+
+    with _constellations_lock:
+        if CONSTELLATIONS_CACHE is not None:
+            return CONSTELLATIONS_CACHE
+
+        try:
+            CONSTELLATIONS_CACHE = _load_data_resource('constellation_centers.json')
+        except FileNotFoundError:
+            CONSTELLATIONS_CACHE = []
+
     return CONSTELLATIONS_CACHE
 
 
-def calculate_nightly_forecast(
-    observer_location: EarthLocation, date: datetime, limit: int = 50
-) -> dict[str, Any]:
-    """
-    Generate a curated list of best objects to view for a given night.
-    Accounts for Moon phase/position and light pollution interference.
-    """
-    # 1. Setup Time
-    if date.tzinfo is None:
-        raise ValueError('Input datetime must be timezone-aware.')
-
-    # Ensure we are looking at "Night" (e.g. 10 PM local)
-
-    # Calculate Midnight
-    # date is the user's requested date/time.
-    # If it's daytime, we assume they want the UPCOMING night.
-    # If it's night, we use current night.
-
-    time = Time(date)
-
-    # 2. Moon Info
-    moon_info = calculate_moon_info(date)
-    moon_illum = moon_info['illumination']
-    moon_coord = get_body('moon', time)
-
-    # 3. Planets (Always Highlights)
-    planets = get_visible_planets(observer_location, time)
-
-    # 4. Deep Sky Objects
-    raw_objects = _load_objects()
-    candidates = []
-
-    # LST Calculation for rough filtering
-    # Sidereal time is roughly RA on meridian.
-    lst = time.sidereal_time('mean', longitude=observer_location.lon)
-    lst_deg = lst.deg
-
-    # Visibility Window: Objects with RA within +/- 6 hours (90 deg) of LST are generally "up"
-    # We can be generous: +/- 8 hours (120 deg)
+def _filter_candidates_by_lst(
+    raw_objects: list[dict[str, Any]], lst_deg: float
+) -> list[dict[str, Any]]:
+    """Filter deep-sky objects to those near the meridian (±8h RA from LST)."""
+    candidates: list[dict[str, Any]] = []
 
     for obj in raw_objects:
-        # Check Catalog/Magnitude
         mag = obj.get('magnitude', 99.9)
         catalog = obj.get('catalog', 'Unknown')
 
-        # Strict Filter: Exclude faint NGC
+        # Exclude faint NGC objects
         if catalog == 'NGC' and mag > 10.0:
             continue
 
-        # LST Filter (RA is in degrees in our JSON)
+        # Angular distance from meridian (360° = 24h, 1h = 15°)
         obj_ra = obj['ra']
-
-        # Calculate smallest difference between RA and LST (in degrees)
-        # Note: 360 degrees = 24 hours. 1 hour = 15 degrees.
         diff = abs(obj_ra - lst_deg)
         if diff > 180:
             diff = 360 - diff
 
-        if diff > 120:  # ~8 hours
+        if diff > 120:  # ~8 hours — object is not well-placed
             continue
 
-        # Create Candidate
         candidates.append(obj)
 
-    # Detailed Scoring
-    scored_objects = []
+    return candidates
+
+
+def _score_deep_sky_objects(
+    candidates: list[dict[str, Any]],
+    time: Time,
+    observer_location: EarthLocation,
+    moon_coord: SkyCoord,
+    moon_illum: float,
+) -> list[dict[str, Any]]:
+    """Score each candidate by altitude, moon interference, and catalog prestige."""
+    scored: list[dict[str, Any]] = []
 
     altaz_frame = AltAz(obstime=time, location=observer_location)
     moon_altaz = moon_coord.transform_to(altaz_frame)
+    moon_up = moon_illum > 0.1 and moon_altaz.alt.deg > 0
 
     for obj in candidates:
-        # Coordinate
-        # Ensure RA/Dec are valid floats
         try:
             ra_val = float(obj['ra'])
             dec_val = float(obj['dec'])
@@ -386,39 +369,30 @@ def calculate_nightly_forecast(
         altaz = coord.transform_to(altaz_frame)
         alt = altaz.alt.deg
 
-        if alt < 20:  # Too low
+        if alt < 20:  # Too low on the horizon
             continue
 
         mag = obj.get('magnitude', 99.9)
-
-        # Moon Penalty
-        # Separation
-        sep = coord.separation(moon_coord).deg
-
         effective_mag = mag
 
-        if moon_illum > 0.1 and moon_altaz.alt.deg > 0:  # If Moon is up and bright
+        # Moon glare penalty (smooth: max ~4.5 mag at 15°, zero at 60°)
+        if moon_up:
+            sep = coord.separation(moon_coord).deg
             if sep < 15:
-                # Too close to moon, skip
-                continue
+                continue  # Too close to the Moon — invisible
             elif sep < 60:
-                # Penalty: Add to magnitude (make it seem fainter)
-                # Max penalty at 15 deg: (60-15)*0.1 = 4.5 mag penalty
-                # Min penalty at 60 deg: 0
-                penalty = (60 - sep) * 0.1
-                effective_mag += penalty
+                effective_mag += (60 - sep) * 0.1
 
-        # Base Score (lower is better, like magnitude)
-        # We subtract altitude bonus (higher alt = better)
+        # Base score: lower is better (magnitude-like).
+        # Subtract altitude bonus: higher altitude → better visibility.
         alt_bonus = (alt / 90.0) * 2.0
-
         score = effective_mag - alt_bonus
 
-        # Messier Bonus (Ensure they float to top)
+        # Messier objects get a strong boost
         if obj.get('catalog') == 'Messier':
             score -= 5.0
 
-        scored_objects.append(
+        scored.append(
             {
                 'name': obj['name'],
                 'type': obj['type'],
@@ -430,13 +404,43 @@ def calculate_nightly_forecast(
             }
         )
 
-    # Sort
-    scored_objects.sort(key=lambda x: x['score'])
+    scored.sort(key=lambda x: x['score'])
+    return scored
 
-    # Trim
-    top_objects = scored_objects[:limit]
 
-    return {'moon_phase': moon_info, 'planets': planets, 'deep_sky': top_objects}
+def calculate_nightly_forecast(
+    observer_location: EarthLocation, date: datetime, limit: int = 50
+) -> dict[str, Any]:
+    """Generate a curated list of best objects to view for a given night.
+
+    Pipeline: time validation → moon/planet data → LST coarse filter →
+    detailed altitude+moon-glare scoring → sort & trim.
+    """
+    if date.tzinfo is None:
+        raise ValueError('Input datetime must be timezone-aware.')
+
+    time = Time(date)
+
+    # 1. Moon and planet context
+    moon_info = calculate_moon_info(date)
+    moon_coord = get_body('moon', time)
+    planets = get_visible_planets(observer_location, time)
+
+    # 2. Coarse LST filter — keep only objects near the meridian
+    lst = time.sidereal_time('mean', longitude=observer_location.lon)
+    raw_objects = _load_objects()
+    candidates = _filter_candidates_by_lst(raw_objects, lst.deg)
+
+    # 3. Fine-grained scoring with altitude and moon-glare
+    scored_objects = _score_deep_sky_objects(
+        candidates, time, observer_location, moon_coord, moon_info['illumination']
+    )
+
+    return {
+        'moon_phase': moon_info,
+        'planets': planets,
+        'deep_sky': scored_objects[:limit],
+    }
 
 
 def identify_constellation(sky_coord: SkyCoord) -> str:
@@ -444,9 +448,22 @@ def identify_constellation(sky_coord: SkyCoord) -> str:
     return get_constellation(sky_coord)
 
 
-@lru_cache(maxsize=128)
+_simbad_cache: dict[str, SkyCoord] = {}
+_simbad_cache_lock = threading.Lock()
+
+
 def _resolve_simbad_object(name: str) -> SkyCoord:
-    """Resolve deep-space object name to SkyCoord using SIMBAD with caching."""
+    """Resolve deep-space object name to SkyCoord using SIMBAD with caching.
+
+    Only caches successful results — transient network errors are NOT cached,
+    unlike ``@lru_cache`` which would permanently poison the cache.
+    """
+    # Fast path: cache hit (no lock needed for read-only check, and SkyCoord
+    # objects are immutable once constructed)
+    cached = _simbad_cache.get(name)
+    if cached is not None:
+        return cached
+
     logger.debug("Resolving object '%s' via Simbad...", name)
     # Query SIMBAD for the object
     # Note: Simbad query involves network request which can be SLOW.
@@ -469,7 +486,13 @@ def _resolve_simbad_object(name: str) -> SkyCoord:
     # Extract RA and Dec from the query result
     ra = result['ra'][0]
     dec = result['dec'][0]
-    return SkyCoord(ra, dec, unit=(u.hourangle, u.deg), frame='icrs')
+    coord = SkyCoord(ra, dec, unit=(u.hourangle, u.deg), frame='icrs')
+
+    # Only cache successful results — exceptions propagate without poisoning the cache
+    with _simbad_cache_lock:
+        _simbad_cache[name] = coord
+
+    return coord
 
 
 def _get_celestial_object(name: str, time: Time) -> SkyCoord:
