@@ -1,7 +1,10 @@
 import argparse
 import os
+from importlib.metadata import version
 
 from astropy.utils.iers import conf as iers_conf
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 # Import modules to register tools on process startup.
 import src.functions.celestial.impl  # noqa: F401
@@ -10,7 +13,20 @@ import src.functions.places.impl  # noqa: F401
 import src.functions.planning.impl  # noqa: F401
 import src.functions.time.impl  # noqa: F401
 import src.functions.weather.impl  # noqa: F401
+from src.logging_config import get_logger, setup_logging
 from src.server_instance import mcp
+
+
+@mcp.custom_route('/health', methods=['GET'])
+async def health_check(request: Request) -> JSONResponse:
+    """Health check endpoint for container probes and load balancers."""
+    return JSONResponse(
+        {
+            'status': 'healthy',
+            'version': version('mcp-stargazing'),
+            'service': 'mcp-stargazing',
+        }
+    )
 
 
 def arg_parse():
@@ -28,6 +44,8 @@ def arg_parse():
 def main():
     """Run the MCP server."""
     arg = arg_parse()
+    setup_logging(dev_mode=arg.mode == 'local')
+    logger = get_logger(__name__)
     host = os.getenv('MCP_HOST', '0.0.0.0')  # nosec - intentional MCP server bind
     auto_env = os.getenv('ASTROPY_IERS_AUTO_DOWNLOAD', '0')
     iers_conf.auto_download = auto_env == '1'
@@ -39,7 +57,7 @@ def main():
         os.environ['HTTPS_PROXY'] = arg.proxy
         os.environ['http_proxy'] = arg.proxy
         os.environ['https_proxy'] = arg.proxy
-        print(f'Proxy set to {arg.proxy}')
+        logger.info('Proxy configured', proxy=arg.proxy)
 
     if arg.mode == 'local':
         mcp.run()

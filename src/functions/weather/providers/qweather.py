@@ -17,6 +17,9 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+from ._common import to_float as _to_float
+from ._common import to_ratio as _to_ratio
+
 
 def get_qweather_auth_from_env() -> tuple[str | None, str | None, str | None]:
     """从环境变量读取 QWeather 鉴权与 Host 配置。"""
@@ -226,20 +229,3 @@ def map_qweather_condition_code(code: str | None) -> str | None:
     if code in fog_codes:
         return 'fog'
     return 'unknown'
-
-
-def _to_float(value: str | int | float | None) -> float | None:
-    """将输入值安全转换为浮点数。"""
-
-    if value in (None, ''):
-        return None
-    return float(value)
-
-
-def _to_ratio(value: str | int | float | None) -> float | None:
-    """将百分比值转换为 0 到 1 之间的小数。"""
-
-    numeric = _to_float(value)
-    if numeric is None:
-        return None
-    return numeric / 100.0

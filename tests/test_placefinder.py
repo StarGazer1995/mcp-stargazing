@@ -35,8 +35,9 @@ def _make_fake_spf(mock_analyzer=None):
 # ── StargazingPlaceFinder ────────────────────────────────────────────────────
 
 
-def test_init_uses_dependency_analyzer_factory():
+def test_init_uses_dependency_analyzer_factory(monkeypatch):
     """Bridge initialization should configure the SPF singleton via the public API."""
+    monkeypatch.delenv('STARGAZING_DB_CONFIG', raising=False)
     placefinder_module._last_params = None  # isolate from other tests
     mock_analyzer = MagicMock()
     fake_spf = _make_fake_spf(mock_analyzer)

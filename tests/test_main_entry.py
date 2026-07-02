@@ -181,3 +181,37 @@ class TestMain:
             mock_run.assert_called_once()
             call_kwargs = mock_run.call_args.kwargs
             assert call_kwargs['host'] == '0.0.0.0'
+
+
+class TestHealthCheck:
+    """Tests for the /health HTTP endpoint."""
+
+    @staticmethod
+    def _make_mock_request(path: str = '/health', method: str = 'GET'):
+        """Create a minimal Starlette Request-like object for testing."""
+        from unittest.mock import MagicMock
+
+        mock = MagicMock()
+        mock.url.path = path
+        mock.method = method
+        return mock
+
+    def test_health_check_returns_healthy(self):
+        """The health endpoint returns status=healthy with version and service."""
+        import asyncio
+        import json
+
+        from src.main import health_check
+
+        request = self._make_mock_request()
+
+        async def _run():
+            return await health_check(request)
+
+        response = asyncio.run(_run())
+        body = json.loads(response.body)
+
+        assert response.status_code == 200
+        assert body['status'] == 'healthy'
+        assert body['service'] == 'mcp-stargazing'
+        assert 'version' in body

@@ -1,5 +1,6 @@
 from typing import Any
 
+from src.logging_config import set_request_id
 from src.response import format_response
 from src.server_instance import mcp
 
@@ -11,5 +12,6 @@ def get_tool_catalog() -> dict[str, Any]:
     Returns:
         Dict with keys "data", "_meta". "data" contains a list of tool metadata objects.
     """
+    set_request_id()
     tool_catalog = mcp.get_tool_catalog()
     return format_response({'tools': tool_catalog})

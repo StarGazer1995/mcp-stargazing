@@ -3,6 +3,7 @@ from src.functions.weather.service import (
     get_aggregated_weather_by_name,
     get_aggregated_weather_by_position,
 )
+from src.logging_config import set_request_id
 from src.response import MCPError, format_error, format_response
 from src.retry import RetryConfig, retry_on_failure
 from src.schemas.weather import AggregatedWeatherResponse
@@ -48,6 +49,7 @@ def _validate_weather_coordinates(lat: float, lon: float) -> None:
 
 def _respond_with_mcp_error(operation):
     """Convert MCPError exceptions into the standard response payload."""
+    set_request_id()
     try:
         return operation()
     except MCPError as exc:

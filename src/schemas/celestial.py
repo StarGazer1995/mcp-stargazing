@@ -33,33 +33,33 @@ class MoonInfo(BaseModel):
     age_days: float = Field(description='Approximate age of the moon in days since New Moon')
     elongation: float = Field(description='Angular separation from Sun in degrees')
     earth_distance: float = Field(description='Distance from Earth in km')
+    altitude: float | None = Field(
+        default=None, description='Altitude above horizon in degrees (requires lat/lon)'
+    )
+    azimuth: float | None = Field(
+        default=None, description='Compass direction in degrees (requires lat/lon)'
+    )
 
 
-class VisiblePlanet(BaseModel):
+class VisiblePlanet(CelestialPosition):
     """A planet currently visible above the horizon."""
 
     name: str = Field(description='Planet name')
-    altitude: float = Field(description='Altitude above horizon in degrees')
-    azimuth: float = Field(description='Compass direction in degrees')
     constellation: str | None = Field(default=None, description='Constellation the planet is in')
 
 
-class ConstellationInfo(BaseModel):
+class ConstellationInfo(CelestialPosition):
     """Position of a constellation's center point."""
 
     name: str = Field(description='Constellation name')
-    altitude: float = Field(description='Altitude above horizon in degrees')
-    azimuth: float = Field(description='Compass direction in degrees')
 
 
-class DeepSkyObject(BaseModel):
+class DeepSkyObject(CelestialPosition):
     """A deep sky object (Messier/NGC) with viewing score."""
 
     name: str = Field(description='Object name')
     type: str = Field(description='Object type (galaxy, nebula, cluster, etc.)')
     magnitude: float = Field(description='Apparent magnitude')
-    altitude: float = Field(description='Altitude above horizon in degrees')
-    azimuth: float = Field(description='Compass direction in degrees')
     catalog: str = Field(description='Catalog identifier (Messier, NGC, etc.)')
     score: float = Field(description='Viewing score (lower is better)')
 

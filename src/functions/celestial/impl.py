@@ -7,7 +7,9 @@ from src.celestial import (
     celestial_pos,
     celestial_rise_set,
     get_constellation_center,
+    get_moon_altaz,
 )
+from src.logging_config import set_request_id
 from src.response import MCPError, format_response
 from src.schemas import (
     CelestialPosition,
@@ -23,6 +25,7 @@ from src.utils import parse_observation_time, process_location_and_time
 
 async def _respond_with_mcp_error(operation) -> dict[str, Any]:
     """Convert domain validation errors into the standard MCP response shape."""
+    set_request_id()
     try:
         return await operation
     except MCPError as exc:
@@ -89,21 +92,40 @@ async def get_celestial_rise_set(
 
 
 @mcp.tool()
-async def get_moon_info(time: str, time_zone: str) -> dict[str, Any]:
+async def get_moon_info(
+    time: str,
+    time_zone: str,
+    lat: float | None = None,
+    lon: float | None = None,
+) -> dict[str, Any]:
     """Get detailed information about the Moon's phase and position.
+
+    When ``lat`` and ``lon`` are provided, also returns the Moon's local
+    altitude and azimuth relative to the observer.
 
     Args:
         time: Date string "YYYY-MM-DD HH:MM:SS"
         time_zone: IANA timezone string
+        lat: Observer latitude in degrees (optional, for local position)
+        lon: Observer longitude in degrees (optional, for local position)
 
     Returns:
-        Dict with keys "data", "_meta". "data" contains illumination, phase_name, age_days, etc.
+        Dict with keys "data", "_meta". "data" contains illumination, phase_name,
+        age_days, elongation, earth_distance, and optionally altitude/azimuth.
     """
 
     async def operation() -> dict[str, Any]:
         dt = parse_observation_time(time, time_zone)
         result = await asyncio.to_thread(calculate_moon_info, dt)
         moon_info = MoonInfo(**result)
+
+        # Compute local altitude/azimuth if observer position is provided
+        if lat is not None and lon is not None:
+            location, _ = process_location_and_time(lon, lat, time, time_zone)
+            alt, az = await asyncio.to_thread(get_moon_altaz, location, dt)
+            moon_info.altitude = alt
+            moon_info.azimuth = az
+
         return format_response(moon_info.model_dump())
 
     return await _respond_with_mcp_error(operation())
@@ -125,7 +147,8 @@ async def list_visible_planets(lon: float, lat: float, time: str, time_zone: str
 
     async def operation() -> dict[str, Any]:
         location, time_info = process_location_and_time(lon, lat, time, time_zone)
-        # Avoid collision with imported function `get_visible_planets` from src.celestial
+        # Local import with alias avoids shadowing the module-level
+        # `get_visible_planets = list_visible_planets` backward-compat alias (line below).
         from src.celestial import get_visible_planets as calc_visible_planets
 
         planets = await asyncio.to_thread(calc_visible_planets, location, time_info)

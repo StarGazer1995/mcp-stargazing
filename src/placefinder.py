@@ -1,9 +1,14 @@
 import importlib
+import os
+import threading
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from src.logging_config import get_logger
 from src.paths import prioritize_sys_path, resolve_package_source_root
+
+logger = get_logger(__name__)
 
 SPF_PACKAGE_NAME = 'stargazingplacefinder'
 
@@ -11,6 +16,7 @@ SPF_PACKAGE_NAME = 'stargazingplacefinder'
 # SPF singleton (closing/reopening GeoTIFF handles and PostGIS pools)
 # when nothing has changed.
 _last_params: dict[str, Any] | None = None
+_last_params_lock = threading.Lock()
 
 
 def _prepare_spf_import_path() -> Path | None:
@@ -20,11 +26,21 @@ def _prepare_spf_import_path() -> Path | None:
     there is no longer a bare ``models`` package conflict.  We only need to put the
     SPF source root at the front of ``sys.path`` so that SPF's internal imports
     (e.g. ``from models import ...``) resolve correctly.
+
+    .. note::
+
+        This is a workaround.  The proper fix is for SPF to use package-relative
+        imports (e.g. ``from stargazingplacefinder.models import ...``) so that
+        sys.path manipulation is unnecessary.  Tracked as a quarterly item.
     """
     source_root = resolve_package_source_root(SPF_PACKAGE_NAME)
     if source_root is None:
+        logger.warning(
+            'Cannot resolve SPF package source root — place analysis will be unavailable'
+        )
         return None
 
+    logger.debug('Using sys.path workaround for SPF imports from %s', source_root)
     prioritize_sys_path(source_root)
     return source_root
 
@@ -59,6 +75,12 @@ class StargazingPlaceFinder:
         self.geotiff_path = geotiff_path
         self.min_height_difference = min_height_difference
         self.road_search_radius_km = road_search_radius_km
+        # Auto-resolve db_config_path: explicit > STARGAZING_DB_CONFIG env > None
+        if db_config_path is None:
+            env_path = os.environ.get('STARGAZING_DB_CONFIG')
+            if env_path:
+                db_config_path = Path(env_path)
+                logger.info('Using STARGAZING_DB_CONFIG env var: %s', db_config_path)
         self.db_config_path = db_config_path
         self._spf = _load_spf()
         self._init_analyzer()
@@ -74,8 +96,9 @@ class StargazingPlaceFinder:
             'db_config_path': self.db_config_path,
         }
 
-        if _last_params == new_params:
-            return  # nothing changed — reuse the existing singleton
+        with _last_params_lock:
+            if _last_params == new_params:
+                return  # nothing changed — reuse the existing singleton
 
         # Load SPF config from TOML file (env STARGAZING_CONFIG or default path),
         # then pass it through to RoadConnectivityChecker (tile size, etc.).
@@ -83,7 +106,11 @@ class StargazingPlaceFinder:
             from config import load_stargazing_config  # type: ignore[import-untyped]
 
             spf_config = load_stargazing_config()
+        except FileNotFoundError:
+            logger.debug('No SPF config file found, using defaults')
+            spf_config = None
         except Exception:
+            logger.warning('Failed to load SPF config, using defaults', exc_info=True)
             spf_config = None
 
         self._spf.init_stargazing_analyzer(
@@ -93,7 +120,12 @@ class StargazingPlaceFinder:
             db_config_path=self.db_config_path,
             config=spf_config,
         )
-        _last_params = new_params
+        logger.info(
+            'SPF analyzer initialized (db_config=%s)',
+            self.db_config_path or 'env/None',
+        )
+        with _last_params_lock:
+            _last_params = new_params
 
     def analyze_area(
         self,
@@ -109,6 +141,11 @@ class StargazingPlaceFinder:
         # Only re-init the analyzer when spatial parameters actually change.
         # This avoids re-opening GeoTIFF files and re-creating PostGIS
         # connection pools on every call (e.g. pagination).
+        #
+        # Note: geotiff_path / db_config_path are constructor-only and cannot
+        # change across analyze_area calls on the same instance.  Cross-instance
+        # param changes are caught by __init__ → _init_analyzer() which compares
+        # the full param dict including data-source paths.
         if (
             min_height_diff != self.min_height_difference
             or road_radius_km != self.road_search_radius_km

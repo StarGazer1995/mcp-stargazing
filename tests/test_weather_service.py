@@ -1,12 +1,14 @@
 from unittest.mock import patch
 
 from src.functions.weather.service import get_aggregated_weather_by_position
+from src.response import MCPError
 from src.schemas.weather import (
     CurrentWeather,
     DailyForecastItem,
     HourlyForecastItem,
     LocationInfo,
     NormalizedWeatherData,
+    ProviderError,
     ProviderSuccess,
 )
 
@@ -82,3 +84,39 @@ def test_aggregated_weather_by_position_keeps_partial_provider_failures():
 
     assert result.summary.current['cloud_cover_percent'] == 35.0
     assert set(result.source.failed_providers) == {'qweather', 'wttr'}
+
+
+def test_aggregated_weather_handles_mcperror_from_provider():
+    """MCPError raised by a provider is translated to ProviderError, not propagated."""
+    open_meteo_result = ProviderSuccess(
+        provider='open-meteo',
+        data=NormalizedWeatherData(
+            location=LocationInfo(name=None, lat=40.0, lon=116.0, timezone='Asia/Shanghai'),
+            current=CurrentWeather(temperature_c=22.0, cloud_cover_percent=35.0),
+            daily=[],
+            hourly=[],
+        ),
+    )
+
+    with (
+        patch(
+            'src.functions.weather.service.open_meteo.get_weather_by_position',
+            return_value=open_meteo_result,
+        ),
+        patch(
+            'src.functions.weather.service.qweather.get_weather_by_position',
+            side_effect=MCPError(MCPError.CONFIGURATION_ERROR, 'Bad API key', {'key': 'x'}),
+        ),
+        patch(
+            'src.functions.weather.service.wttr.get_weather_by_position',
+            side_effect=Exception('wttr down'),
+        ),
+    ):
+        result = get_aggregated_weather_by_position(40.0, 116.0, provider='all')
+
+    assert result.summary.current['cloud_cover_percent'] == 35.0
+    assert set(result.source.failed_providers) == {'qweather', 'wttr'}
+    # The qweather error should preserve the MCPError details
+    qw = result.providers['qweather']
+    assert isinstance(qw, ProviderError)
+    assert qw.error.code == 'CONFIGURATION_ERROR'
