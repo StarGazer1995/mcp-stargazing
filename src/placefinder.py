@@ -153,6 +153,12 @@ class StargazingPlaceFinder:
             self.min_height_difference = min_height_diff
             self.road_search_radius_km = road_radius_km
             self._init_analyzer()
+
+        # When road_radius_km <= 0 the caller explicitly opts out of road
+        # connectivity analysis.  This avoids triggering OSMnx downloads from
+        # Overpass API when PostGIS is unavailable or road data isn't needed.
+        include_road = road_radius_km > 0
+
         # Use the public API which returns already-serialized dicts,
         # avoiding SPF Pydantic model instances leaking into MCP's process
         # space where they would conflict with MCP's own StargazingLocation.
@@ -161,7 +167,7 @@ class StargazingPlaceFinder:
             max_locations=max_locations,
             network_type=network_type,
             include_light_pollution=True,
-            include_road_connectivity=True,
+            include_road_connectivity=include_road,
         )
 
 

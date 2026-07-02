@@ -96,12 +96,12 @@ def get_weather_by_name(place_name: str, provider: str = 'all'):
     """
     通过地点名称获取综合天气（当前 + 小时预报 + 日预报）。
 
-    Geocoding uses Amap (CJK) → Photon → Nominatim cascade.
+    Geocoding uses Amap Geocoding API (CJK) → Photon → Nominatim cascade.
     Weather data is aggregated from multiple providers with graceful
     fallback — open-meteo is always available without an API key.
 
-    **中文地名提示**：短地名（如 "安吉"）可能被解析到同名小村落而非知名城市。
-    建议使用完整行政区划名称，如 "浙江安吉"、"杭州西湖区"。
+    **中文地名提示**：建议使用完整行政区划名称，如 "浙江安吉"、"杭州西湖区"。
+    高德地理编码 API 会正确解析到对应的行政区（如安吉县），而非 POI 商铺。
     需要精确定位时优先使用 ``get_weather_by_position(lat, lon)``。
 
     Args:
