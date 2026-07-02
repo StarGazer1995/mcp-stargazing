@@ -164,11 +164,16 @@ async def analysis_area(
     This tool searches for dark, accessible locations with good viewing conditions.
     Results are cached based on search parameters.
 
+    **Fast mode**: Set ``road_radius_km=0`` to skip road connectivity checks.
+    This avoids OSMnx network downloads from Overpass API and is much faster —
+    use it when you only need candidate locations with light pollution and
+    elevation data, without road distance analysis.
+
     Args:
         south, west, north, east: Bounding box coordinates.
         max_locations: Maximum number of candidate locations to find (before pagination).
         min_height_diff: Minimum elevation difference for prominence.
-        road_radius_km: Search radius for road access.
+        road_radius_km: Search radius for road access. Set to 0 to skip road checks.
         network_type: Type of road network ('drive', 'walk', etc.).
         db_config_path: Optional path to database config.
         page: Page number (1-based).
@@ -261,6 +266,44 @@ async def analysis_area(
     # Slice results (safe even if indices are out of bounds)
     page_items = cached[start_idx:end_idx]
 
+    # 5. Build data-quality warnings for missing fields.
+    # Elevation gaps are logged internally but NOT exposed in the response —
+    # they reflect infrastructure status (PostGIS, Open-Elevation) that is
+    # not actionable for end users.
+    warnings: list[str] = []
+    total_elevation_missing = sum(
+        1 for loc in cached if loc.elevation_m is None or loc.elevation_m == 0
+    )
+    total_bortle_missing = sum(1 for loc in cached if loc.bortle_class is None)
+    total_road_missing = sum(1 for loc in cached if loc.road_distance_km is None)
+
+    if total_elevation_missing == total and total > 0:
+        logger.warning(
+            'All %d locations have elevation=0 — elevation data source may be unavailable '
+            '(check STARGAZING_DB_CONFIG and Open-Elevation API connectivity)',
+            total,
+        )
+    elif total_elevation_missing > 0:
+        logger.warning(
+            '%d/%d locations have no elevation data — results may be incomplete',
+            total_elevation_missing,
+            total,
+        )
+
+    if total_bortle_missing == total and total > 0:
+        warnings.append(
+            'All locations have no Bortle class — light pollution GeoTIFF may be '
+            'unavailable or the coordinates are outside data coverage.'
+        )
+    elif total_bortle_missing > 0:
+        warnings.append(f'{total_bortle_missing}/{total} locations have no Bortle class.')
+
+    if road_radius_km > 0 and total_road_missing == total and total > 0:
+        warnings.append(
+            'All locations have no road distance — road connectivity check may have '
+            'failed. Set road_radius_km=0 to skip road checks for faster results.'
+        )
+
     result = AnalysisAreaResult(
         items=page_items,
         total=total,
@@ -269,4 +312,7 @@ async def analysis_area(
         total_pages=(total + page_size - 1) // page_size,
         resource_id=resource_id,
     )
-    return format_response(result.model_dump())
+    meta: dict[str, Any] = {}
+    if warnings:
+        meta['warnings'] = warnings
+    return format_response(result.model_dump(), meta=meta)

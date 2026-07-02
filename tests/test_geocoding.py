@@ -53,26 +53,33 @@ def test_resolve_place_name_empty():
         resolve_place_name('  ')
 
 
-# ── Amap POI Search ──────────────────────────────────────────────
+# ── Amap Geocoding ────────────────────────────────────────────────
 
 
 def test_geocode_amap_success():
     with patch('src.functions.weather.geocoding.requests.get') as mock_get:
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
-            'pois': [{'name': '北京市', 'location': '116.4074,39.9042'}],
+            'status': '1',
+            'geocodes': [
+                {
+                    'formatted_address': '北京市',
+                    'location': '116.4074,39.9042',
+                    'level': 'city',
+                }
+            ],
         }
         mock_get.return_value = mock_resp
 
         result = _geocode_amap('北京', 'test_key')
 
-    assert result == ('北京市', 39.9042, 116.4074, 'amap_poi')
+    assert result == ('北京市', 39.9042, 116.4074, 'amap_geo')
 
 
-def test_geocode_amap_empty_pois():
+def test_geocode_amap_empty_geocodes():
     with patch('src.functions.weather.geocoding.requests.get') as mock_get:
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {'pois': []}
+        mock_resp.json.return_value = {'status': '1', 'geocodes': []}
         mock_get.return_value = mock_resp
 
         result = _geocode_amap('nonexistent', 'test_key')
@@ -93,13 +100,68 @@ def test_geocode_amap_malformed_location():
     with patch('src.functions.weather.geocoding.requests.get') as mock_get:
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
-            'pois': [{'name': 'Bad', 'location': 'invalid'}],
+            'status': '1',
+            'geocodes': [{'formatted_address': 'Bad', 'location': 'invalid', 'level': 'city'}],
         }
         mock_get.return_value = mock_resp
 
         result = _geocode_amap('test', 'test_key')
 
     assert result is None
+
+
+def test_geocode_amap_non_success_status():
+    """Amap returns a non-1 status code → treated as failure."""
+    with patch('src.functions.weather.geocoding.requests.get') as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {'status': '0', 'info': 'INVALID_KEY'}
+        mock_get.return_value = mock_resp
+
+        result = _geocode_amap('北京', 'bad_key')
+
+    assert result is None
+
+
+def test_geocode_amap_province_level_ok():
+    """Short province query (e.g. '浙江') → returns province-level result ok."""
+    with patch('src.functions.weather.geocoding.requests.get') as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            'status': '1',
+            'geocodes': [
+                {
+                    'formatted_address': '浙江省',
+                    'location': '120.15,30.28',
+                    'level': 'province',
+                }
+            ],
+        }
+        mock_get.return_value = mock_resp
+
+        result = _geocode_amap('浙江', 'test_key')
+
+    assert result == ('浙江省', 30.28, 120.15, 'amap_geo')
+
+
+def test_geocode_amap_structured_address():
+    """Structured address like '浙江安吉' → resolved by Amap's own parser."""
+    with patch('src.functions.weather.geocoding.requests.get') as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            'status': '1',
+            'geocodes': [
+                {
+                    'formatted_address': '浙江省湖州市安吉县',
+                    'location': '119.68,30.64',
+                    'level': 'district',
+                }
+            ],
+        }
+        mock_get.return_value = mock_resp
+
+        result = _geocode_amap('浙江安吉', 'test_key')
+
+    assert result == ('浙江省湖州市安吉县', 30.64, 119.68, 'amap_geo')
 
 
 # ── Photon ───────────────────────────────────────────────────────
@@ -263,11 +325,11 @@ def test_geocode_cjk_uses_amap_first():
         patch('src.functions.weather.geocoding._geocode_nominatim') as mock_nominatim,
         patch.dict(os.environ, {'AMAP_KEY': 'test_key'}),
     ):
-        mock_amap.return_value = ('北京市', 39.9, 116.4, 'amap_poi')
+        mock_amap.return_value = ('北京市', 39.9, 116.4, 'amap_geo')
 
         result = _geocode('北京')
 
-    assert result == ('北京市', 39.9, 116.4, 'amap_poi')
+    assert result == ('北京市', 39.9, 116.4, 'amap_geo')
     mock_amap.assert_called_once()
     mock_photon.assert_not_called()
     mock_nominatim.assert_not_called()
@@ -377,7 +439,7 @@ def test_resolve_place_name_all_fail_raises_mcperror():
 def test_resolve_place_name_success():
     """resolve_place_name returns a LocationInfo."""
     with patch('src.functions.weather.geocoding._geocode') as mock_geocode:
-        mock_geocode.return_value = ('北京市', 39.9, 116.4, 'amap_poi')
+        mock_geocode.return_value = ('北京市', 39.9, 116.4, 'amap_geo')
 
         loc = resolve_place_name('北京')
 

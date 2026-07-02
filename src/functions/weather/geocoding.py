@@ -2,13 +2,18 @@
 
 Cascading geocoding strategy:
 
-1. CJK queries  → Amap POI Search  (Chinese cities, mountains, parks)
+1. CJK queries  → Amap Geocoding   (administrative divisions: province/city/district)
 2. All queries  → Photon           (international cities, landmarks)
 3. Final safety → Nominatim         (OSM fallback via geopy)
 
 Photon is called via its public REST API (no API key required).
 Amap requires an ``AMAP_KEY`` environment variable.
 Nominatim requires no key but enforces strict rate limits (~1 req/s).
+
+The Amap tier uses the **Geocoding API** (``v3/geocode/geo``), not the POI
+Search API (``v3/place/text``).  The geocoding API returns administrative
+divisions with ``level`` (province/city/district/township) and ``adcode``,
+which is the correct tool for resolving place names like "浙江安吉".
 """
 
 from __future__ import annotations
@@ -58,8 +63,11 @@ def resolve_place_name(place_name: str) -> LocationInfo:
 # Photon public API (Komoot-hosted, no key required).
 _PHOTON_API = 'https://photon.komoot.io/api'
 
-# Amap POI Search endpoint.
-_AMAP_POI_API = 'https://restapi.amap.com/v3/place/text'
+# Amap Geocoding endpoint — resolves administrative divisions (province/city/district).
+# This is the correct API for place-name resolution.  The POI Search API
+# (v3/place/text) matches businesses and landmarks, not administrative regions,
+# and produced incorrect results like "浙江万吉(杭州市)" for "浙江安吉".
+_AMAP_GEOCODE_API = 'https://restapi.amap.com/v3/geocode/geo'
 
 # Nominatim geocoder — lazily initialised (geopy validates the user_agent
 # eagerly, and we don't need it until the fallback is actually hit).
@@ -101,28 +109,44 @@ def _contains_cjk(text: str) -> bool:
 
 
 def _geocode_amap(place_name: str, amap_key: str) -> tuple[str, float, float, str] | None:
-    """Query Amap POI Search.  Returns (name, lat, lon, "amap_poi") or None."""
-    params = {'key': amap_key, 'keywords': place_name, 'offset': 1}
+    """Query Amap Geocoding API.  Returns (name, lat, lon, "amap_geo") or None.
+
+    The Amap Geocoding API (``v3/geocode/geo``) resolves structured addresses
+    (省+市+区县+街道+门牌号) to coordinates.  We pass the raw *place_name* as
+    the ``address`` parameter and let Amap handle parsing — its built-in
+    address parser is more robust than our own regex-based disambiguation.
+    """
+    params: dict[str, str] = {'key': amap_key, 'address': place_name}
+
     try:
-        resp = requests.get(_AMAP_POI_API, params=params, timeout=5)
+        resp = requests.get(_AMAP_GEOCODE_API, params=params, timeout=5)
         resp.raise_for_status()
         data = resp.json()
     except (requests.RequestException, ValueError) as exc:
-        logger.debug('Amap request failed for %r: %s', place_name, exc)
+        logger.debug('Amap geocode request failed for %r: %s', place_name, exc)
         return None
 
-    pois = data.get('pois')
-    if not pois:
+    if data.get('status') != '1':
+        logger.debug('Amap geocode non-success for %r: %s', place_name, data.get('info', 'unknown'))
         return None
 
-    location = pois[0].get('location', '')
+    geocodes: list[dict] = data.get('geocodes', [])
+    if not geocodes:
+        return None
+
+    # Amap typically returns one result for well-formed queries; pick the
+    # first if there are multiple (they're ordered by relevance).
+    best = geocodes[0]
+
+    location = best.get('location', '')
     try:
         lon_str, lat_str = location.split(',')
         lon, lat = float(lon_str), float(lat_str)
     except (ValueError, AttributeError):
         return None
 
-    return (pois[0].get('name', place_name), lat, lon, 'amap_poi')
+    display_name = best.get('formatted_address') or best.get('name') or place_name
+    return (display_name, lat, lon, 'amap_geo')
 
 
 def _geocode_photon(place_name: str) -> tuple[str, float, float, str] | None:

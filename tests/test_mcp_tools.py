@@ -12,7 +12,7 @@ from src.functions.celestial.impl import (
     list_visible_planets,
 )
 from src.functions.metadata.impl import get_tool_catalog
-from src.functions.places.impl import light_pollution_map
+from src.functions.places.impl import analysis_area, light_pollution_map
 from src.functions.planning.impl import get_best_stargazing_plan
 from src.functions.time.impl import get_local_datetime_info
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
@@ -429,6 +429,113 @@ async def test_light_pollution_map_fn():
     assert data['grid'][1]['sqm'] == 21.5
     assert data['bounds'] == {'south': 40.0, 'west': -74.0, 'north': 40.01, 'east': -73.99}
     assert data['zoom'] == 10
+
+
+# ---------------------------------------------------------------------------
+# analysis_area data-quality warnings
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_analysis_area_warns_when_all_data_missing():
+    """Bortle and road warnings appear when data is absent; elevation is internal-only."""
+    from src.schemas.places import StargazingLocation
+
+    locations = [
+        StargazingLocation(
+            name='P1',
+            lat=30.1,
+            lon=119.1,
+            elevation_m=0,
+            bortle_class=None,
+            road_distance_km=None,
+        ),
+        StargazingLocation(
+            name='P2',
+            lat=30.2,
+            lon=119.2,
+            elevation_m=0,
+            bortle_class=None,
+            road_distance_km=None,
+        ),
+    ]
+
+    with patch('src.functions.places.impl.ANALYSIS_CACHE.get', return_value=locations):
+        result = await analysis_area.fn(
+            south=30,
+            west=119,
+            north=31,
+            east=120,
+            road_radius_km=10.0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    warnings = result['_meta'].get('warnings', [])
+    assert any('Bortle' in w for w in warnings), f'Expected Bortle warning, got: {warnings}'
+    assert any('road' in w for w in warnings), f'Expected road warning, got: {warnings}'
+    # Elevation must not leak to external response
+    assert not any('elevation' in w.lower() for w in warnings), f'Elevation leaked: {warnings}'
+
+
+@pytest.mark.asyncio
+async def test_analysis_area_no_warnings_when_data_complete():
+    """No warnings when all fields have valid values."""
+    from src.schemas.places import StargazingLocation
+
+    locations = [
+        StargazingLocation(
+            name='P1',
+            lat=30.1,
+            lon=119.1,
+            elevation_m=1200,
+            bortle_class=2,
+            road_distance_km=5.0,
+        ),
+    ]
+
+    with patch('src.functions.places.impl.ANALYSIS_CACHE.get', return_value=locations):
+        result = await analysis_area.fn(
+            south=30,
+            west=119,
+            north=31,
+            east=120,
+            road_radius_km=10.0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    warnings = result['_meta'].get('warnings', [])
+    assert len(warnings) == 0, f'Unexpected warnings: {warnings}'
+
+
+@pytest.mark.asyncio
+async def test_analysis_area_road_skip_silences_road_warning():
+    """road_radius_km=0 suppresses the road-distance warning."""
+    from src.schemas.places import StargazingLocation
+
+    locations = [
+        StargazingLocation(
+            name='P1',
+            lat=30.1,
+            lon=119.1,
+            elevation_m=1200,
+            bortle_class=2,
+            road_distance_km=None,
+        ),
+    ]
+
+    with patch('src.functions.places.impl.ANALYSIS_CACHE.get', return_value=locations):
+        result = await analysis_area.fn(
+            south=30,
+            west=119,
+            north=31,
+            east=120,
+            road_radius_km=0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    warnings = result['_meta'].get('warnings', [])
+    # When road_radius_km=0, road warning should be suppressed
+    assert not any('road' in w.lower() for w in warnings), f'Road warning leaked: {warnings}'
 
 
 # ---------------------------------------------------------------------------

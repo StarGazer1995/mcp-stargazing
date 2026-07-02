@@ -129,6 +129,22 @@ def test_analyze_area_returns_dependency_results_and_expected_args():
     )
 
 
+def test_analyze_area_skips_road_when_radius_zero():
+    """road_radius_km=0 → include_road_connectivity=False (fast mode)."""
+    placefinder_module._last_params = None
+    fake_spf = _make_fake_spf()
+    fake_spf.analyze_area = MagicMock(return_value=[])
+
+    with patch.object(placefinder_module, '_load_spf', return_value=fake_spf):
+        pf = StargazingPlaceFinder()
+        pf.analyze_area(30, 119, 31, 120, road_radius_km=0)
+
+    fake_spf.analyze_area.assert_called_once()
+    call_kwargs = fake_spf.analyze_area.call_args[1]
+    assert call_kwargs['include_road_connectivity'] is False
+    assert call_kwargs['include_light_pollution'] is True
+
+
 def test_analyze_area_reinitializes_only_when_thresholds_change():
     """Analyzer reuse should depend only on the bridge's threshold parameters."""
     fake_spf = _make_fake_spf()
