@@ -8,7 +8,9 @@ from pydantic import BaseModel, Field
 class CelestialPosition(BaseModel):
     """Altitude and azimuth of a celestial object."""
 
-    altitude: float = Field(description='Altitude above horizon in degrees (0°=horizon, 90°=zenith)')
+    altitude: float = Field(
+        description='Altitude above horizon in degrees (0°=horizon, 90°=zenith)'
+    )
     azimuth: float = Field(description='Compass direction in degrees (0°=North, 90°=East)')
 
 
@@ -31,8 +33,12 @@ class MoonInfo(BaseModel):
     age_days: float = Field(description='Approximate age of the moon in days since New Moon')
     elongation: float = Field(description='Angular separation from Sun in degrees')
     earth_distance: float = Field(description='Distance from Earth in km')
-    altitude: float | None = Field(default=None, description='Altitude above horizon in degrees (requires lat/lon)')
-    azimuth: float | None = Field(default=None, description='Compass direction in degrees (requires lat/lon)')
+    altitude: float | None = Field(
+        default=None, description='Altitude above horizon in degrees (requires lat/lon)'
+    )
+    azimuth: float | None = Field(
+        default=None, description='Compass direction in degrees (requires lat/lon)'
+    )
 
 
 class VisiblePlanet(CelestialPosition):
