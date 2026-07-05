@@ -1223,7 +1223,7 @@ requires-dist = [
     { name = "pytz" },
     { name = "rasterio" },
     { name = "requests" },
-    { name = "stargazing-core", git = "https://github.com/StarGazer1995/stargazing-core.git?rev=feature%2Fshared-geo-models" },
+    { name = "stargazing-core", git = "https://github.com/StarGazer1995/stargazing-core.git" },
     { name = "stargazing-place-finder", specifier = ">=0.6.6,<1" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "tzlocal" },
@@ -2331,7 +2331,7 @@ wheels = [
 [[package]]
 name = "stargazing-core"
 version = "0.1.0a1"
-source = { git = "https://github.com/StarGazer1995/stargazing-core.git?rev=feature%2Fshared-geo-models#04c419db1244ecf441aa68223cd21b2d029e135c" }
+source = { git = "https://github.com/StarGazer1995/stargazing-core.git#8fba13637cc6f2be59bdaf70a4e3c83fd708b519" }
 dependencies = [
     { name = "astropy" },
     { name = "numpy" },

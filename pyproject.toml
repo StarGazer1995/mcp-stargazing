@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
 ]
 dependencies = [
-    "stargazing-core @ git+https://github.com/StarGazer1995/stargazing-core.git@feature/shared-geo-models",
+    "stargazing-core @ git+https://github.com/StarGazer1995/stargazing-core.git",
     "fastmcp>=2.13,<3.0",
     "astropy>=7.0",
     "pytz",
