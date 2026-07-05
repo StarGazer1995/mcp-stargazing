@@ -3,13 +3,9 @@ from datetime import datetime
 import pytz
 from astropy import units as u
 from astropy.coordinates import EarthLocation
+from stargazing_core import validate_coordinates  # noqa: F401 — re-export
 
 from src.response import MCPError
-
-
-def validate_coordinates(lat: float, lon: float) -> bool:
-    """Validate latitude and longitude values."""
-    return -90 <= lat <= 90 and -180 <= lon <= 180
 
 
 def create_earth_location(lat: float, lon: float, elevation: float = 0.0) -> EarthLocation:

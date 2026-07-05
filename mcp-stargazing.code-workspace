@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../stargazing-place-finder"
+		},
+		{
+			"path": "../stargazing-core"
+		}
+	],
+	"settings": {}
+}
