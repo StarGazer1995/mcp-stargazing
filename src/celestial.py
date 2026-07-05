@@ -20,10 +20,12 @@ from astropy.time import Time
 from astroquery.simbad import Simbad
 from stargazing_core import (
     calculate_moon_info,
+    filter_candidates_by_lst as _filter_candidates_by_lst,
+    get_moon_altaz,
     get_visible_planets,
+    identify_constellation,
+    score_deep_sky_objects as _score_deep_sky_objects,
 )
-from stargazing_core._filtering import filter_candidates_by_lst as _filter_candidates_by_lst
-from stargazing_core._filtering import score_deep_sky_objects as _score_deep_sky_objects
 
 from src.logging_config import get_logger
 
