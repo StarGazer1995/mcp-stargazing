@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install system dependencies required by rasterio (GDAL)
 RUN apt-get update -qq && \
-    apt-get install -y -qq --no-install-recommends libexpat1 && \
+    apt-get install -y -qq --no-install-recommends libexpat1 git && \
     rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
