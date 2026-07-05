@@ -178,4 +178,5 @@ cython_debug/
 package*json
 launch.json
 settings.json
-*workspace
+*workspaceMagicMock MagicMock/
+MagicMock/
