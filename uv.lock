@@ -1196,6 +1196,7 @@ dependencies = [
     { name = "pytz" },
     { name = "rasterio" },
     { name = "requests" },
+    { name = "stargazing-core" },
     { name = "stargazing-place-finder" },
     { name = "structlog" },
     { name = "tzlocal" },
@@ -1222,6 +1223,7 @@ requires-dist = [
     { name = "pytz" },
     { name = "rasterio" },
     { name = "requests" },
+    { name = "stargazing-core", git = "https://github.com/StarGazer1995/stargazing-core.git" },
     { name = "stargazing-place-finder", specifier = ">=0.6.6,<1" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "tzlocal" },
@@ -2324,6 +2326,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/db/3c/fa6517610dc641262b77cc7bf994ecd17465812c1b0585fe33e11be758ab/sse_starlette-3.0.3.tar.gz", hash = "sha256:88cfb08747e16200ea990c8ca876b03910a23b547ab3bd764c0d8eb81019b971", size = 21943 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/23/a0/984525d19ca5c8a6c33911a0c164b11490dd0f90ff7fd689f704f84e9a11/sse_starlette-3.0.3-py3-none-any.whl", hash = "sha256:af5bf5a6f3933df1d9c7f8539633dc8444ca6a97ab2e2a7cd3b6e431ac03a431", size = 11765 },
+]
+
+[[package]]
+name = "stargazing-core"
+version = "0.1.0a1"
+source = { git = "https://github.com/StarGazer1995/stargazing-core.git#f78fb9711dd5107d71a069ad3e7176cdf8464d83" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pydantic" },
 ]
 
 [[package]]
