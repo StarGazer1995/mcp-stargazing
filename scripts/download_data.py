@@ -1,5 +1,4 @@
 import json
-import time
 from pathlib import Path
 from typing import Any
 
@@ -290,10 +289,10 @@ def _download_catalog_objects(
     last: int,
     catalog_label: str,
 ) -> list[dict[str, Any]]:
-    """Download objects from SIMBAD by name range (e.g. NGC 1…7840).
+    """Download objects from SIMBAD by name range in a single query.
 
     Each object carries coords, type, V magnitude, and ``galdim_*`` angular-size
-    data in a single SIMBAD query per batch.
+    data — all returned by SIMBAD in one request.
     """
     print(f'Downloading {catalog_label} objects via SIMBAD …')
 
@@ -307,78 +306,51 @@ def _download_catalog_objects(
     )
 
     all_names = [f'{prefix} {i}' for i in range(first, last + 1)]
-    batch_size = 80
-    total_batches = (len(all_names) + batch_size - 1) // batch_size
+    print(f'  Querying {len(all_names):,} names …', end=' ', flush=True)
+
+    table = simbad.query_objects(all_names)
+    if table is None or len(table) == 0:
+        print('0 results')
+        return []
 
     result: list[dict[str, Any]] = []
-    found = 0
+    for row in table:
+        ra_str = row['RA'] if 'RA' in table.colnames else row['ra']
+        dec_str = row['DEC'] if 'DEC' in table.colnames else row['dec']
+        try:
+            coord = SkyCoord(f'{ra_str} {dec_str}', unit=(u.hourangle, u.deg))
+        except Exception:
+            continue
 
-    for batch_idx in range(0, len(all_names), batch_size):
-        batch_names = all_names[batch_idx : batch_idx + batch_size]
-        num = batch_idx // batch_size + 1
-        print(
-            f'  [{num:>4}/{total_batches}] {prefix} {batch_names[0].split()[-1]}–'
-            f'{batch_names[-1].split()[-1]} …',
-            end=' ',
-            flush=True,
+        mag = 99.9
+        for col in ('FLUX_V', 'V'):
+            if col in table.colnames:
+                try:
+                    mag = float(row[col])
+                except (ValueError, TypeError):
+                    pass
+                break
+
+        otype = str(row.get('OTYPE', row.get('otype', 'Unknown')))
+        if otype in _STELLAR_TYPES:
+            continue
+        name = _normalize_name(str(row.get('MAIN_ID', row.get('main_id', ''))))
+
+        result.append(
+            {
+                'name': name,
+                'type': otype,
+                'ra': float(coord.ra.deg),
+                'dec': float(coord.dec.deg),
+                'magnitude': mag,
+                'catalog': catalog_label,
+                'angular_size_maj_arcmin': _parse_float(row['galdim_majaxis']),
+                'angular_size_min_arcmin': _parse_float(row['galdim_minaxis']),
+                'angular_size_pa_deg': _parse_float(row['galdim_angle']),
+            }
         )
 
-        try:
-            table = simbad.query_objects(batch_names)
-        except Exception as exc:
-            print(f'ERROR: {exc}')
-            time.sleep(0.3)
-            continue
-
-        if table is None or len(table) == 0:
-            print('0 results')
-            time.sleep(0.3)
-            continue
-
-        batch_found = 0
-        for row in table:
-            ra_str = row['RA'] if 'RA' in table.colnames else row['ra']
-            dec_str = row['DEC'] if 'DEC' in table.colnames else row['dec']
-            try:
-                coord = SkyCoord(f'{ra_str} {dec_str}', unit=(u.hourangle, u.deg))
-            except Exception:
-                continue
-
-            mag = 99.9
-            for col in ('FLUX_V', 'V'):
-                if col in table.colnames:
-                    try:
-                        mag = float(row[col])
-                    except (ValueError, TypeError):
-                        pass
-                    break
-
-            otype = str(row.get('OTYPE', row.get('otype', 'Unknown')))
-            if otype in _STELLAR_TYPES:
-                continue
-            name = str(row.get('MAIN_ID', row.get('main_id', '')))
-            name = _normalize_name(name)
-
-            result.append(
-                {
-                    'name': name,
-                    'type': otype,
-                    'ra': float(coord.ra.deg),
-                    'dec': float(coord.dec.deg),
-                    'magnitude': mag,
-                    'catalog': catalog_label,
-                    'angular_size_maj_arcmin': _parse_float(row['galdim_majaxis']),
-                    'angular_size_min_arcmin': _parse_float(row['galdim_minaxis']),
-                    'angular_size_pa_deg': _parse_float(row['galdim_angle']),
-                }
-            )
-            batch_found += 1
-
-        print(f'{batch_found} found')
-        found += batch_found
-        time.sleep(0.3)
-
-    print(f'  Total: {found:,} {catalog_label} objects found.')
+    print(f'{len(result):,} found.')
     return result
 
 
