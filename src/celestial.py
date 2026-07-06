@@ -11,15 +11,25 @@ import pytz
 from astropy.coordinates import (
     AltAz,
     EarthLocation,
-    GeocentricTrueEcliptic,
     SkyCoord,
     get_body,
-    get_constellation,
     get_sun,
     solar_system_ephemeris,
 )
 from astropy.time import Time
 from astroquery.simbad import Simbad
+from stargazing_core import (
+    calculate_moon_info,
+    get_moon_altaz,  # noqa: F401 — re-exported for impl.py
+    get_visible_planets,
+    identify_constellation,  # noqa: F401 — re-exported for external use
+)
+from stargazing_core import (
+    filter_candidates_by_lst as _filter_candidates_by_lst,
+)
+from stargazing_core import (
+    score_deep_sky_objects as _score_deep_sky_objects,
+)
 
 from src.logging_config import get_logger
 
@@ -107,138 +117,13 @@ def celestial_rise_set(
     return rise_time, set_time
 
 
-def calculate_moon_info(time: Time | datetime) -> dict[str, Any]:
-    """
-    Calculate detailed information about the Moon's phase and position.
-
-    Args:
-        time: Observation time (Astropy Time or timezone-aware datetime).
-
-    Returns:
-        Dict containing:
-        - illumination: Fraction of the moon illuminated (0.0 to 1.0)
-        - phase_name: String description of the phase (e.g. "Waxing Gibbous")
-        - age_days: Approximate age of the moon in days (since New Moon)
-        - elongation: Angular separation from Sun in degrees
-        - earth_distance: Distance from Earth in km
-    """
-    # Convert local time to UTC if input is datetime
-    if isinstance(time, datetime):
-        if time.tzinfo is None:
-            raise ValueError('Input datetime must be timezone-aware for local time.')
-        time = Time(time.astimezone(pytz.UTC))
-
-    sun = get_sun(time)
-    moon = get_body('moon', time)
-
-    # Elongation (angular separation)
-    elongation = sun.separation(moon)
-
-    # Illumination fraction (0-1)
-    # k = (1 - cos(i))/2 where i is phase angle (approx elongation)
-    # New Moon (0 deg): (1 - 1)/2 = 0
-    # Full Moon (180 deg): (1 - (-1))/2 = 1
-    illumination = (1 - np.cos(elongation.rad)) / 2.0
-
-    # Phase angle for naming (requires Ecliptic longitude)
-    sun_ecl = sun.transform_to(GeocentricTrueEcliptic(obstime=time))
-    moon_ecl = moon.transform_to(GeocentricTrueEcliptic(obstime=time))
-
-    # Calculate longitude difference (Moon - Sun)
-    lon_diff = (moon_ecl.lon.deg - sun_ecl.lon.deg) % 360
-
-    # Determine Phase Name
-    # New Moon: 0
-    # First Quarter: 90
-    # Full Moon: 180
-    # Last Quarter: 270
-
-    if lon_diff < 1 or lon_diff > 359:
-        phase_name = 'New Moon'
-    elif 1 <= lon_diff < 89:
-        phase_name = 'Waxing Crescent'
-    elif 89 <= lon_diff <= 91:
-        phase_name = 'First Quarter'
-    elif 91 < lon_diff < 179:
-        phase_name = 'Waxing Gibbous'
-    elif 179 <= lon_diff <= 181:
-        phase_name = 'Full Moon'
-    elif 181 < lon_diff < 269:
-        phase_name = 'Waning Gibbous'
-    elif 269 <= lon_diff <= 271:
-        phase_name = 'Last Quarter'
-    else:
-        phase_name = 'Waning Crescent'
-
-    # Age in days (approximate)
-    # Synodic month is ~29.53 days. Age = (lon_diff / 360) * 29.53
-    age_days = (lon_diff / 360.0) * 29.53059
-
-    return {
-        'illumination': float(illumination),
-        'phase_name': phase_name,
-        'age_days': float(age_days),
-        'elongation': float(elongation.deg),
-        'earth_distance': float(moon.distance.to(u.km).value),
-    }
+# calculate_moon_info is re-exported from stargazing_core (imported at top of file)
 
 
-def get_moon_altaz(observer_location: EarthLocation, dt: datetime) -> tuple[float, float]:
-    """Compute the Moon's altitude and azimuth for a specific observer and time.
-
-    Args:
-        observer_location: Observer's EarthLocation.
-        dt: Timezone-aware observation datetime.
-
-    Returns:
-        Tuple of (altitude_deg, azimuth_deg).
-    """
-    moon = get_body('moon', Time(dt))
-    altaz_frame = AltAz(obstime=Time(dt), location=observer_location)
-    moon_altaz = moon.transform_to(altaz_frame)
-    return float(moon_altaz.alt.deg), float(moon_altaz.az.deg)
+# get_moon_altaz is re-exported from stargazing_core (imported at top of file)
 
 
-def get_visible_planets(
-    observer_location: EarthLocation, time: Time | datetime
-) -> list[dict[str, Any]]:
-    """
-    Get a list of planets currently above the horizon.
-
-    Args:
-        observer_location: Observer's EarthLocation.
-        time: Observation time.
-
-    Returns:
-        List of dicts containing planet name, altitude, azimuth, and magnitude (if available).
-    """
-    # Convert local time to UTC if input is datetime
-    if isinstance(time, datetime):
-        if time.tzinfo is None:
-            raise ValueError('Input datetime must be timezone-aware for local time.')
-        time = Time(time.astimezone(pytz.UTC))
-
-    planets = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
-    visible_planets = []
-
-    for planet in planets:
-        # Get coordinates
-        obj_coord = get_body(planet, time)
-        altaz_frame = AltAz(obstime=time, location=observer_location)
-        altaz = obj_coord.transform_to(altaz_frame)
-
-        # Check if above horizon
-        if altaz.alt.deg > 0:
-            visible_planets.append(
-                {
-                    'name': planet.capitalize(),
-                    'altitude': float(altaz.alt.deg),
-                    'azimuth': float(altaz.az.deg),
-                    'constellation': None,  # Placeholder for future implementation
-                }
-            )
-
-    return visible_planets
+# get_visible_planets is re-exported from stargazing_core (imported at top of file)
 
 
 def get_constellation_center(
@@ -338,96 +223,8 @@ def _load_constellation_centers():
     return CONSTELLATIONS_CACHE
 
 
-def _filter_candidates_by_lst(
-    raw_objects: list[dict[str, Any]], lst_deg: float
-) -> list[dict[str, Any]]:
-    """Filter deep-sky objects to those near the meridian (±8h RA from LST)."""
-    candidates: list[dict[str, Any]] = []
-
-    for obj in raw_objects:
-        mag = obj.get('magnitude', 99.9)
-        catalog = obj.get('catalog', 'Unknown')
-
-        # Exclude faint NGC objects
-        if catalog == 'NGC' and mag > 10.0:
-            continue
-
-        # Angular distance from meridian (360° = 24h, 1h = 15°)
-        obj_ra = obj['ra']
-        diff = abs(obj_ra - lst_deg)
-        if diff > 180:
-            diff = 360 - diff
-
-        if diff > 120:  # ~8 hours — object is not well-placed
-            continue
-
-        candidates.append(obj)
-
-    return candidates
-
-
-def _score_deep_sky_objects(
-    candidates: list[dict[str, Any]],
-    time: Time,
-    observer_location: EarthLocation,
-    moon_coord: SkyCoord,
-    moon_illum: float,
-) -> list[dict[str, Any]]:
-    """Score each candidate by altitude, moon interference, and catalog prestige."""
-    scored: list[dict[str, Any]] = []
-
-    altaz_frame = AltAz(obstime=time, location=observer_location)
-    moon_altaz = moon_coord.transform_to(altaz_frame)
-    moon_up = moon_illum > 0.1 and moon_altaz.alt.deg > 0
-
-    for obj in candidates:
-        try:
-            ra_val = float(obj['ra'])
-            dec_val = float(obj['dec'])
-        except (ValueError, TypeError):
-            continue
-
-        coord = SkyCoord(ra=ra_val * u.deg, dec=dec_val * u.deg, frame='icrs')
-        altaz = coord.transform_to(altaz_frame)
-        alt = altaz.alt.deg
-
-        if alt < 20:  # Too low on the horizon
-            continue
-
-        mag = obj.get('magnitude', 99.9)
-        effective_mag = mag
-
-        # Moon glare penalty (smooth: max ~4.5 mag at 15°, zero at 60°)
-        if moon_up:
-            sep = coord.separation(moon_coord).deg
-            if sep < 15:
-                continue  # Too close to the Moon — invisible
-            elif sep < 60:
-                effective_mag += (60 - sep) * 0.1
-
-        # Base score: lower is better (magnitude-like).
-        # Subtract altitude bonus: higher altitude → better visibility.
-        alt_bonus = (alt / 90.0) * 2.0
-        score = effective_mag - alt_bonus
-
-        # Messier objects get a strong boost
-        if obj.get('catalog') == 'Messier':
-            score -= 5.0
-
-        scored.append(
-            {
-                'name': obj['name'],
-                'type': obj['type'],
-                'magnitude': mag,
-                'altitude': round(alt, 1),
-                'azimuth': round(altaz.az.deg, 1),
-                'catalog': obj.get('catalog', 'Unknown'),
-                'score': score,
-            }
-        )
-
-    scored.sort(key=lambda x: x['score'])
-    return scored
+# _filter_candidates_by_lst is re-exported from stargazing_core (imported at top)
+# _score_deep_sky_objects is re-exported from stargazing_core (imported at top)
 
 
 def calculate_nightly_forecast(
@@ -465,9 +262,7 @@ def calculate_nightly_forecast(
     }
 
 
-def identify_constellation(sky_coord: SkyCoord) -> str:
-    """Identify which constellation a coordinate belongs to."""
-    return get_constellation(sky_coord)
+# identify_constellation is re-exported from stargazing_core (imported at top of file)
 
 
 _simbad_cache: dict[str, SkyCoord] = {}
