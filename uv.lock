@@ -2331,7 +2331,7 @@ wheels = [
 [[package]]
 name = "stargazing-core"
 version = "0.1.0a1"
-source = { git = "https://github.com/StarGazer1995/stargazing-core.git#43c442bf66a62cdaabec32d6d6bee5cf53f26a22" }
+source = { git = "https://github.com/StarGazer1995/stargazing-core.git#02c77e2d8d28535fed46f7d67fd5d71b321d1ba6" }
 dependencies = [
     { name = "astropy" },
     { name = "numpy" },
