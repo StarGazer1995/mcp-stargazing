@@ -137,8 +137,9 @@ async def _get_telescope_targets(
 
     return format_response(
         {
-            'targets': results,
+            'targets': results['targets'],
+            'moon': results['moon'],
             'config': config.model_dump(exclude_none=True),
-            'total': len(results),
+            'total': len(results['targets']),
         }
     )
