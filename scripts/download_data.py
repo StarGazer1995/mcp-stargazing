@@ -230,13 +230,17 @@ def download_messier_objects() -> list[dict[str, Any]]:
                 print(f'Columns found: {table.colnames}')
                 raise KeyError('RA')
 
-            ra_str = row[ra_key]
-            dec_str = row[dec_key]
+            ra_val = row[ra_key]
+            dec_val = row[dec_key]
 
-            coord = SkyCoord(f'{ra_str} {dec_str}', unit=(u.hourangle, u.deg))
+            # SIMBAD returns RA as float (decimal degrees) with newer API,
+            # or string (sexagesimal) with older default columns.
+            if isinstance(ra_val, (int, float)):
+                coord = SkyCoord(ra=ra_val * u.deg, dec=dec_val * u.deg)
+            else:
+                coord = SkyCoord(f'{ra_val} {dec_val}', unit=(u.hourangle, u.deg))
 
             # Parse Magnitude (Flux V)
-            # Column name changed to 'FLUX_V' or just 'V'
             mag = 99.9
             if 'FLUX_V' in row.colnames:
                 mag = float(row['FLUX_V'])
@@ -315,10 +319,13 @@ def _download_catalog_objects(
 
     result: list[dict[str, Any]] = []
     for row in table:
-        ra_str = row['RA'] if 'RA' in table.colnames else row['ra']
-        dec_str = row['DEC'] if 'DEC' in table.colnames else row['dec']
+        ra_val = row['RA'] if 'RA' in table.colnames else row['ra']
+        dec_val = row['DEC'] if 'DEC' in table.colnames else row['dec']
         try:
-            coord = SkyCoord(f'{ra_str} {dec_str}', unit=(u.hourangle, u.deg))
+            if isinstance(ra_val, (int, float)):
+                coord = SkyCoord(ra=ra_val * u.deg, dec=dec_val * u.deg)
+            else:
+                coord = SkyCoord(f'{ra_val} {dec_val}', unit=(u.hourangle, u.deg))
         except Exception:
             continue
 
