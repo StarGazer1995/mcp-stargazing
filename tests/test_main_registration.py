@@ -9,6 +9,7 @@ EXPECTED_TOOLS = {
     'get_local_datetime_info',
     'get_moon_info',
     'get_nightly_forecast',
+    'get_telescope_targets',
     'get_tool_catalog',
     'get_weather_by_name',
     'get_weather_by_position',
