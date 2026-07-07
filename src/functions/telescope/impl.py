@@ -143,3 +143,77 @@ async def _get_telescope_targets(
             'total': len(results['targets']),
         }
     )
+
+
+@mcp.tool()
+async def get_shooting_plan(
+    focal_length_mm: float,
+    lon: float,
+    lat: float,
+    time: str,
+    time_zone: str = 'UTC',
+    aperture_mm: float | None = None,
+    sensor_width_mm: float | None = None,
+    sensor_height_mm: float | None = None,
+    sensor_pixel_size_um: float | None = None,
+    central_obstruction_pct: float = 0,
+    reducer_factor: float = 1.0,
+    barlow_factor: float = 1.0,
+    mount_type: str = 'equatorial',
+    filter_type: str | None = None,
+    limit: int = 20,
+    min_altitude: float = 25.0,
+) -> dict:
+    """Generate a single-night astrophotography shooting plan.
+
+    Runs match_telescope_targets then generate_shooting_schedule,
+    returning targets + moon + timed shooting slots in one response.
+    """
+    from datetime import datetime
+
+    import pytz
+    from stargazing_core._shooting_plan import generate_shooting_schedule
+
+    config = TelescopeConfig(
+        focal_length_mm=focal_length_mm,
+        aperture_mm=aperture_mm,
+        sensor_width_mm=sensor_width_mm,
+        sensor_height_mm=sensor_height_mm,
+        sensor_pixel_size_um=sensor_pixel_size_um,
+        central_obstruction_pct=central_obstruction_pct,
+        reducer_factor=reducer_factor,
+        barlow_factor=barlow_factor,
+        mount_type=mount_type,
+        filter_type=filter_type,
+    )
+
+    observer = EarthLocation(lat=lat * u.deg, lon=lon * u.deg)
+
+    tz = pytz.timezone(time_zone)
+    dt = tz.localize(datetime.fromisoformat(time))
+    t = Time(dt)
+
+    results = await asyncio.to_thread(
+        match_telescope_targets,
+        config,
+        observer,
+        t,
+        limit,
+    )
+
+    targets = results['targets']
+    moon = results['moon']
+    dusk = targets[0]['civil_dusk'] if targets else t.iso
+    dawn = targets[0]['civil_dawn'] if targets else t.iso
+
+    plan = generate_shooting_schedule(targets, moon, dusk, dawn, min_alt=min_altitude)
+
+    return format_response(
+        {
+            'targets': targets,
+            'moon': moon,
+            'plan': plan.model_dump(),
+            'config': config.model_dump(exclude_none=True),
+            'total': len(targets),
+        }
+    )
