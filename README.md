@@ -66,15 +66,36 @@ You can also run the server using Docker, which handles all dependencies and dat
 
 2. **Run the container**:
    ```bash
-   # Basic run (SHTTP mode on port 3001)
-   docker run -p 3001:3001 mcp-stargazing
+   # Basic run (MCP on :3001 + SPF web UI on :5001)
+   docker run -p 3001:3001 -p 5001:5001 mcp-stargazing
    
    # With Environment Variables
-   docker run -p 3001:3001 \
+   docker run -p 3001:3001 -p 5001:5001 \
      -e QWEATHER_API_KEY=your_key \
      -e STARGAZING_DB_CONFIG=your_db_config \
      mcp-stargazing
    ```
+
+3. **Access**:
+   - **MCP server** → `http://localhost:3001/shttp` (for AI agent / MCP client)
+   - **SPF web UI** → `http://localhost:5001/` (stargazing place finder frontend)
+
+### Docker Architecture
+
+The container runs two services managed by [supervisord](http://supervisord.org/), both sharing the same Python
+virtual environment via `uv run`:
+
+```
+Container
+├── supervisord
+│   ├── program:mcp      → uv run mcp-stargazing --mode shttp --port 3001
+│   └── program:spf-web  → uv run uvicorn server.main:app --port 5001
+│
+Dependency resolution (single venv, no duplication):
+  stargazing-core>=0.1.0  ←  resolved once from PyPI
+  stargazing-place-finder>=0.8.0
+  fastapi, uvicorn, ...   ←  SPF's transitive deps
+```
 
 ## MCP Server Usage
 
@@ -177,6 +198,12 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
   - **Inputs**: `south`, `west`, `north`, `east`, `time`, `time_zone`, `candidate_limit`, `target_limit`, `weather_provider`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`.
   - **Returns**: `query`, `summary`, and `candidates`, where `query.analysis_resource_id` links the plan back to the underlying `analysis_area` search when available.
   - **Degradation**: Weather or forecast sub-queries may degrade into `summary.warnings` and per-candidate `notes`, while the overall planning response remains successful.
+- **`get_telescope_targets`**: Match deep-sky objects against telescope optics — find what's best visible with your equipment.
+  - **Inputs**: `telescope` (preset name or custom config), `ra`/`dec` or `target_name`, `time`, `time_zone`.
+  - **Returns**: Ranked list of observable targets with visibility scores, altitude/azimuth, and telescope-specific framing.
+- **`get_shooting_plan`**: Generate an optimized imaging schedule for a target, maximizing time above altitude threshold.
+  - **Inputs**: `target_name` or `ra`/`dec`, `telescope`, `time`, `time_zone`, `duration_hours`, `min_altitude_deg`.
+  - **Returns**: Time-ordered sequence of exposures with meridian flip warnings and moon separation data.
 - **`light_pollution_map`**: Query light pollution data for a bounding box area.
   - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).
   - **Returns**: A grid of data points with Bortle class, brightness, and SQM values.
@@ -215,8 +242,6 @@ All tools return JSON-serializable data and use structured error handling:
 
 ## Project Structure
 
-The project is modularized for better maintainability and code execution support:
-
 ```
 .
 ├── src/
@@ -224,9 +249,11 @@ The project is modularized for better maintainability and code execution support
 │   │   ├── celestial/        # Celestial calculations (pos, rise/set)
 │   │   ├── metadata/         # Tool discovery surface (`get_tool_catalog`)
 │   │   ├── planning/         # Composite planning tools (`get_best_stargazing_plan`)
+│   │   ├── telescope/        # Telescope target matching + shooting plan
 │   │   ├── weather/          # Weather API integration
 │   │   ├── places/           # Location and area analysis
 │   │   └── time/             # Time utilities
+│   ├── schemas/              # Pydantic v2 data models
 │   ├── cache.py              # Caching logic for analysis results
 │   ├── response.py           # Standardized response formatting
 │   ├── server_instance.py    # FastMCP server instance (avoids circular imports)
@@ -234,16 +261,11 @@ The project is modularized for better maintainability and code execution support
 │   ├── celestial.py          # Core astronomy logic (Astropy wrappers)
 │   ├── placefinder.py        # Grid analysis logic
 │   └── qweather_interaction.py # Legacy QWeather helpers
-├── tests/                    # Unified test suite
-│   ├── test_celestial.py
-│   ├── test_mcp_client.py    # MCP protocol and transport contract tests
-│   ├── test_server_instance.py # Tool metadata registry behavior
-│   ├── test_weather.py
-│   ├── test_serialization.py # Validates JSON return formats
-│   ├── test_structured_errors.py # Structured business error expectations
-│   └── test_integration.py   # End-to-end flow tests
-├── examples/                 # Usage examples
-├── docs/                     # Documentation and improvement plans
+├── tests/                    # Unified test suite (25+ test files)
+├── examples/                 # Usage examples (14 scripts)
+├── docs/                     # Design docs and roadmap
+├── Dockerfile                # Multi-stage Docker build
+├── supervisord.conf          # Dual-service process manager config
 └── pyproject.toml            # Project configuration and dependencies
 ```
 
