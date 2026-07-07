@@ -14,6 +14,7 @@ from src.functions.celestial.impl import (
 from src.functions.metadata.impl import get_tool_catalog
 from src.functions.places.impl import analysis_area, light_pollution_map
 from src.functions.planning.impl import get_best_stargazing_plan
+from src.functions.telescope.impl import get_shooting_plan
 from src.functions.time.impl import get_local_datetime_info
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
 from src.response import MCPError
@@ -27,6 +28,7 @@ EXPECTED_TOOLS = {
     'get_local_datetime_info',
     'get_moon_info',
     'get_nightly_forecast',
+    'get_shooting_plan',
     'get_telescope_targets',
     'get_tool_catalog',
     'get_weather_by_name',
@@ -537,6 +539,90 @@ async def test_analysis_area_road_skip_silences_road_warning():
     warnings = result['_meta'].get('warnings', [])
     # When road_radius_km=0, road warning should be suppressed
     assert not any('road' in w.lower() for w in warnings), f'Road warning leaked: {warnings}'
+
+
+# ---------------------------------------------------------------------------
+# Telescope / shooting plan tool
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_fn():
+    """``get_shooting_plan.fn`` returns targets + moon + timed shooting slots."""
+    from stargazing_core._shooting_plan import ShootingPlan
+
+    mock_targets = [
+        {
+            'name': 'M 42',
+            'type': 'emission nebula',
+            'ra': 83.8,
+            'dec': -5.4,
+            'magnitude': 4.0,
+            'surface_brightness': 14.5,
+            'angular_size_arcmin': 66.0,
+            'altitude': 45.0,
+            'azimuth': 180.0,
+            'dawn_altitude': 30.0,
+            'fov_fill_ratio': 0.5,
+            'fov_fit_score': 0.85,
+            'surface_brightness_score': 0.7,
+            'filter_match_score': 0.9,
+            'altitude_score': 0.5,
+            'suitability_score': 82.0,
+            'mosaic_recommended': False,
+            'catalog': 'Messier',
+            'altitude_curve': [
+                {'time': 1705341600, 'alt': 30.0},
+                {'time': 1705342500, 'alt': 35.0},
+                {'time': 1705343400, 'alt': 50.0},
+                {'time': 1705344300, 'alt': 55.0},
+            ],
+            'observation_time': '2024-01-15T19:00:00',
+            'civil_dusk': '2024-01-15T18:00:00',
+            'civil_dawn': '2024-01-16T06:00:00',
+        }
+    ]
+    mock_moon = {
+        'illumination': 0.05,
+        'phase': 'Waxing Crescent',
+        'altitude_curve': [
+            {'time': 1705341600, 'alt': 10.0},
+            {'time': 1705342500, 'alt': 5.0},
+            {'time': 1705343400, 'alt': 0},
+            {'time': 1705344300, 'alt': -5.0},
+        ],
+        'always_down': False,
+        'always_up': False,
+        'dark_fraction': 0.8,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': mock_targets, 'moon': mock_moon}
+
+        result = await get_shooting_plan.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+            limit=5,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert len(data['targets']) == 1
+    assert data['targets'][0]['name'] == 'M 42'
+    assert data['moon']['phase'] == 'Waxing Crescent'
+    assert data['moon']['illumination'] == 0.05
+    assert 'plan' in data
+    plan = ShootingPlan(**data['plan'])
+    assert len(plan.slots) >= 1
+    slot = plan.slots[0]
+    assert slot.target_name == 'M 42'
+    assert slot.duration_min > 0
+    assert slot.start_time < slot.end_time
+    assert data['total'] == 1
+    assert 'config' in data
 
 
 # ---------------------------------------------------------------------------
