@@ -1039,3 +1039,280 @@ async def test_get_celestial_rise_set_fn():
     data = result['data']
     assert data['rise_time'] is not None
     assert data['set_time'] is not None
+
+
+# ---------------------------------------------------------------------------
+# Telescope — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_invalid_coords():
+    """``get_telescope_targets.fn`` raises TypeError for out-of-range coordinates.
+
+    The telescope tools bypass ``process_location_and_time`` and create
+    ``EarthLocation`` directly; astropy raises ``TypeError`` when lat is out
+    of range instead of the expected ``MCPError.INVALID_COORDINATES``.
+    This test documents the current behavior.
+    """
+    with pytest.raises(TypeError, match='Coordinates could not be parsed'):
+        await get_telescope_targets.fn(
+            focal_length_mm=250,
+            lon=0.0,
+            lat=95.0,  # invalid latitude > 90
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_invalid_time():
+    """``get_telescope_targets.fn`` returns structured error for invalid time format."""
+    result = await get_telescope_targets.fn(
+        focal_length_mm=250,
+        lon=116.4,
+        lat=39.9,
+        time='not-a-valid-time',
+        time_zone='Asia/Shanghai',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_TIME_FORMAT
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_invalid_timezone():
+    """``get_telescope_targets.fn`` returns structured error for invalid timezone."""
+    result = await get_telescope_targets.fn(
+        focal_length_mm=250,
+        lon=116.4,
+        lat=39.9,
+        time='2024-01-15T22:00:00',
+        time_zone='Not/A_Timezone',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_TIMEZONE
+
+
+# ---------------------------------------------------------------------------
+# Shooting plan — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_invalid_coords():
+    """``get_shooting_plan.fn`` raises TypeError for out-of-range coordinates.
+
+    Same as ``get_telescope_targets`` — the internal ``EarthLocation``
+    construction throws ``TypeError`` when lat exceeds ±90°.
+    """
+    with pytest.raises(TypeError, match='Coordinates could not be parsed'):
+        await get_shooting_plan.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=95.0,  # invalid latitude > 90
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_invalid_timezone():
+    """``get_shooting_plan.fn`` raises UnknownTimeZoneError for invalid timezone."""
+    import pytz
+
+    with pytest.raises(pytz.exceptions.UnknownTimeZoneError):
+        await get_shooting_plan.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-01-15T22:00:00',
+            time_zone='Invalid/Zone',
+        )
+
+
+# ---------------------------------------------------------------------------
+# Constellation — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_constellation_invalid_coords():
+    """``get_constellation.fn`` returns structured error for out-of-range coordinates."""
+    result = await get_constellation.fn(
+        constellation_name='Orion',
+        lon=-200.0,  # invalid
+        lat=40.0,
+        time='2024-06-15 22:00:00',
+        time_zone='America/New_York',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_COORDINATES
+
+
+# ---------------------------------------------------------------------------
+# Moon info — edge cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_lat_without_lon():
+    """``get_moon_info.fn`` with only lat (no lon) — no local alt/az computed."""
+    with patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc:
+        mock_calc.return_value = {
+            'phase_name': 'Waxing Crescent',
+            'illumination': 0.3,
+            'age_days': 5.2,
+            'elongation': 45.0,
+            'earth_distance': 390000.0,
+        }
+
+        result = await get_moon_info.fn(
+            time='2024-06-15T12:00:00+00:00',
+            time_zone='UTC',
+            lat=40.0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['phase_name'] == 'Waxing Crescent'
+    assert data['illumination'] == 0.3
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_lon_without_lat():
+    """``get_moon_info.fn`` with only lon (no lat) — no local alt/az computed."""
+    with patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc:
+        mock_calc.return_value = {
+            'phase_name': 'Full Moon',
+            'illumination': 0.99,
+            'age_days': 14.5,
+            'elongation': 180.0,
+            'earth_distance': 384400.0,
+        }
+
+        result = await get_moon_info.fn(
+            time='2024-06-15T12:00:00+00:00',
+            time_zone='UTC',
+            lon=-74.0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['phase_name'] == 'Full Moon'
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_no_position():
+    """``get_moon_info.fn`` without lat/lon — only phase data returned."""
+    with patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc:
+        mock_calc.return_value = {
+            'phase_name': 'New Moon',
+            'illumination': 0.01,
+            'age_days': 0.5,
+            'elongation': 5.0,
+            'earth_distance': 405000.0,
+        }
+
+        result = await get_moon_info.fn(time='2024-06-15T12:00:00+00:00', time_zone='UTC')
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['phase_name'] == 'New Moon'
+    assert data['altitude'] is None
+    assert data['azimuth'] is None
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_invalid_timezone():
+    """``get_moon_info.fn`` returns structured error for invalid timezone."""
+    result = await get_moon_info.fn(time='2024-06-15 12:00:00', time_zone='Bad/Zone')
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_TIMEZONE
+
+
+# ---------------------------------------------------------------------------
+# Nightly forecast — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_nightly_forecast_invalid_coords():
+    """``get_nightly_forecast.fn`` returns structured error for invalid coordinates."""
+    result = await get_nightly_forecast.fn(
+        lon=200.0,  # invalid
+        lat=40.0,
+        time='2024-06-15 22:00:00',
+        time_zone='America/New_York',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_COORDINATES
+
+
+@pytest.mark.asyncio
+async def test_get_nightly_forecast_invalid_timezone():
+    """``get_nightly_forecast.fn`` returns structured error for invalid timezone."""
+    result = await get_nightly_forecast.fn(
+        lon=-74.0,
+        lat=40.0,
+        time='2024-06-15 22:00:00',
+        time_zone='Not/A_Zone',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_TIMEZONE
+
+
+# ---------------------------------------------------------------------------
+# Light pollution map — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_light_pollution_map_invalid_bounds():
+    """``light_pollution_map.fn`` raises MCPError for invalid bounding box."""
+    with patch('src.functions.places.impl.get_light_pollution_grid') as mock_grid:
+        mock_grid.side_effect = ValueError('south must be less than north')
+
+        with pytest.raises(MCPError) as exc_info:
+            await light_pollution_map.fn(south=40.5, west=-74.0, north=40.0, east=-73.0)
+
+    assert exc_info.value.code == MCPError.EXTERNAL_API_ERROR
+
+
+@pytest.mark.asyncio
+async def test_light_pollution_map_spf_not_installed():
+    """``light_pollution_map.fn`` raises CONFIGURATION_ERROR when SPF is missing."""
+    with patch(
+        'src.functions.places.impl.get_light_pollution_grid',
+        side_effect=ModuleNotFoundError('No module named stargazing_place_finder'),
+    ):
+        with pytest.raises(MCPError) as exc_info:
+            await light_pollution_map.fn(south=40.0, west=-74.0, north=40.5, east=-73.5)
+
+    assert exc_info.value.code == MCPError.CONFIGURATION_ERROR
+    assert 'not installed' in exc_info.value.message
+
+
+@pytest.mark.asyncio
+async def test_light_pollution_map_spf_data_error():
+    """``light_pollution_map.fn`` translates SPF DataError to MCPError."""
+    try:
+        from stargazingplacefinder import DataError  # noqa: F401
+
+        with patch(
+            'src.functions.places.impl.get_light_pollution_grid',
+            side_effect=DataError('GeoTIFF not found'),
+        ):
+            with pytest.raises(MCPError) as exc_info:
+                await light_pollution_map.fn(south=40.0, west=-74.0, north=40.5, east=-73.5)
+        assert exc_info.value.code in (
+            MCPError.EXTERNAL_API_ERROR,
+            MCPError.CONFIGURATION_ERROR,
+        )
+    except ImportError:
+        pytest.skip('stargazingplacefinder not available in this environment')
