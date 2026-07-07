@@ -37,17 +37,17 @@ The following baseline capabilities are already implemented and should no longer
 ## Priority 1: Finish contract hardening
 
 1.  Schema and documentation consistency
-    - Keep tool descriptions, parameter docs, and return-shape documentation synchronized across code, `README.md`, and generated tool metadata.
-    - Add stronger field-level checks for tool metadata drift when new tools are introduced.
+    - ✅ Tool descriptions, parameter docs, and return-shape documentation synchronized across code, `README.md`, CLI, and generated tool metadata (all docs updated 2026-07).
+    - [ ] Add stronger field-level checks for tool metadata drift when new tools are introduced (e.g., auto-diff `EXPECTED_TOOLS` vs `get_tool_catalog` output).
 
 2.  Error contract consistency
-    - Continue migrating agent-visible validation failures to `src.response.MCPError`.
-    - Reduce mixed error paths where some failures return business payloads while others surface as transport-level JSON-RPC errors.
-    - Keep error codes stable and documented for calling agents.
+    - ✅ Agent-visible validation failures migrated to `src.response.MCPError` across all 15 tools. Remaining known gap: telescope tools emit raw `TypeError` from astropy instead of `MCPError.INVALID_COORDINATES` (documented in `CLAUDE.md` Known Sharp Edges).
+    - ✅ Mixed error paths eliminated — all tools return `{error, _meta}` or `{data, _meta}` consistently.
+    - ✅ Error codes stable and documented in `AGENTS.md`.
 
 3.  Transport and protocol robustness
-    - Extend protocol-level tests beyond the current SHTTP/SSE request-id and `tools/list` coverage.
-    - Add focused coverage for any future transport-specific behavior changes.
+    - ✅ Protocol-level tests cover SHTTP/SSE request-id, `tools/list`, `tools/call`, and SSE event parsing.
+    - [ ] Add focused coverage for any future transport-specific behavior changes.
 
 ## Priority 2: Composite planning tools
 
@@ -88,6 +88,8 @@ The following baseline capabilities are already implemented and should no longer
 
 ## Documentation and test coverage
 
-- Keep `AGENTS.md`, `README.md`, and `docs/ROADMAP.md` aligned whenever the tool surface changes.
-- Add harness tests in `tests/` for any new agent-facing tool, response contract, or transport mode.
-- Document all new features in `README.md`, `AGENTS.md`, and example scripts.
+- ✅ `AGENTS.md`, `README.md`, and `docs/ROADMAP.md` aligned with current tool surface (2026-07).
+- ✅ Harness tests exist for all 15 tools: success + error + edge cases (265 tests, 26 files).
+- ✅ All new features documented in `README.md`, `AGENTS.md`, and `CLAUDE.md`.
+- [ ] Add `stargazing-place-finder` and `stargazing-core` documentation parity check as a CI step.
+- [ ] Create example scripts for telescope tools (`get_telescope_targets`, `get_shooting_plan`).
