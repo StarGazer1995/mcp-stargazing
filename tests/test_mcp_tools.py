@@ -14,7 +14,7 @@ from src.functions.celestial.impl import (
 from src.functions.metadata.impl import get_tool_catalog
 from src.functions.places.impl import analysis_area, light_pollution_map
 from src.functions.planning.impl import get_best_stargazing_plan
-from src.functions.telescope.impl import get_shooting_plan
+from src.functions.telescope.impl import get_shooting_plan, get_telescope_targets
 from src.functions.time.impl import get_local_datetime_info
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
 from src.response import MCPError
@@ -709,3 +709,610 @@ def test_get_weather_by_position_generic_exception(mock_service):
     assert result['_meta']['status'] == 'error'
     assert result['error']['code'] == MCPError.EXTERNAL_API_ERROR
     assert '天气查询失败' in result['error']['message']
+
+
+# ---------------------------------------------------------------------------
+# Telescope targets tool
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_fn():
+    """``get_telescope_targets.fn`` returns ranked targets for a telescope config."""
+    mock_targets = [
+        {
+            'name': 'M 42',
+            'type': 'emission nebula',
+            'ra': 83.8,
+            'dec': -5.4,
+            'magnitude': 4.0,
+            'surface_brightness': 14.5,
+            'angular_size_arcmin': 66.0,
+            'altitude': 45.0,
+            'azimuth': 180.0,
+            'fov_fill_ratio': 0.5,
+            'fov_fit_score': 0.85,
+            'surface_brightness_score': 0.7,
+            'filter_match_score': 0.9,
+            'altitude_score': 0.5,
+            'suitability_score': 82.0,
+            'mosaic_recommended': False,
+            'catalog': 'Messier',
+            'observation_time': '2024-01-15T19:00:00',
+            'civil_dusk': '2024-01-15T18:00:00',
+            'civil_dawn': '2024-01-16T06:00:00',
+        },
+        {
+            'name': 'M 31',
+            'type': 'spiral galaxy',
+            'ra': 10.68,
+            'dec': 41.27,
+            'magnitude': 3.4,
+            'surface_brightness': 22.3,
+            'angular_size_arcmin': 189.0,
+            'altitude': 60.0,
+            'azimuth': 250.0,
+            'fov_fill_ratio': 0.9,
+            'fov_fit_score': 0.6,
+            'surface_brightness_score': 0.3,
+            'filter_match_score': 1.0,
+            'altitude_score': 0.7,
+            'suitability_score': 72.0,
+            'mosaic_recommended': True,
+            'catalog': 'Messier',
+            'observation_time': '2024-01-15T19:00:00',
+            'civil_dusk': '2024-01-15T18:00:00',
+            'civil_dawn': '2024-01-16T06:00:00',
+        },
+    ]
+    mock_moon = {
+        'illumination': 0.05,
+        'phase': 'Waxing Crescent',
+        'always_down': False,
+        'always_up': False,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': mock_targets, 'moon': mock_moon}
+
+        result = await get_telescope_targets.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+            aperture_mm=51,
+            mount_type='equatorial',
+            limit=5,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert len(data['targets']) == 2
+    assert data['targets'][0]['name'] == 'M 42'
+    assert data['targets'][0]['suitability_score'] == 82.0
+    assert data['targets'][1]['name'] == 'M 31'
+    assert data['targets'][1]['mosaic_recommended'] is True
+    assert data['moon']['phase'] == 'Waxing Crescent'
+    assert data['moon']['illumination'] == 0.05
+    assert data['total'] == 2
+    assert 'config' in data
+    assert data['config']['focal_length_mm'] == 250
+    assert data['config']['aperture_mm'] == 51
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_with_filter():
+    """``get_telescope_targets.fn`` passes filter_type through to config."""
+    mock_targets = [
+        {
+            'name': 'NGC 7000',
+            'type': 'emission nebula',
+            'ra': 314.7,
+            'dec': 44.3,
+            'magnitude': 4.0,
+            'surface_brightness': 14.0,
+            'angular_size_arcmin': 120.0,
+            'altitude': 50.0,
+            'azimuth': 90.0,
+            'fov_fill_ratio': 0.8,
+            'fov_fit_score': 0.9,
+            'surface_brightness_score': 0.8,
+            'filter_match_score': 1.0,
+            'altitude_score': 0.6,
+            'suitability_score': 90.0,
+            'mosaic_recommended': True,
+            'catalog': 'NGC',
+            'observation_time': '2024-06-15T22:00:00',
+            'civil_dusk': '2024-06-15T21:00:00',
+            'civil_dawn': '2024-06-16T04:00:00',
+        }
+    ]
+    mock_moon = {
+        'illumination': 0.8,
+        'phase': 'Waxing Gibbous',
+        'always_down': False,
+        'always_up': False,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': mock_targets, 'moon': mock_moon}
+
+        result = await get_telescope_targets.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-06-15T22:00:00',
+            time_zone='Asia/Shanghai',
+            filter_type='Hα',
+            limit=10,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['targets'][0]['name'] == 'NGC 7000'
+    assert data['moon']['illumination'] == 0.8
+    assert data['config']['filter_type'] == 'Hα'
+
+
+# ---------------------------------------------------------------------------
+# Shooting plan edge cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_uses_telescope_presets():
+    """``get_shooting_plan.fn`` works with full telescope + sensor config."""
+    mock_targets = [
+        {
+            'name': 'M 42',
+            'type': 'emission nebula',
+            'ra': 83.8,
+            'dec': -5.4,
+            'magnitude': 4.0,
+            'surface_brightness': 14.5,
+            'angular_size_arcmin': 66.0,
+            'altitude': 55.0,
+            'azimuth': 180.0,
+            'dawn_altitude': 40.0,
+            'fov_fill_ratio': 0.5,
+            'fov_fit_score': 0.85,
+            'surface_brightness_score': 0.7,
+            'filter_match_score': 0.9,
+            'altitude_score': 0.5,
+            'suitability_score': 85.0,
+            'mosaic_recommended': False,
+            'catalog': 'Messier',
+            'altitude_curve': [
+                {'time': 1705341600, 'alt': 30.0},
+                {'time': 1705342500, 'alt': 40.0},
+                {'time': 1705343400, 'alt': 50.0},
+                {'time': 1705344300, 'alt': 55.0},
+                {'time': 1705345200, 'alt': 50.0},
+                {'time': 1705346100, 'alt': 35.0},
+            ],
+            'observation_time': '2024-01-15T19:00:00',
+            'civil_dusk': '2024-01-15T18:00:00',
+            'civil_dawn': '2024-01-16T06:00:00',
+        }
+    ]
+    mock_moon = {
+        'illumination': 0.95,
+        'phase': 'Full Moon',
+        'altitude_curve': [
+            {'time': 1705341600, 'alt': 10.0},
+            {'time': 1705342500, 'alt': 20.0},
+            {'time': 1705343400, 'alt': 30.0},
+            {'time': 1705344300, 'alt': 40.0},
+        ],
+        'always_down': False,
+        'always_up': False,
+        'dark_fraction': 0.3,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': mock_targets, 'moon': mock_moon}
+
+        result = await get_shooting_plan.fn(
+            focal_length_mm=420,
+            lon=-117.0,
+            lat=33.0,
+            time='2024-01-15T22:00:00',
+            time_zone='America/Los_Angeles',
+            aperture_mm=100,
+            sensor_width_mm=23.5,
+            sensor_height_mm=15.7,
+            sensor_pixel_size_um=3.76,
+            min_altitude=30.0,
+            limit=5,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert len(data['targets']) == 1
+    assert data['targets'][0]['name'] == 'M 42'
+    assert data['moon']['phase'] == 'Full Moon'
+    assert data['moon']['illumination'] == 0.95
+    assert data['config']['focal_length_mm'] == 420
+    assert data['config']['aperture_mm'] == 100
+    assert data['config']['sensor_width_mm'] == 23.5
+    assert 'plan' in data
+    from stargazing_core._shooting_plan import ShootingPlan
+
+    plan = ShootingPlan(**data['plan'])
+    assert len(plan.slots) >= 1
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_empty_targets():
+    """``get_shooting_plan.fn`` handles empty targets gracefully."""
+    mock_moon = {
+        'illumination': 0.5,
+        'phase': 'First Quarter',
+        'altitude_curve': [],
+        'always_down': False,
+        'always_up': False,
+        'dark_fraction': 0.5,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': [], 'moon': mock_moon}
+
+        result = await get_shooting_plan.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+            limit=5,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert len(data['targets']) == 0
+    assert data['total'] == 0
+    assert 'plan' in data
+    from stargazing_core._shooting_plan import ShootingPlan
+
+    plan = ShootingPlan(**data['plan'])
+    assert len(plan.slots) == 0
+
+
+# ---------------------------------------------------------------------------
+# Celestial position / rise-set fn tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_celestial_pos_fn():
+    """``get_celestial_pos.fn`` returns altitude/azimuth for a celestial object."""
+    from src.functions.celestial.impl import get_celestial_pos
+
+    with (
+        patch('src.functions.celestial.impl.celestial_pos') as mock_calc,
+        patch('src.functions.celestial.impl.process_location_and_time') as mock_proc,
+    ):
+        mock_proc.return_value = (MagicMock(), MagicMock())
+        mock_calc.return_value = (45.5, 180.0)
+
+        result = await get_celestial_pos.fn(
+            celestial_object='M31',
+            lon=-74.0,
+            lat=40.0,
+            time='2024-06-15 22:00:00',
+            time_zone='America/New_York',
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['altitude'] == 45.5
+    assert data['azimuth'] == 180.0
+
+
+@pytest.mark.asyncio
+async def test_get_celestial_rise_set_fn():
+    """``get_celestial_rise_set.fn`` returns rise/set times."""
+    from src.functions.celestial.impl import get_celestial_rise_set
+
+    with (
+        patch('src.functions.celestial.impl.celestial_rise_set') as mock_calc,
+        patch('src.functions.celestial.impl.process_location_and_time') as mock_proc,
+    ):
+        from datetime import UTC, datetime
+
+        mock_proc.return_value = (MagicMock(), MagicMock())
+        # celestial_rise_set returns (rise_time, set_time) as two astropy Time objects
+        mock_calc.return_value = (
+            datetime(2024, 6, 15, 5, 30, tzinfo=UTC),
+            datetime(2024, 6, 15, 20, 15, tzinfo=UTC),
+        )
+
+        result = await get_celestial_rise_set.fn(
+            celestial_object='Sun',
+            lon=-74.0,
+            lat=40.0,
+            time='2024-06-15 22:00:00',
+            time_zone='America/New_York',
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['rise_time'] is not None
+    assert data['set_time'] is not None
+
+
+# ---------------------------------------------------------------------------
+# Telescope — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_invalid_coords():
+    """``get_telescope_targets.fn`` raises TypeError for out-of-range coordinates.
+
+    The telescope tools bypass ``process_location_and_time`` and create
+    ``EarthLocation`` directly; astropy raises ``TypeError`` when lat is out
+    of range instead of the expected ``MCPError.INVALID_COORDINATES``.
+    This test documents the current behavior.
+    """
+    with pytest.raises(TypeError, match='Coordinates could not be parsed'):
+        await get_telescope_targets.fn(
+            focal_length_mm=250,
+            lon=0.0,
+            lat=95.0,  # invalid latitude > 90
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_invalid_time():
+    """``get_telescope_targets.fn`` returns structured error for invalid time format."""
+    result = await get_telescope_targets.fn(
+        focal_length_mm=250,
+        lon=116.4,
+        lat=39.9,
+        time='not-a-valid-time',
+        time_zone='Asia/Shanghai',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_TIME_FORMAT
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_invalid_timezone():
+    """``get_telescope_targets.fn`` returns structured error for invalid timezone."""
+    result = await get_telescope_targets.fn(
+        focal_length_mm=250,
+        lon=116.4,
+        lat=39.9,
+        time='2024-01-15T22:00:00',
+        time_zone='Not/A_Timezone',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_TIMEZONE
+
+
+# ---------------------------------------------------------------------------
+# Shooting plan — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_invalid_coords():
+    """``get_shooting_plan.fn`` raises TypeError for out-of-range coordinates.
+
+    Same as ``get_telescope_targets`` — the internal ``EarthLocation``
+    construction throws ``TypeError`` when lat exceeds ±90°.
+    """
+    with pytest.raises(TypeError, match='Coordinates could not be parsed'):
+        await get_shooting_plan.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=95.0,  # invalid latitude > 90
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_invalid_timezone():
+    """``get_shooting_plan.fn`` raises UnknownTimeZoneError for invalid timezone."""
+    import pytz
+
+    with pytest.raises(pytz.exceptions.UnknownTimeZoneError):
+        await get_shooting_plan.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-01-15T22:00:00',
+            time_zone='Invalid/Zone',
+        )
+
+
+# ---------------------------------------------------------------------------
+# Constellation — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_constellation_invalid_coords():
+    """``get_constellation.fn`` returns structured error for out-of-range coordinates."""
+    result = await get_constellation.fn(
+        constellation_name='Orion',
+        lon=-200.0,  # invalid
+        lat=40.0,
+        time='2024-06-15 22:00:00',
+        time_zone='America/New_York',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_COORDINATES
+
+
+# ---------------------------------------------------------------------------
+# Moon info — edge cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_lat_without_lon():
+    """``get_moon_info.fn`` with only lat (no lon) — no local alt/az computed."""
+    with patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc:
+        mock_calc.return_value = {
+            'phase_name': 'Waxing Crescent',
+            'illumination': 0.3,
+            'age_days': 5.2,
+            'elongation': 45.0,
+            'earth_distance': 390000.0,
+        }
+
+        result = await get_moon_info.fn(
+            time='2024-06-15T12:00:00+00:00',
+            time_zone='UTC',
+            lat=40.0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['phase_name'] == 'Waxing Crescent'
+    assert data['illumination'] == 0.3
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_lon_without_lat():
+    """``get_moon_info.fn`` with only lon (no lat) — no local alt/az computed."""
+    with patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc:
+        mock_calc.return_value = {
+            'phase_name': 'Full Moon',
+            'illumination': 0.99,
+            'age_days': 14.5,
+            'elongation': 180.0,
+            'earth_distance': 384400.0,
+        }
+
+        result = await get_moon_info.fn(
+            time='2024-06-15T12:00:00+00:00',
+            time_zone='UTC',
+            lon=-74.0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['phase_name'] == 'Full Moon'
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_no_position():
+    """``get_moon_info.fn`` without lat/lon — only phase data returned."""
+    with patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc:
+        mock_calc.return_value = {
+            'phase_name': 'New Moon',
+            'illumination': 0.01,
+            'age_days': 0.5,
+            'elongation': 5.0,
+            'earth_distance': 405000.0,
+        }
+
+        result = await get_moon_info.fn(time='2024-06-15T12:00:00+00:00', time_zone='UTC')
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['phase_name'] == 'New Moon'
+    assert data['altitude'] is None
+    assert data['azimuth'] is None
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_invalid_timezone():
+    """``get_moon_info.fn`` returns structured error for invalid timezone."""
+    result = await get_moon_info.fn(time='2024-06-15 12:00:00', time_zone='Bad/Zone')
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_TIMEZONE
+
+
+# ---------------------------------------------------------------------------
+# Nightly forecast — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_nightly_forecast_invalid_coords():
+    """``get_nightly_forecast.fn`` returns structured error for invalid coordinates."""
+    result = await get_nightly_forecast.fn(
+        lon=200.0,  # invalid
+        lat=40.0,
+        time='2024-06-15 22:00:00',
+        time_zone='America/New_York',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_COORDINATES
+
+
+@pytest.mark.asyncio
+async def test_get_nightly_forecast_invalid_timezone():
+    """``get_nightly_forecast.fn`` returns structured error for invalid timezone."""
+    result = await get_nightly_forecast.fn(
+        lon=-74.0,
+        lat=40.0,
+        time='2024-06-15 22:00:00',
+        time_zone='Not/A_Zone',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_TIMEZONE
+
+
+# ---------------------------------------------------------------------------
+# Light pollution map — error paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_light_pollution_map_invalid_bounds():
+    """``light_pollution_map.fn`` raises MCPError for invalid bounding box."""
+    with patch('src.functions.places.impl.get_light_pollution_grid') as mock_grid:
+        mock_grid.side_effect = ValueError('south must be less than north')
+
+        with pytest.raises(MCPError) as exc_info:
+            await light_pollution_map.fn(south=40.5, west=-74.0, north=40.0, east=-73.0)
+
+    assert exc_info.value.code == MCPError.EXTERNAL_API_ERROR
+
+
+@pytest.mark.asyncio
+async def test_light_pollution_map_spf_not_installed():
+    """``light_pollution_map.fn`` raises CONFIGURATION_ERROR when SPF is missing."""
+    with patch(
+        'src.functions.places.impl.get_light_pollution_grid',
+        side_effect=ModuleNotFoundError('No module named stargazing_place_finder'),
+    ):
+        with pytest.raises(MCPError) as exc_info:
+            await light_pollution_map.fn(south=40.0, west=-74.0, north=40.5, east=-73.5)
+
+    assert exc_info.value.code == MCPError.CONFIGURATION_ERROR
+    assert 'not installed' in exc_info.value.message
+
+
+@pytest.mark.asyncio
+async def test_light_pollution_map_spf_data_error():
+    """``light_pollution_map.fn`` translates SPF DataError to MCPError."""
+    try:
+        from stargazingplacefinder import DataError  # noqa: F401
+
+        with patch(
+            'src.functions.places.impl.get_light_pollution_grid',
+            side_effect=DataError('GeoTIFF not found'),
+        ):
+            with pytest.raises(MCPError) as exc_info:
+                await light_pollution_map.fn(south=40.0, west=-74.0, north=40.5, east=-73.5)
+        assert exc_info.value.code in (
+            MCPError.EXTERNAL_API_ERROR,
+            MCPError.CONFIGURATION_ERROR,
+        )
+    except ImportError:
+        pytest.skip('stargazingplacefinder not available in this environment')

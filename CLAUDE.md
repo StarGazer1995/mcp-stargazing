@@ -27,6 +27,7 @@ See also `AGENTS.md` for broader agent guidance including tool registration conv
 | Start server (local) | `uv run python -m src.main --mode local` |
 | Download astro data | `uv run python scripts/download_data.py` |
 | Build Docker image | `docker build -t mcp-stargazing .` |
+| Run Docker (dual-service) | `docker run -p 3001:3001 -p 5001:5001 mcp-stargazing` |
 
 ## Architecture
 
@@ -54,6 +55,7 @@ MCP Transport Layer:   Streamable HTTP (:3001)  |  SSE  |  Local (stdio)
 
 **Tool domains** (each in `src/functions/<domain>/impl.py`):
 - **celestial** — 6 async tools: positions, rise/set, moon, planets, constellation, nightly forecast
+- **telescope** — 2 async tools: target matching for telescope optics, shooting plan generation
 - **weather** — 2 sync tools (with retry): weather by name, weather by position. Multi-provider aggregation.
 - **places** — 2 async tools: light pollution map, analysis area (paginated + cached)
 - **planning** — 1 async tool: composite best-stargazing-plan (places + weather + forecast)
@@ -75,6 +77,7 @@ src/
 ├── retry.py                 # retry_on_failure decorator (async + sync, exponential backoff)
 ├── utils.py                 # Coordinate validation, time parsing, timezone normalization
 ├── paths.py                 # sys.path management for SPF import resolution
+├── logging_config.py        # Structured logging (structlog) with request-id context
 ├── qweather_interaction.py  # QWeather API client (JWT + API-KEY auth, URL building)
 │
 ├── schemas/                 # Pydantic v2 data models
@@ -92,6 +95,7 @@ src/
 │
 ├── functions/
 │   ├── celestial/impl.py    # 6 tools: pos, rise/set, moon, planets, constellation, forecast
+│   ├── telescope/impl.py    # 2 tools: get_telescope_targets, get_shooting_plan
 │   ├── metadata/impl.py     # get_tool_catalog
 │   ├── places/impl.py       # light_pollution_map, analysis_area (paginated)
 │   ├── planning/impl.py     # get_best_stargazing_plan (composite)
@@ -106,9 +110,11 @@ src/
 │           ├── qweather.py
 │           └── wttr.py
 │
-├── tests/                   # 21 test files (pytest + pytest-asyncio)
+├── tests/                   # 26 test files covering all 15 tools (pytest + pytest-asyncio)
 ├── examples/                # 14 example/demo scripts
 ├── docs/                    # Design docs and ROADMAP.md
+├── Dockerfile               # Multi-stage build (test + production)
+├── supervisord.conf          # Dual-service process manager (MCP + SPF web)
 └── scripts/download_data.py # Messier/NGC catalog downloader
 ```
 
@@ -130,11 +136,17 @@ src/
 
 8. **Retry with exponential backoff** — `retry_on_failure` supports both sync and async functions. Default: 3 attempts, 1s base delay, 30s max, 2x backoff. Used by weather tools for transient network errors.
 
+9. **Docker dual-service via supervisord** — Production container runs both MCP server (:3001) and SPF web UI (:5001) via supervisord. Both services share the same venv and use `uv run` for startup. See `supervisord.conf` for process definitions.
+
+10. **Shared dependency via PyPI** — `stargazing-core` is published to PyPI and consumed by both `mcp-stargazing` and `stargazing-place-finder`. No `[tool.uv.sources]` path overrides in committed config — all dependencies resolve from the registry, ensuring deduplication at build time.
+
 ## Testing
 
 - Config in `pyproject.toml`: `pythonpath = ["src"]`, `testpaths = ["tests"]`
-- 21 test files covering: celestial, weather, places, planning, serialization, MCP protocol, tool metadata, structured errors, integration
+- 26 test files covering all 15 MCP tools, error paths, edge cases, protocols, and config
 - `test_mcp_client.py` — MCP protocol tests (tools/list, tools/call, SSE request-id)
+- `test_mcp_tools.py` — 41 tests: every tool's `.fn` wrapper (success + error + edge cases)
+- `test_supervisord_config.py` — 15 tests: supervisor config ↔ Dockerfile consistency
 - `test_serialization.py` — Every tool's response validates against expected JSON schema
 - `test_structured_errors.py` — Business error payload normalization
 - `test_tool_metadata.py` — Tool metadata registry vs tools/list alignment
@@ -143,14 +155,15 @@ src/
 
 ## Known Sharp Edges
 
-### Real issues (verified 2026-06-28)
+### Real issues (verified 2026-07-07)
 
 - **Place-finder bridge uses `sys.path` manipulation** (`paths.py`) — inserts SPF's source root into `sys.path` at import time to resolve SPF's internal cross-module imports. Fragile: breaks if SPF's package structure changes or if a same-named module from another dependency shadows it. Long-term fix: SPF should expose a clean public API that doesn't require source-root path hacks.
 - **Global module-level caches are not thread-safe** — `AnalysisCache` (`cache.py`), `OBJECTS_CACHE`, and `CONSTELLATIONS_CACHE` (both in `celestial.py`) use plain `dict` without locks. Multiple asyncio tasks concurrently reading/writing could cause data races. The GIL mitigates bytecode-level corruption but not logical races (e.g., cache stampede on miss).
 - **Weather provider code is repetitive** — `open_meteo.py`, `qweather.py`, and `wttr.py` follow nearly identical fetch → parse → normalize → return patterns. A shared abstract base class or Protocol would eliminate ~60% duplication. Adding a fourth provider currently means copy-pasting one of the three.
 - **`qweather_interaction.py` mixes concerns** — handles JWT generation, API-KEY auth, URL building, HTTP fetching, and error translation in a single module. Split into auth, HTTP client, and error mapping layers.
 - **No observability** — no structured logging, no metrics, no tracing. The only output is `print()` in `main.py`. Hard to monitor in production or debug transient failures.
-- **Python 3.13+ only** — limits deployment options. Many cloud platforms and Docker base images still default to 3.12. The core dependency `stargazing-place-finder` supports 3.9–3.12, creating a version mismatch between the two projects.
+- **Telescope tools bypass coordinate validation** — `get_telescope_targets` and `get_shooting_plan` construct `EarthLocation` directly instead of calling `process_location_and_time`. This means invalid coordinates raise raw `TypeError` from astropy instead of the structured `MCPError.INVALID_COORDINATES` that other celestial tools produce. Tests in `test_mcp_tools.py` document this behaviour explicitly; fixing it would require a small refactor to add `validate_coordinates` calls before EarthLocation construction.
+- **Python 3.13+ only** — limits deployment options. Many cloud platforms and Docker base images still default to 3.12.
 
 ### Notes
 
