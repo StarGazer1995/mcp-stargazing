@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install system dependencies required by rasterio (GDAL)
 RUN apt-get update -qq && \
-    apt-get install -y -qq --no-install-recommends libexpat1 git && \
+    apt-get install -y -qq --no-install-recommends libexpat1 git supervisor && \
     rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
@@ -73,10 +73,12 @@ RUN uv sync --frozen --no-dev && \
 # Copy pre-downloaded catalog data from shared stage
 COPY --from=data /app/src/data/ ./src/data/
 
-# Expose port
-EXPOSE 3001
+# Copy supervisor configuration
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Run the application from the synced virtual environment to avoid
-# re-building the project at container startup.
-ENTRYPOINT ["mcp-stargazing"]
-CMD ["--mode", "shttp", "--port", "3001", "--path", "/shttp"]
+# Expose ports (MCP + SPF web)
+EXPOSE 3001 5001
+
+# Run both services via supervisord
+ENTRYPOINT ["supervisord"]
+CMD ["-c", "/etc/supervisor/conf.d/supervisord.conf"]
