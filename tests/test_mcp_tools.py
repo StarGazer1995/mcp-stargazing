@@ -14,7 +14,7 @@ from src.functions.celestial.impl import (
 from src.functions.metadata.impl import get_tool_catalog
 from src.functions.places.impl import analysis_area, light_pollution_map
 from src.functions.planning.impl import get_best_stargazing_plan
-from src.functions.telescope.impl import get_shooting_plan
+from src.functions.telescope.impl import get_shooting_plan, get_telescope_targets
 from src.functions.time.impl import get_local_datetime_info
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
 from src.response import MCPError
@@ -709,3 +709,333 @@ def test_get_weather_by_position_generic_exception(mock_service):
     assert result['_meta']['status'] == 'error'
     assert result['error']['code'] == MCPError.EXTERNAL_API_ERROR
     assert '天气查询失败' in result['error']['message']
+
+
+# ---------------------------------------------------------------------------
+# Telescope targets tool
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_fn():
+    """``get_telescope_targets.fn`` returns ranked targets for a telescope config."""
+    mock_targets = [
+        {
+            'name': 'M 42',
+            'type': 'emission nebula',
+            'ra': 83.8,
+            'dec': -5.4,
+            'magnitude': 4.0,
+            'surface_brightness': 14.5,
+            'angular_size_arcmin': 66.0,
+            'altitude': 45.0,
+            'azimuth': 180.0,
+            'fov_fill_ratio': 0.5,
+            'fov_fit_score': 0.85,
+            'surface_brightness_score': 0.7,
+            'filter_match_score': 0.9,
+            'altitude_score': 0.5,
+            'suitability_score': 82.0,
+            'mosaic_recommended': False,
+            'catalog': 'Messier',
+            'observation_time': '2024-01-15T19:00:00',
+            'civil_dusk': '2024-01-15T18:00:00',
+            'civil_dawn': '2024-01-16T06:00:00',
+        },
+        {
+            'name': 'M 31',
+            'type': 'spiral galaxy',
+            'ra': 10.68,
+            'dec': 41.27,
+            'magnitude': 3.4,
+            'surface_brightness': 22.3,
+            'angular_size_arcmin': 189.0,
+            'altitude': 60.0,
+            'azimuth': 250.0,
+            'fov_fill_ratio': 0.9,
+            'fov_fit_score': 0.6,
+            'surface_brightness_score': 0.3,
+            'filter_match_score': 1.0,
+            'altitude_score': 0.7,
+            'suitability_score': 72.0,
+            'mosaic_recommended': True,
+            'catalog': 'Messier',
+            'observation_time': '2024-01-15T19:00:00',
+            'civil_dusk': '2024-01-15T18:00:00',
+            'civil_dawn': '2024-01-16T06:00:00',
+        },
+    ]
+    mock_moon = {
+        'illumination': 0.05,
+        'phase': 'Waxing Crescent',
+        'always_down': False,
+        'always_up': False,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': mock_targets, 'moon': mock_moon}
+
+        result = await get_telescope_targets.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+            aperture_mm=51,
+            mount_type='equatorial',
+            limit=5,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert len(data['targets']) == 2
+    assert data['targets'][0]['name'] == 'M 42'
+    assert data['targets'][0]['suitability_score'] == 82.0
+    assert data['targets'][1]['name'] == 'M 31'
+    assert data['targets'][1]['mosaic_recommended'] is True
+    assert data['moon']['phase'] == 'Waxing Crescent'
+    assert data['moon']['illumination'] == 0.05
+    assert data['total'] == 2
+    assert 'config' in data
+    assert data['config']['focal_length_mm'] == 250
+    assert data['config']['aperture_mm'] == 51
+
+
+@pytest.mark.asyncio
+async def test_get_telescope_targets_with_filter():
+    """``get_telescope_targets.fn`` passes filter_type through to config."""
+    mock_targets = [
+        {
+            'name': 'NGC 7000',
+            'type': 'emission nebula',
+            'ra': 314.7,
+            'dec': 44.3,
+            'magnitude': 4.0,
+            'surface_brightness': 14.0,
+            'angular_size_arcmin': 120.0,
+            'altitude': 50.0,
+            'azimuth': 90.0,
+            'fov_fill_ratio': 0.8,
+            'fov_fit_score': 0.9,
+            'surface_brightness_score': 0.8,
+            'filter_match_score': 1.0,
+            'altitude_score': 0.6,
+            'suitability_score': 90.0,
+            'mosaic_recommended': True,
+            'catalog': 'NGC',
+            'observation_time': '2024-06-15T22:00:00',
+            'civil_dusk': '2024-06-15T21:00:00',
+            'civil_dawn': '2024-06-16T04:00:00',
+        }
+    ]
+    mock_moon = {
+        'illumination': 0.8,
+        'phase': 'Waxing Gibbous',
+        'always_down': False,
+        'always_up': False,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': mock_targets, 'moon': mock_moon}
+
+        result = await get_telescope_targets.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-06-15T22:00:00',
+            time_zone='Asia/Shanghai',
+            filter_type='Hα',
+            limit=10,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['targets'][0]['name'] == 'NGC 7000'
+    assert data['moon']['illumination'] == 0.8
+    assert data['config']['filter_type'] == 'Hα'
+
+
+# ---------------------------------------------------------------------------
+# Shooting plan edge cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_uses_telescope_presets():
+    """``get_shooting_plan.fn`` works with full telescope + sensor config."""
+    mock_targets = [
+        {
+            'name': 'M 42',
+            'type': 'emission nebula',
+            'ra': 83.8,
+            'dec': -5.4,
+            'magnitude': 4.0,
+            'surface_brightness': 14.5,
+            'angular_size_arcmin': 66.0,
+            'altitude': 55.0,
+            'azimuth': 180.0,
+            'dawn_altitude': 40.0,
+            'fov_fill_ratio': 0.5,
+            'fov_fit_score': 0.85,
+            'surface_brightness_score': 0.7,
+            'filter_match_score': 0.9,
+            'altitude_score': 0.5,
+            'suitability_score': 85.0,
+            'mosaic_recommended': False,
+            'catalog': 'Messier',
+            'altitude_curve': [
+                {'time': 1705341600, 'alt': 30.0},
+                {'time': 1705342500, 'alt': 40.0},
+                {'time': 1705343400, 'alt': 50.0},
+                {'time': 1705344300, 'alt': 55.0},
+                {'time': 1705345200, 'alt': 50.0},
+                {'time': 1705346100, 'alt': 35.0},
+            ],
+            'observation_time': '2024-01-15T19:00:00',
+            'civil_dusk': '2024-01-15T18:00:00',
+            'civil_dawn': '2024-01-16T06:00:00',
+        }
+    ]
+    mock_moon = {
+        'illumination': 0.95,
+        'phase': 'Full Moon',
+        'altitude_curve': [
+            {'time': 1705341600, 'alt': 10.0},
+            {'time': 1705342500, 'alt': 20.0},
+            {'time': 1705343400, 'alt': 30.0},
+            {'time': 1705344300, 'alt': 40.0},
+        ],
+        'always_down': False,
+        'always_up': False,
+        'dark_fraction': 0.3,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': mock_targets, 'moon': mock_moon}
+
+        result = await get_shooting_plan.fn(
+            focal_length_mm=420,
+            lon=-117.0,
+            lat=33.0,
+            time='2024-01-15T22:00:00',
+            time_zone='America/Los_Angeles',
+            aperture_mm=100,
+            sensor_width_mm=23.5,
+            sensor_height_mm=15.7,
+            sensor_pixel_size_um=3.76,
+            min_altitude=30.0,
+            limit=5,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert len(data['targets']) == 1
+    assert data['targets'][0]['name'] == 'M 42'
+    assert data['moon']['phase'] == 'Full Moon'
+    assert data['moon']['illumination'] == 0.95
+    assert data['config']['focal_length_mm'] == 420
+    assert data['config']['aperture_mm'] == 100
+    assert data['config']['sensor_width_mm'] == 23.5
+    assert 'plan' in data
+    from stargazing_core._shooting_plan import ShootingPlan
+
+    plan = ShootingPlan(**data['plan'])
+    assert len(plan.slots) >= 1
+
+
+@pytest.mark.asyncio
+async def test_get_shooting_plan_empty_targets():
+    """``get_shooting_plan.fn`` handles empty targets gracefully."""
+    mock_moon = {
+        'illumination': 0.5,
+        'phase': 'First Quarter',
+        'altitude_curve': [],
+        'always_down': False,
+        'always_up': False,
+        'dark_fraction': 0.5,
+    }
+
+    with patch('src.functions.telescope.impl.match_telescope_targets') as mock_match:
+        mock_match.return_value = {'targets': [], 'moon': mock_moon}
+
+        result = await get_shooting_plan.fn(
+            focal_length_mm=250,
+            lon=116.4,
+            lat=39.9,
+            time='2024-01-15T22:00:00',
+            time_zone='Asia/Shanghai',
+            limit=5,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert len(data['targets']) == 0
+    assert data['total'] == 0
+    assert 'plan' in data
+    from stargazing_core._shooting_plan import ShootingPlan
+
+    plan = ShootingPlan(**data['plan'])
+    assert len(plan.slots) == 0
+
+
+# ---------------------------------------------------------------------------
+# Celestial position / rise-set fn tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_celestial_pos_fn():
+    """``get_celestial_pos.fn`` returns altitude/azimuth for a celestial object."""
+    from src.functions.celestial.impl import get_celestial_pos
+
+    with (
+        patch('src.functions.celestial.impl.celestial_pos') as mock_calc,
+        patch('src.functions.celestial.impl.process_location_and_time') as mock_proc,
+    ):
+        mock_proc.return_value = (MagicMock(), MagicMock())
+        mock_calc.return_value = (45.5, 180.0)
+
+        result = await get_celestial_pos.fn(
+            celestial_object='M31',
+            lon=-74.0,
+            lat=40.0,
+            time='2024-06-15 22:00:00',
+            time_zone='America/New_York',
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['altitude'] == 45.5
+    assert data['azimuth'] == 180.0
+
+
+@pytest.mark.asyncio
+async def test_get_celestial_rise_set_fn():
+    """``get_celestial_rise_set.fn`` returns rise/set times."""
+    from src.functions.celestial.impl import get_celestial_rise_set
+
+    with (
+        patch('src.functions.celestial.impl.celestial_rise_set') as mock_calc,
+        patch('src.functions.celestial.impl.process_location_and_time') as mock_proc,
+    ):
+        from datetime import UTC, datetime
+
+        mock_proc.return_value = (MagicMock(), MagicMock())
+        # celestial_rise_set returns (rise_time, set_time) as two astropy Time objects
+        mock_calc.return_value = (
+            datetime(2024, 6, 15, 5, 30, tzinfo=UTC),
+            datetime(2024, 6, 15, 20, 15, tzinfo=UTC),
+        )
+
+        result = await get_celestial_rise_set.fn(
+            celestial_object='Sun',
+            lon=-74.0,
+            lat=40.0,
+            time='2024-06-15 22:00:00',
+            time_zone='America/New_York',
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['rise_time'] is not None
+    assert data['set_time'] is not None
