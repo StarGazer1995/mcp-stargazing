@@ -1199,7 +1199,7 @@ wheels = [
 
 [[package]]
 name = "mcp-stargazing"
-version = "0.7.1"
+version = "0.7.2"
 source = { editable = "." }
 dependencies = [
     { name = "astropy" },
@@ -2364,7 +2364,7 @@ wheels = [
 
 [[package]]
 name = "stargazing-place-finder"
-version = "0.8.0"
+version = "0.8.1"
 source = { registry = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple" }
 dependencies = [
     { name = "fastapi" },
@@ -2386,9 +2386,9 @@ dependencies = [
     { name = "structlog" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-sdist = { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/70/a7/96f548cb3ea37fa914771dce73404452e37267c24dc15995d98557c67d09/stargazing_place_finder-0.8.0.tar.gz", hash = "sha256:f54ae659b65215930d4147da472a94fad32d0a3f2cd093e79a93cb0e0c649cbe", size = 73329885 }
+sdist = { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/63/97/a991d109e941051ece3881d5f2493af7539f29b87b49acac3d776d044df0/stargazing_place_finder-0.8.1.tar.gz", hash = "sha256:6a3d227f8285bffd2ae84fea00148bc5c182ce6ff057591cd26a19d91a13703a", size = 73367769 }
 wheels = [
-    { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/1b/2f/60dd94f9f232d7190922a883f491f7c72e25fa49408001331fbe669e82ee/stargazing_place_finder-0.8.0-py3-none-any.whl", hash = "sha256:fe561e540fe29fe5238467e2a6f68c91df88ba03d1cdf9d38faad169f1fc7fc0", size = 73350112 },
+    { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/6d/14/5e20ed6028a1f2d9b532f4d0616f8cf5fbf436a1cef99d92a167118986a6/stargazing_place_finder-0.8.1-py3-none-any.whl", hash = "sha256:aa5aa50eaa88ab79caf6e17cc4db1b17ce24a6e2b71d9816847c925a4cfc35ee", size = 73389143 },
 ]
 
 [[package]]

@@ -68,7 +68,8 @@ COPY . .
 
 # Install project and clean cache
 RUN uv sync --frozen --no-dev && \
-    uv cache clean
+    uv cache clean && \
+    rm -f /app/.venv/.lock
 
 # Copy pre-downloaded catalog data from shared stage
 COPY --from=data /app/src/data/ ./src/data/
