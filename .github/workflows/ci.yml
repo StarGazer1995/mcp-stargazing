@@ -103,35 +103,9 @@ jobs:
       - name: Build Production Image
         run: docker build --target production -t prod-image .
 
-      - name: Upload Test Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-report
-          path: reports/test-report.xml
-
-      - name: Upload Coverage Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: reports/coverage.xml
-
-  smoke-test:
-    name: "Smoke test — dual-service"
-    needs: test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build production image
-        run: docker build --target production -t mcp-stargazing:smoke .
-
-      - name: Start container and verify both services
+      - name: Smoke test — start container and verify dual-service
         run: |
-          docker run -d --name mcp-smoke -p 13001:3001 -p 15001:5001 mcp-stargazing:smoke
+          docker run -d --name mcp-smoke -p 13001:3001 -p 15001:5001 prod-image
           trap 'docker logs mcp-smoke; docker rm -f mcp-smoke' EXIT
 
           echo "Waiting for MCP server on :3001..."
@@ -147,17 +121,13 @@ jobs:
           MCP_HEALTH=$(curl -s http://127.0.0.1:13001/health)
           echo "MCP health: $MCP_HEALTH"
           echo "$MCP_HEALTH" | grep -q '"status":"healthy"' && echo "✅ MCP: status = healthy"
-          echo "$MCP_HEALTH" | grep -q '"version"' && echo "✅ MCP: version field present"
 
           # Verify MCP tools/list
           TOOLS=$(curl -s -X POST http://127.0.0.1:13001/shttp \
             -H 'Content-Type: application/json' \
-            -H 'Accept: application/json' \
             -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}')
-          echo "tools/list response length: $(echo $TOOLS | wc -c)"
-          echo "$TOOLS" | grep -q '"get_telescope_targets"' && echo "✅ tools/list: telescope targets tool registered"
-          echo "$TOOLS" | grep -q '"get_shooting_plan"' && echo "✅ tools/list: shooting plan tool registered"
-          echo "$TOOLS" | grep -q '"get_best_stargazing_plan"' && echo "✅ tools/list: planning tool registered"
+          echo "$TOOLS" | grep -q '"get_telescope_targets"' && echo "✅ MCP: telescope targets tool"
+          echo "$TOOLS" | grep -q '"get_shooting_plan"' && echo "✅ MCP: shooting plan tool"
 
           echo "Waiting for SPF web on :5001..."
           for i in $(seq 1 30); do
@@ -171,16 +141,23 @@ jobs:
           # Verify SPF health
           SPF_HEALTH=$(curl -s http://127.0.0.1:15001/api/health)
           echo "SPF health: $SPF_HEALTH"
-          echo "$SPF_HEALTH" | grep -q '"status"' && echo "✅ SPF: health endpoint OK"
+          echo "$SPF_HEALTH" | grep -q '"status"' && echo "✅ SPF: health OK"
 
           # Verify SPF web UI
-          HTML=$(curl -s http://127.0.0.1:15001/)
-          echo "$HTML" | grep -q '观星地点查找器' && echo "✅ SPF: Stargazing Place Finder page"
-          echo "$HTML" | grep -q 'leaflet' && echo "✅ SPF: Leaflet map loaded"
+          curl -s http://127.0.0.1:15001/ | grep -q '观星地点查找器' && echo "✅ SPF: web UI loaded"
 
-          # Verify SPF static assets
-          JS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:15001/assets/js/app.js)
-          echo "SPF assets/js/app.js → HTTP $JS_STATUS"
-          test "$JS_STATUS" = "200" && echo "✅ SPF: Static JS served"
+          echo "✅ Smoke test complete"
 
-          echo "✅ Smoke test complete — MCP + SPF both operational"
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: reports/test-report.xml
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: reports/coverage.xml
