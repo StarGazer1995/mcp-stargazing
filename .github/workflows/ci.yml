@@ -131,11 +131,21 @@ jobs:
           grep -q '"status":"healthy"' /tmp/mcp-health.json
           echo "✅ MCP: status = healthy"
 
+          # Initialize MCP session (streamable HTTP requires session ID)
+          curl -sS -X POST http://127.0.0.1:13001/shttp \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":"init","method":"initialize","params":{"clientInfo":{"name":"ci-smoke-test","version":"1.0"},"capabilities":{},"protocolVersion":"2024-11-05"}}' \
+            -D /tmp/mcp-init-headers -o /tmp/mcp-init-body
+          SESSION_ID=$(grep -i 'mcp-session-id:' /tmp/mcp-init-headers | awk '{print $2}' | tr -d '\r')
+          echo "Session: ${SESSION_ID:0:20}..."
+
           # Verify all expected tools are registered
           TOOLS=$(curl -sS -X POST http://127.0.0.1:13001/shttp \
             -H 'Content-Type: application/json' \
             -H 'Accept: application/json, text/event-stream' \
-            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}')
+            -H "mcp-session-id: $SESSION_ID" \
+            -d '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}')
           for tool in get_telescope_targets get_shooting_plan get_best_stargazing_plan \
             get_celestial_pos light_pollution_map get_weather_by_name; do
             echo "$TOOLS" | grep -q "\"$tool\""
