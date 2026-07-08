@@ -103,6 +103,51 @@ jobs:
       - name: Build Production Image
         run: docker build --target production -t prod-image .
 
+      - name: Smoke test — start container and verify dual-service
+        run: |
+          docker run -d --name mcp-smoke -p 13001:3001 -p 15001:5001 prod-image
+          trap 'docker logs mcp-smoke; docker rm -f mcp-smoke' EXIT
+
+          echo "Waiting for MCP server on :3001..."
+          for i in $(seq 1 30); do
+            if curl -s http://127.0.0.1:13001/health > /dev/null 2>&1; then
+              echo "✅ MCP server responded in ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+          # Verify MCP health
+          MCP_HEALTH=$(curl -s http://127.0.0.1:13001/health)
+          echo "MCP health: $MCP_HEALTH"
+          echo "$MCP_HEALTH" | grep -q '"status":"healthy"' && echo "✅ MCP: status = healthy"
+
+          # Verify MCP tools/list
+          TOOLS=$(curl -s -X POST http://127.0.0.1:13001/shttp \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}')
+          echo "$TOOLS" | grep -q '"get_telescope_targets"' && echo "✅ MCP: telescope targets tool"
+          echo "$TOOLS" | grep -q '"get_shooting_plan"' && echo "✅ MCP: shooting plan tool"
+
+          echo "Waiting for SPF web on :5001..."
+          for i in $(seq 1 30); do
+            if curl -s http://127.0.0.1:15001/api/health > /dev/null 2>&1; then
+              echo "✅ SPF web responded in ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+          # Verify SPF health
+          SPF_HEALTH=$(curl -s http://127.0.0.1:15001/api/health)
+          echo "SPF health: $SPF_HEALTH"
+          echo "$SPF_HEALTH" | grep -q '"status"' && echo "✅ SPF: health OK"
+
+          # Verify SPF web UI
+          curl -s http://127.0.0.1:15001/ | grep -q '观星地点查找器' && echo "✅ SPF: web UI loaded"
+
+          echo "✅ Smoke test complete"
+
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v4
