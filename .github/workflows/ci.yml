@@ -180,8 +180,20 @@ jobs:
             cat /tmp/spf-index.html
             exit 1
           fi
-          grep -q '观星地点查找器' /tmp/spf-index.html && echo "✅ SPF: page title"
-          grep -q 'leaflet' /tmp/spf-index.html && echo "✅ SPF: Leaflet map"
+
+          # Page structure — verify key SPF content is present
+          for needle in \
+            "观星地点查找器 | 光污染地图与区域分析" \
+            "星空观测地点查找器" \
+            "光污染地图" \
+            "🌟 观星区域分析" \
+            "🔭 望远镜" \
+            "📋 拍摄计划" \
+            "Seestar S50" \
+            "leaflet" \
+            "波特尔暗空分类"; do
+            grep -qF "$needle" /tmp/spf-index.html && echo "✅ SPF: $needle"
+          done
 
           # SPF static assets — source/ must be in the wheel
           JS_CODE=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:15001/assets/js/app.js)
