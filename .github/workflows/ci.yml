@@ -105,48 +105,105 @@ jobs:
 
       - name: Smoke test — start container and verify dual-service
         run: |
+          set -eo pipefail
+
           docker run -d --name mcp-smoke -p 13001:3001 -p 15001:5001 prod-image
-          trap 'docker logs mcp-smoke; docker rm -f mcp-smoke' EXIT
+          trap 'echo "=== container logs ==="; docker logs mcp-smoke; echo "=== done ==="; docker rm -f mcp-smoke' EXIT
+
+          # ── MCP :3001 ────────────────────────────────────
 
           echo "Waiting for MCP server on :3001..."
+          MCP_OK=0
           for i in $(seq 1 30); do
-            if curl -s http://127.0.0.1:13001/health > /dev/null 2>&1; then
-              echo "✅ MCP server responded in ${i}s"
+            if curl -sS --max-time 2 http://127.0.0.1:13001/health > /tmp/mcp-health.json 2>/dev/null; then
+              echo "✅ MCP responded in ${i}s"
+              MCP_OK=1
               break
             fi
             sleep 1
           done
+          if [ "$MCP_OK" = "0" ]; then
+            echo "❌ MCP server did not start in 30s"
+            exit 1
+          fi
 
-          # Verify MCP health
-          MCP_HEALTH=$(curl -s http://127.0.0.1:13001/health)
-          echo "MCP health: $MCP_HEALTH"
-          echo "$MCP_HEALTH" | grep -q '"status":"healthy"' && echo "✅ MCP: status = healthy"
+          cat /tmp/mcp-health.json
+          grep -q '"status":"healthy"' /tmp/mcp-health.json
+          echo "✅ MCP: status = healthy"
 
-          # Verify MCP tools/list
-          TOOLS=$(curl -s -X POST http://127.0.0.1:13001/shttp \
+          # Initialize MCP session (streamable HTTP requires session ID)
+          curl -sS -X POST http://127.0.0.1:13001/shttp \
             -H 'Content-Type: application/json' \
-            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}')
-          echo "$TOOLS" | grep -q '"get_telescope_targets"' && echo "✅ MCP: telescope targets tool"
-          echo "$TOOLS" | grep -q '"get_shooting_plan"' && echo "✅ MCP: shooting plan tool"
+            -H 'Accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":"init","method":"initialize","params":{"clientInfo":{"name":"ci-smoke-test","version":"1.0"},"capabilities":{},"protocolVersion":"2024-11-05"}}' \
+            -D /tmp/mcp-init-headers -o /tmp/mcp-init-body
+          SESSION_ID=$(grep -i 'mcp-session-id:' /tmp/mcp-init-headers | awk '{print $2}' | tr -d '\r')
+          echo "Session: ${SESSION_ID:0:20}..."
+
+          # Verify all expected tools are registered
+          TOOLS=$(curl -sS -X POST http://127.0.0.1:13001/shttp \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -H "mcp-session-id: $SESSION_ID" \
+            -d '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}')
+          for tool in get_telescope_targets get_shooting_plan get_best_stargazing_plan \
+            get_celestial_pos light_pollution_map get_weather_by_name; do
+            echo "$TOOLS" | grep -q "\"$tool\""
+            echo "✅ MCP: $tool"
+          done
+
+          # ── SPF :5001 ────────────────────────────────────
 
           echo "Waiting for SPF web on :5001..."
+          SPF_OK=0
           for i in $(seq 1 30); do
-            if curl -s http://127.0.0.1:15001/api/health > /dev/null 2>&1; then
-              echo "✅ SPF web responded in ${i}s"
+            if curl -sS --max-time 2 http://127.0.0.1:15001/api/health > /tmp/spf-health.json 2>/dev/null; then
+              echo "✅ SPF responded in ${i}s"
+              SPF_OK=1
               break
             fi
             sleep 1
           done
+          if [ "$SPF_OK" = "0" ]; then
+            echo "❌ SPF web did not start in 30s"
+            exit 1
+          fi
 
-          # Verify SPF health
-          SPF_HEALTH=$(curl -s http://127.0.0.1:15001/api/health)
-          echo "SPF health: $SPF_HEALTH"
-          echo "$SPF_HEALTH" | grep -q '"status"' && echo "✅ SPF: health OK"
+          cat /tmp/spf-health.json
+          grep -q '"status"' /tmp/spf-health.json
+          echo "✅ SPF: health OK"
 
-          # Verify SPF web UI
-          curl -s http://127.0.0.1:15001/ | grep -q '观星地点查找器' && echo "✅ SPF: web UI loaded"
+          # SPF web page — must be the actual Stargazing Place Finder
+          HTTP_CODE=$(curl -sS -o /tmp/spf-index.html -w "%{http_code}" http://127.0.0.1:15001/)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ SPF / returned HTTP $HTTP_CODE (expected 200)"
+            cat /tmp/spf-index.html
+            exit 1
+          fi
 
-          echo "✅ Smoke test complete"
+          # Page structure — verify key SPF content is present
+          for needle in \
+            "观星地点查找器 | 光污染地图与区域分析" \
+            "星空观测地点查找器" \
+            "光污染地图" \
+            "🌟 观星区域分析" \
+            "🔭 望远镜" \
+            "📋 拍摄计划" \
+            "Seestar S50" \
+            "leaflet" \
+            "波特尔暗空分类"; do
+            grep -qF "$needle" /tmp/spf-index.html && echo "✅ SPF: $needle"
+          done
+
+          # SPF static assets — source/ must be in the wheel
+          JS_CODE=$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:15001/assets/js/app.js)
+          if [ "$JS_CODE" != "200" ]; then
+            echo "❌ SPF /assets/js/app.js → HTTP $JS_CODE (expected 200)"
+            exit 1
+          fi
+          echo "✅ SPF: static JS served"
+
+          echo "✅✅ Smoke test complete — MCP :3001 + SPF :5001 both operational"
 
       - name: Upload Test Report
         if: always()
