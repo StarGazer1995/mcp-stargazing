@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-stargazing"
-version = "0.7.3"
+version = "0.8.0"
 description = "An MCP server that provides real-time astronomical data, smart stargazing planning, and light pollution analysis for AI agents."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
 ]
 dependencies = [
-    "stargazing-core>=0.1.0",
+    "stargazing-core>=0.2.0",
     "fastmcp>=2.13,<3.0",
     "astropy>=7.0",
     "pytz",
@@ -61,6 +61,14 @@ dev = [
 targets = ["src/", "tests/"]
 skips = ["B101"]
 assert_used = false
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple/"
+explicit = true
+
+[tool.uv.sources]
+stargazing-core = { index = "pypi" }
 
 [tool.ruff]
 target-version = "py313"

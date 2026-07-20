@@ -255,6 +255,15 @@ def calculate_nightly_forecast(
         candidates, time, observer_location, moon_coord, moon_info['illumination']
     )
 
+    # Enrich with catalog data (angular size) and transit estimate
+    _obj_index = {o['name']: o for o in raw_objects}
+    for obj in scored_objects[:limit]:
+        orig = _obj_index.get(obj['name'])
+        if orig:
+            obj['angular_size_arcmin'] = orig.get('angular_size_maj_arcmin')
+            # The altitude at scoring time (near midnight) ≈ transit altitude
+            obj['transit_alt'] = obj.get('altitude')
+
     return {
         'moon_phase': moon_info,
         'planets': planets,
