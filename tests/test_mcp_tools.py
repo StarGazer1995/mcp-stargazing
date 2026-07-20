@@ -1097,12 +1097,8 @@ async def test_get_telescope_targets_invalid_timezone():
 
 @pytest.mark.asyncio
 async def test_get_shooting_plan_invalid_coords():
-    """``get_shooting_plan.fn`` raises TypeError for out-of-range coordinates.
-
-    Same as ``get_telescope_targets`` — the internal ``EarthLocation``
-    construction throws ``TypeError`` when lat exceeds ±90°.
-    """
-    with pytest.raises(TypeError, match='Coordinates could not be parsed'):
+    """``get_shooting_plan.fn`` raises MCPError for out-of-range coordinates."""
+    with pytest.raises(MCPError, match='Invalid coordinates'):
         await get_shooting_plan.fn(
             focal_length_mm=250,
             lon=116.4,

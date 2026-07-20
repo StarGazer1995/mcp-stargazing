@@ -121,6 +121,8 @@ def test_tools_call_success_returns_expected_payload_shape(
             'earth_distance',
             'altitude',
             'azimuth',
+            'moonrise',
+            'moonset',
         }
         assert 0.0 <= data['illumination'] <= 1.0
         assert isinstance(data['phase_name'], str) and data['phase_name']
