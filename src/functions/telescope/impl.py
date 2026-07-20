@@ -9,7 +9,7 @@ from stargazing_core import TelescopeConfig, match_telescope_targets
 from src.logging_config import set_request_id
 from src.response import MCPError, format_response
 from src.server_instance import mcp
-from src.utils import parse_observation_time
+from src.utils import parse_observation_time, validate_coordinates
 
 
 async def _respond_with_mcp_error(operation) -> dict[str, Any]:
@@ -61,9 +61,19 @@ async def get_telescope_targets(
         limit: Maximum number of targets to return (default 20)
 
     Returns:
-        Dict with "data" containing a sorted list of telescope targets.
-        Each target includes suitability_score, fov_fit_score,
-        surface_brightness, filter_match_score, and mosaic_recommended.
+        data.targets[] — ranked list, best first.  Each target has:
+            name, type, magnitude, catalog
+            altitude, azimuth, dawn_altitude
+            angular_size_arcmin, angular_size_min_arcmin, angular_size_pa_deg
+            surface_brightness (mag/arcmin²), fov_fit_score, fov_fill_ratio
+            suitability_score (0-100), mosaic_recommended, optimal_rotation_deg
+            rise_time, set_time, transit_time, transit_alt (UTC unix timestamps)
+            altitude_curve[{time, alt}]
+            civil_dusk, civil_dawn, observation_time
+        data.moon — {illumination, phase, altitude_curve, always_down,
+            always_up, dark_fraction, moonrise, moonset}
+        data.config — the TelescopeConfig used
+        data.total — number of targets returned
     """
     return await _respond_with_mcp_error(
         _get_telescope_targets(
@@ -120,6 +130,14 @@ async def _get_telescope_targets(
         filter_type=filter_type,
     )
 
+    # Validate coordinates (was previously bypassed, causing raw TypeError)
+    if not validate_coordinates(lat, lon):
+        raise MCPError(
+            MCPError.INVALID_COORDINATES,
+            f'Invalid coordinates: lat={lat}, lon={lon}. '
+            f'Latitude must be in [-90, 90], longitude in [-180, 180].',
+        )
+
     # Create observer location
     observer = EarthLocation(lat=lat * u.deg, lon=lon * u.deg)
 
@@ -168,6 +186,15 @@ async def get_shooting_plan(
 
     Runs match_telescope_targets then generate_shooting_schedule,
     returning targets + moon + timed shooting slots in one response.
+
+    Returns:
+        data.targets[] — same structure as get_telescope_targets
+        data.moon — {illumination, phase, moonrise, moonset,
+            always_down, always_up, dark_fraction, altitude_curve}
+        data.plan — {date, slots[{start_time, end_time, target_name}],
+            total_exposure_min, moon_phase, moon_illumination, moon_delay_min}
+        data.config — the TelescopeConfig used
+        data.total — number of matched targets
     """
     from datetime import datetime
 
@@ -186,6 +213,14 @@ async def get_shooting_plan(
         mount_type=mount_type,
         filter_type=filter_type,
     )
+
+    # Validate coordinates
+    if not validate_coordinates(lat, lon):
+        raise MCPError(
+            MCPError.INVALID_COORDINATES,
+            f'Invalid coordinates: lat={lat}, lon={lon}. '
+            f'Latitude must be in [-90, 90], longitude in [-180, 180].',
+        )
 
     observer = EarthLocation(lat=lat * u.deg, lon=lon * u.deg)
 

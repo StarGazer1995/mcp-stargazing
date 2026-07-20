@@ -101,7 +101,7 @@ async def get_moon_info(
     """Get detailed information about the Moon's phase and position.
 
     When ``lat`` and ``lon`` are provided, also returns the Moon's local
-    altitude and azimuth relative to the observer.
+    altitude, azimuth, moonrise, and moonset relative to the observer.
 
     Args:
         time: Date string "YYYY-MM-DD HH:MM:SS"
@@ -111,7 +111,8 @@ async def get_moon_info(
 
     Returns:
         Dict with keys "data", "_meta". "data" contains illumination, phase_name,
-        age_days, elongation, earth_distance, and optionally altitude/azimuth.
+        age_days, elongation, earth_distance, and optionally altitude/azimuth
+        plus moonrise/moonset (UTC unix timestamps).
     """
 
     async def operation() -> dict[str, Any]:
@@ -119,12 +120,21 @@ async def get_moon_info(
         result = await asyncio.to_thread(calculate_moon_info, dt)
         moon_info = MoonInfo(**result)
 
-        # Compute local altitude/azimuth if observer position is provided
+        # Compute local position if observer coordinates are provided
         if lat is not None and lon is not None:
             location, _ = process_location_and_time(lon, lat, time, time_zone)
             alt, az = await asyncio.to_thread(get_moon_altaz, location, dt)
             moon_info.altitude = alt
             moon_info.azimuth = az
+
+            # Also compute moonrise / moonset for the observer's night
+            try:
+                rise_t, set_t = await asyncio.to_thread(celestial_rise_set, 'moon', location, dt)
+                moon_info.moonrise = rise_t.utc.unix if rise_t is not None else None
+                moon_info.moonset = set_t.utc.unix if set_t is not None else None
+            except Exception:  # nosec B110 — moon may be circumpolar
+                # Moon may be circumpolar — leave rise/set as None
+                pass
 
         return format_response(moon_info.model_dump())
 

@@ -20,6 +20,23 @@ class DeepSkyObject(CelestialPosition):
     magnitude: float = Field(description='Apparent magnitude')
     catalog: str = Field(description='Catalog identifier (Messier, NGC, etc.)')
     score: float = Field(description='Viewing score (lower is better)')
+    rise_time: float | None = Field(
+        default=None,
+        description='UTC unix timestamp when the object rises above the horizon',
+    )
+    set_time: float | None = Field(
+        default=None,
+        description='UTC unix timestamp when the object sets below the horizon',
+    )
+    transit_time: float | None = Field(
+        default=None, description='UTC unix timestamp of culmination (highest altitude)'
+    )
+    transit_alt: float | None = Field(
+        default=None, description='Altitude in degrees at culmination'
+    )
+    angular_size_arcmin: float | None = Field(
+        default=None, description='Major axis angular size in arcminutes'
+    )
 
 
 class NightlyForecast(BaseModel):

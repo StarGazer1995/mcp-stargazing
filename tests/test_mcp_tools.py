@@ -1048,21 +1048,16 @@ async def test_get_celestial_rise_set_fn():
 
 @pytest.mark.asyncio
 async def test_get_telescope_targets_invalid_coords():
-    """``get_telescope_targets.fn`` raises TypeError for out-of-range coordinates.
-
-    The telescope tools bypass ``process_location_and_time`` and create
-    ``EarthLocation`` directly; astropy raises ``TypeError`` when lat is out
-    of range instead of the expected ``MCPError.INVALID_COORDINATES``.
-    This test documents the current behavior.
-    """
-    with pytest.raises(TypeError, match='Coordinates could not be parsed'):
-        await get_telescope_targets.fn(
-            focal_length_mm=250,
-            lon=0.0,
-            lat=95.0,  # invalid latitude > 90
-            time='2024-01-15T22:00:00',
-            time_zone='Asia/Shanghai',
-        )
+    """``get_telescope_targets.fn`` returns structured error for out-of-range coordinates."""
+    result = await get_telescope_targets.fn(
+        focal_length_mm=250,
+        lon=0.0,
+        lat=95.0,  # invalid latitude > 90
+        time='2024-01-15T22:00:00',
+        time_zone='Asia/Shanghai',
+    )
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.INVALID_COORDINATES
 
 
 @pytest.mark.asyncio

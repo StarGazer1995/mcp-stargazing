@@ -114,6 +114,10 @@ _FALLBACK_SIZES: dict[str, tuple[float, float]] = {
     'EmO': (10.0, 10.0),
     'HH': (0.5, 0.5),
     'Opt': (1.0, 1.0),
+    # Unknown / SIMBAD error — conservative generic fallback
+    'err': (2.0, 1.0),
+    '?': (2.0, 1.0),
+    '': (2.0, 1.0),
 }
 
 
