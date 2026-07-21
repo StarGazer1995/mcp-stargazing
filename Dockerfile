@@ -10,9 +10,10 @@ RUN apt-get update -qq && \
 # Set environment variables
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
+    UV_NO_SYNC=1 \
+    UV_HTTP_TIMEOUT=120 \
     PYTHONUNBUFFERED=1 \
     ASTROPY_IERS_AUTO_DOWNLOAD=0 \
-    STARGAZING_DB_CONFIG="/app/config.example.toml" \
     PATH="/app/.venv/bin:$PATH"
 
 # Install system dependencies required by rasterio native extensions
