@@ -61,14 +61,14 @@ FROM base AS production
 
 # Install dependencies and clean cache to minimize image size
 RUN python -m pip install --no-cache-dir setuptools wheel && \
-    uv sync --frozen --no-install-project --no-dev && \
+    uv sync --frozen --no-install-project --no-dev --no-editable && \
     uv cache clean
 
 # Copy application code
 COPY . .
 
-# Install project and clean cache
-RUN uv sync --frozen --no-dev && \
+# Install project (non-editable) and clean cache
+RUN uv sync --frozen --no-dev --no-editable && \
     uv cache clean && \
     rm -f /app/.venv/.lock
 
