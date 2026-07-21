@@ -64,22 +64,21 @@ def test_spf_web_program_defined():
     assert cfg.has_section('program:spf-web'), 'Missing [program:spf-web] section'
 
 
-def test_mcp_program_uses_uv_run():
-    """MCP must be launched via uv run."""
+def test_mcp_program_launches_correctly():
+    """MCP must launch mcp-stargazing directly (no uv run — image is pre-built)."""
     cfg = _parse_config()
     command = cfg.get('program:mcp', 'command')
-    assert 'uv run' in command, f'MCP command should use uv run, got: {command}'
-    assert 'mcp-stargazing' in command, (
-        f'MCP command should reference mcp-stargazing, got: {command}'
+    assert command.startswith('mcp-stargazing'), (
+        f'MCP command should start with mcp-stargazing, got: {command}'
     )
+    assert '--mode shttp' in command, f'MCP command should use streamable HTTP mode, got: {command}'
 
 
-def test_spf_web_program_uses_uv_run():
-    """SPF web must be launched via uv run."""
+def test_spf_web_program_launches_correctly():
+    """SPF web must launch uvicorn directly (no uv run — image is pre-built)."""
     cfg = _parse_config()
     command = cfg.get('program:spf-web', 'command')
-    assert 'uv run' in command, f'SPF command should use uv run, got: {command}'
-    assert 'uvicorn' in command, f'SPF command should use uvicorn, got: {command}'
+    assert command.startswith('uvicorn'), f'SPF command should start with uvicorn, got: {command}'
     assert 'server.main:app' in command, (
         f'SPF command should reference server.main:app, got: {command}'
     )
