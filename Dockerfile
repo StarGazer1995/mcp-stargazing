@@ -10,9 +10,10 @@ RUN apt-get update -qq && \
 # Set environment variables
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
+    UV_NO_SYNC=1 \
+    UV_HTTP_TIMEOUT=120 \
     PYTHONUNBUFFERED=1 \
     ASTROPY_IERS_AUTO_DOWNLOAD=0 \
-    STARGAZING_DB_CONFIG="/app/config.example.toml" \
     PATH="/app/.venv/bin:$PATH"
 
 # Install system dependencies required by rasterio native extensions
@@ -60,14 +61,14 @@ FROM base AS production
 
 # Install dependencies and clean cache to minimize image size
 RUN python -m pip install --no-cache-dir setuptools wheel && \
-    uv sync --frozen --no-install-project --no-dev && \
+    uv sync --frozen --no-install-project --no-dev --no-editable && \
     uv cache clean
 
 # Copy application code
 COPY . .
 
-# Install project and clean cache
-RUN uv sync --frozen --no-dev && \
+# Install project (non-editable) and clean cache
+RUN uv sync --frozen --no-dev --no-editable && \
     uv cache clean && \
     rm -f /app/.venv/.lock
 
