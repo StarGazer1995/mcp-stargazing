@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import astropy.units as u
+import numpy as np
 import pytest
 import pytz
 from astropy.coordinates import EarthLocation, SkyCoord
@@ -8,6 +9,7 @@ from astropy.time import Time
 
 import src.celestial as celestial_module
 from src.celestial import (
+    _find_rise_set_indices,
     _generate_time_grid,
     _get_celestial_object,
     celestial_pos,
@@ -85,6 +87,16 @@ def test__generate_time_grid():
     time_grid = _generate_time_grid(date)
     assert len(time_grid) == 288
     assert abs((time_grid[-1] - time_grid[0]).to_datetime().total_seconds() / 3600 - 24) < 1e-3
+
+
+def test_find_rise_set_indices_distinguishes_rise_from_set():
+    """下降穿越与上升穿越应分别映射为 set / rise。"""
+    altitudes = np.array([-5.0, -1.0, 2.0, 4.0, 1.0, -2.0])
+
+    rise_idx, set_idx = _find_rise_set_indices(altitudes, horizon=0.0)
+
+    assert rise_idx == 1
+    assert set_idx == 4
 
 
 def test_load_data_resource_reads_packaged_json(monkeypatch):

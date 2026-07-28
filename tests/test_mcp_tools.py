@@ -1217,6 +1217,79 @@ async def test_get_moon_info_no_position():
 
 
 @pytest.mark.asyncio
+async def test_get_moon_info_with_position_maps_local_rise_set_to_unix():
+    """``get_moon_info.fn`` should preserve rise/set semantics for local observer data."""
+    with (
+        patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc,
+        patch('src.functions.celestial.impl.process_location_and_time') as mock_process,
+        patch('src.functions.celestial.impl.get_moon_altaz') as mock_altaz,
+        patch('src.functions.celestial.impl.celestial_rise_set') as mock_rise_set,
+    ):
+        mock_calc.return_value = {
+            'phase_name': 'Waning Gibbous',
+            'illumination': 0.91,
+            'age_days': 17.6,
+            'elongation': 145.1,
+            'earth_distance': 372430.1,
+        }
+        mock_process.return_value = (object(), datetime(2024, 6, 15, 20, 0, tzinfo=UTC))
+        mock_altaz.return_value = (12.5, 88.0)
+        rise_t = datetime(2024, 6, 15, 21, 30, tzinfo=UTC)
+        set_t = datetime(2024, 6, 16, 6, 15, tzinfo=UTC)
+        mock_rise_set.return_value = (rise_t, set_t)
+
+        result = await get_moon_info.fn(
+            time='2024-06-15 20:00:00',
+            time_zone='UTC',
+            lat=40.0,
+            lon=-74.0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['altitude'] == 12.5
+    assert data['azimuth'] == 88.0
+    assert data['moonrise'] == rise_t.timestamp()
+    assert data['moonset'] == set_t.timestamp()
+
+
+@pytest.mark.asyncio
+async def test_get_moon_info_preserves_same_day_set_before_rise_semantics():
+    """``get_moon_info.fn`` should keep labels correct when moonset occurs before moonrise."""
+    with (
+        patch('src.functions.celestial.impl.calculate_moon_info') as mock_calc,
+        patch('src.functions.celestial.impl.process_location_and_time') as mock_process,
+        patch('src.functions.celestial.impl.get_moon_altaz') as mock_altaz,
+        patch('src.functions.celestial.impl.celestial_rise_set') as mock_rise_set,
+    ):
+        mock_calc.return_value = {
+            'phase_name': 'Last Quarter',
+            'illumination': 0.52,
+            'age_days': 22.1,
+            'elongation': 92.0,
+            'earth_distance': 381200.0,
+        }
+        mock_process.return_value = (object(), datetime(2024, 6, 15, 12, 0, tzinfo=UTC))
+        mock_altaz.return_value = (-5.0, 120.0)
+        set_t = datetime(2024, 6, 15, 1, 0, tzinfo=UTC)
+        rise_t = datetime(2024, 6, 15, 15, 0, tzinfo=UTC)
+        mock_rise_set.return_value = (rise_t, set_t)
+
+        result = await get_moon_info.fn(
+            time='2024-06-15 12:00:00',
+            time_zone='UTC',
+            lat=40.0,
+            lon=-74.0,
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['moonset'] == set_t.timestamp()
+    assert data['moonrise'] == rise_t.timestamp()
+    assert data['moonset'] < data['moonrise']
+
+
+@pytest.mark.asyncio
 async def test_get_moon_info_invalid_timezone():
     """``get_moon_info.fn`` returns structured error for invalid timezone."""
     result = await get_moon_info.fn(time='2024-06-15 12:00:00', time_zone='Bad/Zone')

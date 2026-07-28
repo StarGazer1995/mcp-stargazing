@@ -130,8 +130,8 @@ async def get_moon_info(
             # Also compute moonrise / moonset for the observer's night
             try:
                 rise_t, set_t = await asyncio.to_thread(celestial_rise_set, 'moon', location, dt)
-                moon_info.moonrise = rise_t.utc.unix if rise_t is not None else None
-                moon_info.moonset = set_t.utc.unix if set_t is not None else None
+                moon_info.moonrise = rise_t.timestamp() if rise_t is not None else None
+                moon_info.moonset = set_t.timestamp() if set_t is not None else None
             except Exception:  # nosec B110 — moon may be circumpolar
                 # Moon may be circumpolar — leave rise/set as None
                 pass
