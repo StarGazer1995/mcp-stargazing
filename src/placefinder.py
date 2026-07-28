@@ -6,7 +6,12 @@ from types import ModuleType
 from typing import Any
 
 from src.logging_config import get_logger
-from src.paths import prioritize_sys_path, resolve_package_source_root
+from src.paths import (
+    PROJECT_ROOT,
+    discard_shadowing_module,
+    prioritize_sys_path,
+    resolve_package_source_root,
+)
 
 logger = get_logger(__name__)
 
@@ -19,20 +24,8 @@ _last_params: dict[str, Any] | None = None
 _last_params_lock = threading.Lock()
 
 
-def _prepare_spf_import_path() -> Path | None:
-    """Ensure ``stargazingplacefinder`` resolves its own top-level modules first.
-
-    Since MCP's Pydantic schemas live under ``src/schemas/`` (not ``src/models/``),
-    there is no longer a bare ``models`` package conflict.  We only need to put the
-    SPF source root at the front of ``sys.path`` so that SPF's internal imports
-    (e.g. ``from models import ...``) resolve correctly.
-
-    .. note::
-
-        This is a workaround.  The proper fix is for SPF to use package-relative
-        imports (e.g. ``from stargazingplacefinder.models import ...``) so that
-        sys.path manipulation is unnecessary.  Tracked as a quarterly item.
-    """
+def _prepare_legacy_spf_import_path() -> Path | None:
+    """Prioritize the legacy SPF source root for older published package layouts."""
     source_root = resolve_package_source_root(SPF_PACKAGE_NAME)
     if source_root is None:
         logger.warning(
@@ -40,22 +33,47 @@ def _prepare_spf_import_path() -> Path | None:
         )
         return None
 
-    logger.debug('Using sys.path workaround for SPF imports from %s', source_root)
+    logger.debug('Falling back to legacy SPF import path from %s', source_root)
     prioritize_sys_path(source_root)
+    discard_shadowing_module('cache', PROJECT_ROOT)
     return source_root
 
 
 def _load_spf() -> ModuleType:
-    """Import ``stargazingplacefinder`` after preparing its dependency source root."""
-    _prepare_spf_import_path()
+    """Import SPF, preferring the modern package layout but tolerating legacy wheels."""
     try:
         return importlib.import_module(SPF_PACKAGE_NAME)
     except ModuleNotFoundError as exc:
+        if exc.name != SPF_PACKAGE_NAME:
+            _prepare_legacy_spf_import_path()
+            try:
+                return importlib.import_module(SPF_PACKAGE_NAME)
+            except ModuleNotFoundError as retry_exc:
+                if retry_exc.name == SPF_PACKAGE_NAME:
+                    raise ModuleNotFoundError(
+                        'stargazingplacefinder is required for place analysis features'
+                    ) from retry_exc
+                raise
         if exc.name == SPF_PACKAGE_NAME:
             raise ModuleNotFoundError(
                 'stargazingplacefinder is required for place analysis features'
             ) from exc
         raise
+
+
+def _load_spf_config():
+    """Load SPF config while remaining compatible with older published packages."""
+    try:
+        from stargazingplacefinder.config import load_stargazing_config
+    except ModuleNotFoundError as exc:
+        # Older SPF wheels expose ``config`` as a top-level package instead of
+        # ``stargazingplacefinder.config``. Keep this fallback so MCP can ship
+        # independently while the new SPF wrapper rolls out.
+        if exc.name != 'stargazingplacefinder.config':
+            raise
+        from config import load_stargazing_config
+
+    return load_stargazing_config()
 
 
 class StargazingPlaceFinder:
@@ -100,12 +118,10 @@ class StargazingPlaceFinder:
             if _last_params == new_params:
                 return  # nothing changed — reuse the existing singleton
 
-        # Load SPF config from TOML file (env STARGAZING_CONFIG or default path),
-        # then pass it through to RoadConnectivityChecker (tile size, etc.).
+        # Load SPF config from the dependency package so bridge callers do not
+        # need to know about SPF's internal top-level module layout.
         try:
-            from config import load_stargazing_config  # type: ignore[import-untyped]
-
-            spf_config = load_stargazing_config()
+            spf_config = _load_spf_config()
         except FileNotFoundError:
             logger.debug('No SPF config file found, using defaults')
             spf_config = None
