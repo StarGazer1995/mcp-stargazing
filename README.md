@@ -259,8 +259,8 @@ All tools return JSON-serializable data and use structured error handling:
 │   ├── server_instance.py    # FastMCP server instance (avoids circular imports)
 │   ├── main.py               # Entry point and tool registration
 │   ├── celestial.py          # Core astronomy logic (Astropy wrappers)
-│   ├── placefinder.py        # Grid analysis logic
-│   └── qweather_interaction.py # Legacy QWeather helpers
+│   ├── placefinder.py        # Place-finder bridge logic
+│   └── qweather_interaction.py # Thin QWeather URL wrappers
 ├── tests/                    # Unified test suite (25+ test files)
 ├── examples/                 # Usage examples (14 scripts)
 ├── docs/                     # Design docs and roadmap

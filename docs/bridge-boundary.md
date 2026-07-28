@@ -51,35 +51,43 @@
 - `stargazing-place-finder` 依赖链中也有 `models` 包
 - 两个 `models` 包在同一 Python 进程中会互相遮蔽
 
-### 当前解法（`src/paths.py`）
+### 当前解法（`src/paths.py` + namespaced wrapper）
 
-`paths.py` 提供以下工具函数，由 `placefinder.py` 在加载下层模块前调用：
+`placefinder.py` 现在优先直接导入 `stargazingplacefinder` 和
+`stargazingplacefinder.config`，仅在兼容旧 SPF wheel 时才回退到
+`paths.py` 中的导入辅助函数。
+
+`paths.py` 提供以下工具函数，由 `placefinder.py` 在 legacy fallback 路径中调用：
 
 | 函数 | 职责 |
 |------|------|
 | `find_module_origin()` | 安全查找模块的来源路径 |
 | `is_repo_models_origin()` | 判断一个模块来源是否属于本 repo 的 `src/models/` |
-| `discard_shadowing_module()` | 从 `sys.modules` 中移除被本 repo `models` 遮蔽的缓存模块 |
+| `discard_shadowing_module()` | 从 `sys.modules` 中移除会遮蔽下层包的缓存模块 |
 | `prioritize_sys_path()` | 将下层 repo 的 source root 提升到 `sys.path` 最前面 |
 | `resolve_package_source_root()` | 解析任意包的 source root 路径 |
 
 加载流程：
 
-1. `resolve_package_source_root('stargazingplacefinder')` 确定下层 repo 的根路径
-2. `find_module_origin('models')` 检查当前 `models` 模块的来源
-3. 如果 `models` 来自本 repo，则 `discard_shadowing_module` 清理缓存
-4. `prioritize_sys_path` 将下层根路径排到最前
-5. `importlib.import_module('stargazingplacefinder')` 加载下层
+1. 先尝试直接 `importlib.import_module('stargazingplacefinder')`
+2. 若是 `stargazingplacefinder` 本身缺失，则向上层报“依赖未安装”
+3. 若导入失败来自下层旧版 wheel 的嵌套模块布局（例如 `cache.cache_config`），则进入 legacy fallback
+4. `resolve_package_source_root('stargazingplacefinder')` 确定下层 repo 的 source root
+5. `discard_shadowing_module('cache', PROJECT_ROOT)` 清理 MCP 仓库自身的 `cache` 模块遮蔽
+6. `prioritize_sys_path()` 将下层根路径排到最前，然后重试 `importlib.import_module('stargazingplacefinder')`
+7. 配置加载优先走 `stargazingplacefinder.config`，仅对旧 wheel 回退到顶层 `config`
 
 ### 长期方向
 
-当前方案已将运行时补丁严格隔离在 `paths.py` 中，并通过 `test_paths.py` 覆盖。长期来看，更彻底的解法包括：
+当前方案已将 runtime compatibility 逻辑严格隔离在 bridge 层，并通过
+`tests/test_placefinder.py` / `tests/test_paths.py` 覆盖。长期来看，更彻底的解法包括：
 
 - 将 `mcp-stargazing/src/models/` 重命名为 `src/schemas/` 或 `src/dtos/` 避免与下层 `models` 冲突
 - 或将下层 `models` 包重命名
-- 或通过 namespace package 隔离两个 repo
+- 或在 SPF 新版本完全普及后移除 bridge 层的 legacy fallback
 
-无论选择哪种长期方案，当前 `paths.py` 的抽象已足够支撑现有功能，且运行时修补逻辑不扩散到 `paths.py` 之外。
+无论选择哪种长期方案，当前 bridge 已经将默认路径切换为 namespaced import，
+剩余的 runtime 修补逻辑只服务于旧版 SPF 包兼容，不再作为主路径存在。
 
 ## 调用链总览
 
@@ -115,7 +123,7 @@ MCP Agent
 | 测试文件 | 覆盖内容 |
 |---------|---------|
 | `tests/test_paths.py` | 路径解析、模块来源检测、shadow 清理、sys.path 重排 |
-| `tests/test_placefinder.py` | Bridge 的构造、参数变更重建、analyze_area 转发、get_light_pollution_grid 转发 |
+| `tests/test_placefinder.py` | Bridge 的构造、配置加载、legacy fallback、analyze_area 转发、get_light_pollution_grid 转发 |
 
 ## 变更规则
 

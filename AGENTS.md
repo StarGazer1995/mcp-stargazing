@@ -167,4 +167,4 @@ See `docs/ROADMAP.md` for the planned agent and harness feature roadmap, includi
 - streamed large-search support
 - expanded astronomy domain features
 
-See `CLAUDE.md` → Known Sharp Edges for current technical debt items including the place-finder bridge `sys.path` manipulation, global cache thread safety, weather provider code duplication, and the Python 3.13+ version constraint.
+See `CLAUDE.md` → Known Sharp Edges for current technical debt items including legacy SPF wheel compatibility in the place-finder bridge, global cache thread safety, and the Python 3.13+ version constraint.
