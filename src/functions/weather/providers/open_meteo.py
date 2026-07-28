@@ -16,6 +16,7 @@ from ._common import meters_to_km as _meters_to_km
 from ._common import percent_index_to_ratio as _percent_index_to_ratio
 from ._common import safe_index as _safe_index
 from ._common import to_float as _to_float
+from ._http import fetch_weather_json
 
 OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast'
 
@@ -65,47 +66,12 @@ def fetch_open_meteo_raw_weather(
     timezone: str | None = None,
 ) -> dict:
     """查询 Open-Meteo 原始天气数据。"""
-
-    try:
-        response = requests.get(
-            OPEN_METEO_URL,
-            params=_build_open_meteo_params(lat, lon, timezone),
-            timeout=15.0,
-        )
-        response.raise_for_status()
-    except requests.exceptions.Timeout as exc:
-        raise MCPError(
-            MCPError.API_TIMEOUT,
-            'Open-Meteo 请求超时。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-    except requests.exceptions.ConnectionError as exc:
-        raise MCPError(
-            MCPError.NETWORK_ERROR,
-            'Open-Meteo 网络连接失败。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-    except requests.exceptions.HTTPError as exc:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            f'Open-Meteo 返回 HTTP {response.status_code}。',
-            {'lat': lat, 'lon': lon, 'status_code': response.status_code},
-        ) from exc
-    except requests.exceptions.RequestException as exc:
-        raise MCPError(
-            MCPError.NETWORK_ERROR,
-            f'Open-Meteo 请求失败: {exc}',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            'Open-Meteo 返回了无效 JSON。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
+    return fetch_weather_json(
+        OPEN_METEO_URL,
+        service_name='Open-Meteo',
+        context={'lat': lat, 'lon': lon},
+        params=_build_open_meteo_params(lat, lon, timezone),
+    )
 
 
 def normalize_open_meteo_weather(
