@@ -1,8 +1,5 @@
 """wttr.in provider adapter."""
 
-import requests
-
-from src.response import MCPError
 from src.schemas.weather import (
     CurrentWeather,
     DailyForecastItem,
@@ -14,6 +11,7 @@ from src.schemas.weather import (
 
 from ._common import to_float as _to_float
 from ._common import to_ratio as _percent_text_to_ratio
+from ._http import fetch_weather_json
 
 
 def get_weather_by_position(
@@ -43,47 +41,12 @@ def build_wttr_query(lat: float, lon: float) -> str:
 
 def fetch_wttr_raw_weather(lat: float, lon: float) -> dict:
     """查询 wttr.in 原始天气数据。"""
-
-    try:
-        response = requests.get(
-            f'https://wttr.in/{build_wttr_query(lat, lon)}',
-            params={'format': 'j1'},
-            timeout=15.0,
-        )
-        response.raise_for_status()
-    except requests.exceptions.Timeout as exc:
-        raise MCPError(
-            MCPError.API_TIMEOUT,
-            'wttr.in 请求超时。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-    except requests.exceptions.ConnectionError as exc:
-        raise MCPError(
-            MCPError.NETWORK_ERROR,
-            'wttr.in 网络连接失败。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-    except requests.exceptions.HTTPError as exc:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            f'wttr.in 返回 HTTP {response.status_code}。',
-            {'lat': lat, 'lon': lon, 'status_code': response.status_code},
-        ) from exc
-    except requests.exceptions.RequestException as exc:
-        raise MCPError(
-            MCPError.NETWORK_ERROR,
-            f'wttr.in 请求失败: {exc}',
-            {'lat': lat, 'lon': lon},
-        ) from exc
-
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise MCPError(
-            MCPError.EXTERNAL_API_ERROR,
-            'wttr.in 返回了无效 JSON。',
-            {'lat': lat, 'lon': lon},
-        ) from exc
+    return fetch_weather_json(
+        f'https://wttr.in/{build_wttr_query(lat, lon)}',
+        service_name='wttr.in',
+        context={'lat': lat, 'lon': lon},
+        params={'format': 'j1'},
+    )
 
 
 def normalize_wttr_weather(
