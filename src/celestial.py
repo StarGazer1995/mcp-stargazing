@@ -68,7 +68,7 @@ def celestial_pos(
 
 def celestial_rise_set(
     celestial_object: str, observer_location: EarthLocation, date: datetime, horizon: float = 0.0
-) -> tuple[Time | None, Time | None]:
+) -> tuple[datetime | None, datetime | None]:
     """
     Calculate rise and set times of a celestial object.
     Args:
@@ -77,7 +77,7 @@ def celestial_rise_set(
         date: Date for calculation (timezone-aware datetime).
         horizon: Horizon elevation in degrees (default: 0).
     Returns:
-        Tuple[Optional[Time], Optional[Time]]: (rise_time, set_time) in UTC.
+        Tuple[Optional[datetime], Optional[datetime]]: localized rise/set datetimes.
     Raises:
         ValueError: If the object is not supported or horizon is invalid.
     """
@@ -356,7 +356,9 @@ def _generate_time_grid(date: datetime) -> Time:
 def _find_rise_set_indices(altitudes: np.ndarray, horizon: float) -> tuple[int | None, int | None]:
     """Find indices where altitude crosses the horizon."""
     above = altitudes > horizon
-    crossings = np.where(np.diff(above))[0]
-    rise_idx = crossings[0] if len(crossings) > 0 else None
-    set_idx = crossings[-1] if len(crossings) > 1 else None
+    diff = np.diff(above.astype(int))
+    rise_candidates = np.where(diff == 1)[0]
+    set_candidates = np.where(diff == -1)[0]
+    rise_idx = int(rise_candidates[0]) if len(rise_candidates) > 0 else None
+    set_idx = int(set_candidates[0]) if len(set_candidates) > 0 else None
     return rise_idx, set_idx
