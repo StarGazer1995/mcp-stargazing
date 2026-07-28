@@ -15,6 +15,22 @@ The following baseline capabilities are already implemented and should no longer
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
 - `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets.
 
+### Bridge and weather cleanup (completed 2026-07)
+
+- **SPF bridge import compatibility** — `src/placefinder.py` now prefers
+  `stargazingplacefinder` namespaced imports and only falls back to legacy
+  source-root path prioritization for older published SPF wheels.
+- **SPF namespaced wrappers** — merged SPF support for
+  `stargazingplacefinder.config` / `stargazingplacefinder.models`, removing the
+  old top-level import requirement from the primary runtime path.
+- **Shared weather transport helper** — QWeather, Open-Meteo, and wttr now share
+  request execution and MCP error translation through
+  `src/functions/weather/providers/_http.py`, while `qweather_interaction.py`
+  stays a thin URL-building wrapper.
+- **Moon rise/set semantics** — lunar rise and set are now distinguished by
+  horizon crossing direction rather than timestamp ordering, preserving valid
+  same-day “set before rise” cases.
+
 ### Phase 4 — Telescope & shooting plan tools (completed 2026-07)
 
 - **`get_telescope_targets`** — Match deep-sky objects against telescope optics (focal length, aperture, sensor, filter). Returns ranked targets with suitability scores, FOV fit, surface brightness, and mosaic recommendations.
