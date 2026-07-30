@@ -25,6 +25,15 @@ class PlanningQuery(BaseModel):
     min_height_diff: float = Field(description='Minimum elevation difference used for place search')
     road_radius_km: float = Field(description='Road search radius used for place search')
     network_type: str = Field(description='Road network mode used for area analysis')
+    avoid_popular_spots: bool = Field(
+        default=False, description='Whether popularity risk was used to penalize place ranking'
+    )
+    prefer_quiet_at_night: bool = Field(
+        default=False, description='Whether night quietness was used to influence place ranking'
+    )
+    popularity_radius_km: float = Field(
+        default=3.0, gt=0, description='Preference horizon for popularity heuristics in km'
+    )
     analysis_resource_id: str | None = Field(
         default=None, description='Underlying analysis_area resource identifier when available'
     )

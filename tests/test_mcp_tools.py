@@ -129,12 +129,34 @@ async def test_get_best_stargazing_plan_fn():
             east=116.5,
             time='2024-06-15 20:00:00',
             time_zone='Asia/Shanghai',
+            avoid_popular_spots=True,
+            prefer_quiet_at_night=True,
+            popularity_radius_km=4.0,
         )
 
     assert result['_meta']['status'] == 'success'
     data = result['data']
+    mock_analysis_area.fn.assert_awaited_once_with(
+        south=40.0,
+        west=116.0,
+        north=40.5,
+        east=116.5,
+        max_locations=10,
+        min_height_diff=100.0,
+        road_radius_km=10.0,
+        network_type='drive',
+        avoid_popular_spots=True,
+        prefer_quiet_at_night=True,
+        popularity_radius_km=4.0,
+        db_config_path=None,
+        page=1,
+        page_size=10,
+    )
     assert data['query']['analysis_resource_id'] == 'analysis-abc123'
     assert data['query']['max_locations'] == 10
+    assert data['query']['avoid_popular_spots'] is True
+    assert data['query']['prefer_quiet_at_night'] is True
+    assert data['query']['popularity_radius_km'] == 4.0
     assert data['summary']['total_candidates'] == 2
     assert data['summary']['generated_at'] == '2026-06-27T12:00:00+00:00'
     assert data['summary']['recommended_location_name'] == 'Alpha Ridge'
@@ -211,6 +233,25 @@ async def test_get_best_stargazing_plan_keeps_partial_results_when_weather_fails
     assert data['candidates'][0]['weather_summary'] is None
     assert data['candidates'][0]['notes']
     assert data['candidates'][0]['top_targets'][0]['name'] == 'M8'
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_rejects_invalid_popularity_radius():
+    """Popularity radius should use the standard structured error payload."""
+    result = await get_best_stargazing_plan.fn(
+        south=30.0,
+        west=100.0,
+        north=31.0,
+        east=101.0,
+        time='2024-06-15 20:00:00',
+        time_zone='UTC',
+        popularity_radius_km=0,
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == 'CONFIGURATION_ERROR'
+    assert result['error']['message'] == 'popularity_radius_km must be greater than 0.'
+    assert result['error']['details'] == {'popularity_radius_km': 0}
 
 
 # ---------------------------------------------------------------------------

@@ -155,6 +155,9 @@ async def analysis_area(
     min_height_diff: float = 100.0,
     road_radius_km: float = 10.0,
     network_type: str = 'drive',
+    avoid_popular_spots: bool = False,
+    prefer_quiet_at_night: bool = False,
+    popularity_radius_km: float = 3.0,
     db_config_path: str = None,
     page: int = 1,
     page_size: int = 10,
@@ -175,6 +178,9 @@ async def analysis_area(
         min_height_diff: Minimum elevation difference for prominence.
         road_radius_km: Search radius for road access. Set to 0 to skip road checks.
         network_type: Type of road network ('drive', 'walk', etc.).
+        avoid_popular_spots: Penalize heuristically popular locations when ranking results.
+        prefer_quiet_at_night: Favor locations that are likelier to quiet down at night.
+        popularity_radius_km: Preference horizon for the popularity heuristics.
         db_config_path: Optional path to database config.
         page: Page number (1-based).
         page_size: Number of results per page.
@@ -200,6 +206,12 @@ async def analysis_area(
             'page_size must be greater than or equal to 1.',
             {'page_size': page_size},
         )
+    if popularity_radius_km <= 0:
+        return format_error(
+            MCPError.CONFIGURATION_ERROR,
+            'popularity_radius_km must be greater than 0.',
+            {'popularity_radius_km': popularity_radius_km},
+        )
 
     # 1. Generate Cache Key based on calculation parameters (excluding pagination)
     calc_params = {
@@ -211,6 +223,9 @@ async def analysis_area(
         'min_height_diff': min_height_diff,
         'road_radius_km': road_radius_km,
         'network_type': network_type,
+        'avoid_popular_spots': avoid_popular_spots,
+        'prefer_quiet_at_night': prefer_quiet_at_night,
+        'popularity_radius_km': popularity_radius_km,
         'db_config_path': db_config_path,
     }
     resource_id = generate_cache_key(**calc_params)
@@ -238,6 +253,9 @@ async def analysis_area(
                     road_radius_km=road_radius_km,
                     max_locations=max_locations,
                     network_type=network_type,
+                    avoid_popular_spots=avoid_popular_spots,
+                    prefer_quiet_at_night=prefer_quiet_at_night,
+                    popularity_radius_km=popularity_radius_km,
                 )
                 # Convert spf StargazingLocation objects to our models
                 return [StargazingLocation.from_spf_location(item) for item in results]

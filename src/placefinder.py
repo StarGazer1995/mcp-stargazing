@@ -88,11 +88,17 @@ class StargazingPlaceFinder:
         geotiff_path: Path | None = None,
         min_height_difference: float = 100.0,
         road_search_radius_km: float = 10.0,
+        avoid_popular_spots: bool = False,
+        prefer_quiet_at_night: bool = False,
+        popularity_radius_km: float = 3.0,
         db_config_path: Path | None = None,
     ):
         self.geotiff_path = geotiff_path
         self.min_height_difference = min_height_difference
         self.road_search_radius_km = road_search_radius_km
+        self.avoid_popular_spots = avoid_popular_spots
+        self.prefer_quiet_at_night = prefer_quiet_at_night
+        self.popularity_radius_km = popularity_radius_km
         # Auto-resolve db_config_path: explicit > STARGAZING_DB_CONFIG env > None
         if db_config_path is None:
             env_path = os.environ.get('STARGAZING_DB_CONFIG')
@@ -111,6 +117,9 @@ class StargazingPlaceFinder:
             'geotiff_path': self.geotiff_path,
             'min_height_difference': self.min_height_difference,
             'road_search_radius_km': self.road_search_radius_km,
+            'avoid_popular_spots': self.avoid_popular_spots,
+            'prefer_quiet_at_night': self.prefer_quiet_at_night,
+            'popularity_radius_km': self.popularity_radius_km,
             'db_config_path': self.db_config_path,
         }
 
@@ -153,6 +162,9 @@ class StargazingPlaceFinder:
         road_radius_km: float = 10.0,
         max_locations: int = 30,
         network_type: str = 'drive',
+        avoid_popular_spots: bool = False,
+        prefer_quiet_at_night: bool = False,
+        popularity_radius_km: float = 3.0,
     ) -> list[dict[str, Any]]:
         # Only re-init the analyzer when spatial parameters actually change.
         # This avoids re-opening GeoTIFF files and re-creating PostGIS
@@ -165,9 +177,15 @@ class StargazingPlaceFinder:
         if (
             min_height_diff != self.min_height_difference
             or road_radius_km != self.road_search_radius_km
+            or avoid_popular_spots != self.avoid_popular_spots
+            or prefer_quiet_at_night != self.prefer_quiet_at_night
+            or popularity_radius_km != self.popularity_radius_km
         ):
             self.min_height_difference = min_height_diff
             self.road_search_radius_km = road_radius_km
+            self.avoid_popular_spots = avoid_popular_spots
+            self.prefer_quiet_at_night = prefer_quiet_at_night
+            self.popularity_radius_km = popularity_radius_km
             self._init_analyzer()
 
         # When road_radius_km <= 0 the caller explicitly opts out of road
@@ -184,6 +202,9 @@ class StargazingPlaceFinder:
             network_type=network_type,
             include_light_pollution=True,
             include_road_connectivity=include_road,
+            avoid_popular_spots=avoid_popular_spots,
+            prefer_quiet_at_night=prefer_quiet_at_night,
+            popularity_radius_km=popularity_radius_km,
         )
 
 

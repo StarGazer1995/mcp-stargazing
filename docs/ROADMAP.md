@@ -12,6 +12,8 @@ The following baseline capabilities are already implemented and should no longer
 - Business validation failures are normalized into the standard `{error, _meta}` payload shape.
 - Weather tools already include retry behavior for transient network failures.
 - `analysis_area` now has explicit pagination validation and stable `resource_id` semantics based only on non-pagination query parameters.
+- `analysis_area` and `get_best_stargazing_plan` now expose popularity preference parameters (`avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`), and those parameters participate in `resource_id` / cache-key generation.
+- Place results now surface popularity heuristic fields (`static_popularity_risk_score`, `night_quiet_likelihood_score`, `temporal_popularity_confidence`, and related notes/signals) from `stargazing-place-finder`.
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
 - `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets.
 

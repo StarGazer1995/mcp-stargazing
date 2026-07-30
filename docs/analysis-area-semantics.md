@@ -18,6 +18,9 @@
 | `min_height_diff` | float | 100.0 | 最小高程差 |
 | `road_radius_km` | float | 10.0 | 道路搜索半径 |
 | `network_type` | str | `"drive"` | 道路网络类型 |
+| `avoid_popular_spots` | bool | `false` | 是否在排序中惩罚启发式热门地点 |
+| `prefer_quiet_at_night` | bool | `false` | 是否在排序中偏好夜间更安静的地点 |
+| `popularity_radius_km` | float | `3.0` | 热门度偏好的作用半径 |
 | `db_config_path` | str | None | 数据库配置路径 |
 
 ### 分页参数（不影响计算结果）
@@ -72,7 +75,8 @@
 
 ```
 south, west, north, east, max_locations, min_height_diff,
-road_radius_km, network_type, db_config_path
+road_radius_km, network_type, avoid_popular_spots,
+prefer_quiet_at_night, popularity_radius_km, db_config_path
 ```
 
 **分页参数 `page` 和 `page_size` 不参与 `resource_id` 的计算**。
@@ -93,6 +97,7 @@ road_radius_km, network_type, db_config_path
 ### 边界情况
 
 - 搜索参数变化（如 `max_locations` 从 30 改为 50）→ 新的 `resource_id` + 新的缓存条目
+- 热门度偏好变化（如 `avoid_popular_spots=false → true` 或 `popularity_radius_km=3 → 5`）→ 新的 `resource_id` + 新的缓存条目
 - 仅分页参数变化（如 `page=2`）→ 相同 `resource_id`，不触发重新计算
 
 ## 分页语义
@@ -101,7 +106,9 @@ road_radius_km, network_type, db_config_path
 
 - `page` 从 1 开始计数
 - `page_size` 最小为 1
+- `popularity_radius_km` 必须大于 0
 - `page < 1` 或 `page_size < 1` → 返回 `CONFIGURATION_ERROR`
+- `popularity_radius_km <= 0` → 返回 `CONFIGURATION_ERROR`
 - 请求页超出范围时返回空 `items`，不报错
 
 ### 分页与缓存的关系
@@ -117,6 +124,19 @@ road_radius_km, network_type, db_config_path
   → 缓存命中 → 直接使用缓存的 30 个结果
   → 返回 items[10:20]
 ```
+
+## 热门度偏好语义
+
+- 默认情况下，`avoid_popular_spots=false` 且 `prefer_quiet_at_night=false`
+  - 仍会返回 popularity 解释字段
+  - 但不会改变地点总分或排序
+- 当 `avoid_popular_spots=true` 时：
+  - 结果排序会对 `static_popularity_risk_score` 施加有限度惩罚
+- 当 `prefer_quiet_at_night=true` 时：
+  - 结果排序会参考 `night_quiet_likelihood_score` 与 `temporal_popularity_confidence`
+- `popularity_radius_km`
+  - 在 V1 启发式实现中，它表示热门度偏好的作用半径，并参与 `resource_id` / cache key
+  - 它目前不会触发单独的周边 POI 查询；真实的空间采样半径留待后续 provider 化版本
 
 ## 缓存语义
 
@@ -146,6 +166,7 @@ road_radius_km, network_type, db_config_path
 |------|------|
 | `page < 1` | `CONFIGURATION_ERROR`："page must be greater than or equal to 1." |
 | `page_size < 1` | `CONFIGURATION_ERROR`："page_size must be greater than or equal to 1." |
+| `popularity_radius_km <= 0` | `CONFIGURATION_ERROR`："popularity_radius_km must be greater than 0." |
 | 正常请求，无结果 | `items: []`, `total: 0`, `total_pages: 0` |
 | 正常请求，有结果 | 标准 success 响应，分页字段完整 |
 
