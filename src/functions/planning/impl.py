@@ -320,6 +320,9 @@ async def get_best_stargazing_plan(
     min_height_diff: float = 100.0,
     road_radius_km: float = 10.0,
     network_type: str = 'drive',
+    avoid_popular_spots: bool = False,
+    prefer_quiet_at_night: bool = False,
+    popularity_radius_km: float = 3.0,
     db_config_path: str = None,
 ) -> dict[str, Any]:
     """Create a composite stargazing plan for a region and time.
@@ -340,6 +343,9 @@ async def get_best_stargazing_plan(
         min_height_diff: Minimum elevation difference for prominence.
         road_radius_km: Search radius for road access.
         network_type: Type of road network to analyze.
+        avoid_popular_spots: Penalize heuristically popular locations during place ranking.
+        prefer_quiet_at_night: Favor places that are likelier to quiet down at night.
+        popularity_radius_km: Preference horizon for popularity heuristics.
         db_config_path: Optional path to database config.
 
     Returns:
@@ -352,6 +358,12 @@ async def get_best_stargazing_plan(
         _validate_positive_int('candidate_limit', candidate_limit)
         _validate_positive_int('target_limit', target_limit)
         _validate_positive_int('max_locations', max_locations)
+        if popularity_radius_km <= 0:
+            raise MCPError(
+                MCPError.CONFIGURATION_ERROR,
+                'popularity_radius_km must be greater than 0.',
+                {'popularity_radius_km': popularity_radius_km},
+            )
         parse_observation_time(time, time_zone)
 
         places_result = await analysis_area.fn(
@@ -363,6 +375,9 @@ async def get_best_stargazing_plan(
             min_height_diff=min_height_diff,
             road_radius_km=road_radius_km,
             network_type=network_type,
+            avoid_popular_spots=avoid_popular_spots,
+            prefer_quiet_at_night=prefer_quiet_at_night,
+            popularity_radius_km=popularity_radius_km,
             db_config_path=db_config_path,
             page=1,
             page_size=max_locations,
@@ -408,6 +423,9 @@ async def get_best_stargazing_plan(
                 min_height_diff=min_height_diff,
                 road_radius_km=road_radius_km,
                 network_type=network_type,
+                avoid_popular_spots=avoid_popular_spots,
+                prefer_quiet_at_night=prefer_quiet_at_night,
+                popularity_radius_km=popularity_radius_km,
                 analysis_resource_id=places_data.get('resource_id'),
             ),
             summary=PlanningSummary(

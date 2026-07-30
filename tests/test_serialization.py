@@ -133,6 +133,59 @@ def test_analysis_area_pagination_serialization():
     asyncio.run(run_test())
 
 
+def test_analysis_area_serializes_popularity_fields():
+    """Popularity heuristic fields should survive analysis_area serialization."""
+
+    class MockCache:
+        def __init__(self):
+            self.store = {}
+
+        def get(self, key):
+            return self.store.get(key)
+
+        def set(self, key, value):
+            self.store[key] = value
+
+    async def run_test():
+        with (
+            patch('src.functions.places.impl.StargazingPlaceFinder') as MockPF,
+            patch('src.functions.places.impl.ANALYSIS_CACHE', new=MockCache()),
+        ):
+            mock_instance = MockPF.return_value
+            mock_instance.analyze_area.return_value = [
+                {
+                    'name': 'Quiet Ridge',
+                    'lat': 35.0,
+                    'lon': -120.0,
+                    'stargazing_score': 81.0,
+                    'static_popularity_risk_score': 24.0,
+                    'night_quiet_likelihood_score': 72.0,
+                    'temporal_popularity_confidence': 61.0,
+                    'nearby_popular_poi_count': 1,
+                    'nearby_night_active_poi_count': 0,
+                    'nearby_day_only_poi_count': 1,
+                    'popularity_signals': ['距道路较远，夜间停留门槛更高'],
+                    'temporal_popularity_signals': ['远离城镇，夜间退潮概率更高'],
+                    'popularity_notes': '热门风险较低; 夜间大概率退潮',
+                }
+            ]
+
+            result = await analysis_area.fn(
+                south=30, west=100, north=31, east=101, page=1, page_size=10
+            )
+
+            item = result['data']['items'][0]
+            assert item['static_popularity_risk_score'] == 24.0
+            assert item['night_quiet_likelihood_score'] == 72.0
+            assert item['temporal_popularity_confidence'] == 61.0
+            assert item['nearby_popular_poi_count'] == 1
+            assert item['nearby_night_active_poi_count'] == 0
+            assert item['nearby_day_only_poi_count'] == 1
+            assert item['popularity_notes'] == '热门风险较低; 夜间大概率退潮'
+
+    asyncio.run(run_test())
+
+
 @pytest.mark.asyncio
 async def test_analysis_area_resource_id_is_stable_across_pages():
     """The same non-pagination query should reuse the same cached resource identifier."""
@@ -217,6 +270,47 @@ async def test_analysis_area_resource_id_changes_with_calc_params():
 
 
 @pytest.mark.asyncio
+async def test_analysis_area_resource_id_changes_with_popularity_preferences():
+    """Popularity preference parameters should participate in the resource identifier."""
+
+    class MockCache:
+        def get(self, key):
+            return None
+
+        def set(self, key, value):
+            return None
+
+    with (
+        patch('src.functions.places.impl.StargazingPlaceFinder') as mock_placefinder,
+        patch('src.functions.places.impl.ANALYSIS_CACHE', new=MockCache()),
+    ):
+        mock_placefinder.return_value.analyze_area.return_value = []
+
+        result_a = await analysis_area.fn(
+            south=30.0,
+            west=100.0,
+            north=31.0,
+            east=101.0,
+            avoid_popular_spots=False,
+            prefer_quiet_at_night=False,
+            popularity_radius_km=3.0,
+        )
+        result_b = await analysis_area.fn(
+            south=30.0,
+            west=100.0,
+            north=31.0,
+            east=101.0,
+            avoid_popular_spots=True,
+            prefer_quiet_at_night=True,
+            popularity_radius_km=4.0,
+        )
+
+    assert result_a['_meta']['status'] == 'success'
+    assert result_b['_meta']['status'] == 'success'
+    assert result_a['data']['resource_id'] != result_b['data']['resource_id']
+
+
+@pytest.mark.asyncio
 async def test_analysis_area_returns_empty_items_for_out_of_range_page():
     """Out-of-range pages should remain successful and return an empty item list."""
 
@@ -260,11 +354,12 @@ async def test_analysis_area_returns_empty_items_for_out_of_range_page():
     [
         ('page', 0, 'page must be greater than or equal to 1.'),
         ('page_size', 0, 'page_size must be greater than or equal to 1.'),
+        ('popularity_radius_km', 0, 'popularity_radius_km must be greater than 0.'),
     ],
 )
 async def test_analysis_area_rejects_invalid_pagination_inputs(
     field_name: str,
-    field_value: int,
+    field_value: int | float,
     expected_message: str,
 ):
     """Invalid pagination inputs should return the standard structured error payload."""

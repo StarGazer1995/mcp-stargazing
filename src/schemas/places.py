@@ -66,6 +66,34 @@ class StargazingLocation(BaseModel):
         default=None, description='Distance to nearest road in km'
     )
     score: float | None = Field(default=None, description='Overall stargazing suitability score')
+    static_popularity_risk_score: float | None = Field(
+        default=None, description='Heuristic static popularity risk score (0-100)'
+    )
+    night_quiet_likelihood_score: float | None = Field(
+        default=None,
+        description='Heuristic likelihood that the site becomes quieter at night (0-100)',
+    )
+    temporal_popularity_confidence: float | None = Field(
+        default=None, description='Confidence in the temporal popularity heuristic (0-100)'
+    )
+    nearby_popular_poi_count: int = Field(
+        default=0, description='Heuristic count of nearby popularity signals'
+    )
+    nearby_night_active_poi_count: int = Field(
+        default=0, description='Heuristic count of nearby night-active signals'
+    )
+    nearby_day_only_poi_count: int = Field(
+        default=0, description='Heuristic count of nearby day-only signals'
+    )
+    popularity_signals: list[str] | None = Field(
+        default=None, description='Human-readable popularity signals'
+    )
+    temporal_popularity_signals: list[str] | None = Field(
+        default=None, description='Human-readable temporal popularity signals'
+    )
+    popularity_notes: str | None = Field(
+        default=None, description='Short popularity and night-quiet summary'
+    )
 
     @classmethod
     def from_spf_location(cls, loc) -> StargazingLocation:
@@ -86,6 +114,15 @@ class StargazingLocation(BaseModel):
             bortle_class=d.get('light_pollution_bortle'),
             road_distance_km=d.get('distance_to_road_km'),
             score=d.get('stargazing_score'),
+            static_popularity_risk_score=d.get('static_popularity_risk_score'),
+            night_quiet_likelihood_score=d.get('night_quiet_likelihood_score'),
+            temporal_popularity_confidence=d.get('temporal_popularity_confidence'),
+            nearby_popular_poi_count=d.get('nearby_popular_poi_count', 0),
+            nearby_night_active_poi_count=d.get('nearby_night_active_poi_count', 0),
+            nearby_day_only_poi_count=d.get('nearby_day_only_poi_count', 0),
+            popularity_signals=d.get('popularity_signals'),
+            temporal_popularity_signals=d.get('temporal_popularity_signals'),
+            popularity_notes=d.get('popularity_notes'),
         )
 
 

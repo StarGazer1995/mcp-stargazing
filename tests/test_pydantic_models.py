@@ -157,6 +157,9 @@ class TestBestStargazingPlan:
                 min_height_diff=100.0,
                 road_radius_km=10.0,
                 network_type='drive',
+                avoid_popular_spots=True,
+                prefer_quiet_at_night=True,
+                popularity_radius_km=4.0,
                 analysis_resource_id='analysis-123',
             ),
             summary=PlanningSummary(
@@ -194,6 +197,9 @@ class TestBestStargazingPlan:
             ],
         )
         assert plan.query.analysis_resource_id == 'analysis-123'
+        assert plan.query.avoid_popular_spots is True
+        assert plan.query.prefer_quiet_at_night is True
+        assert plan.query.popularity_radius_km == 4.0
         assert plan.summary.recommended_location_name == 'Alpha Ridge'
         assert plan.candidates[0].top_targets[0].name == 'M31'
 
@@ -213,6 +219,7 @@ class TestBestStargazingPlan:
                 min_height_diff=100.0,
                 road_radius_km=10.0,
                 network_type='drive',
+                popularity_radius_km=3.0,
             )
 
 
@@ -291,6 +298,38 @@ class TestStargazingLocation:
         assert loc.lon == -121.0
         assert loc.road_distance_km == 2.0
         assert loc.score == 88.0
+
+    def test_from_spf_location_maps_popularity_fields(self):
+        class SPFLocationWithPopularity:
+            def model_dump(self, exclude_none=True):
+                assert exclude_none is True
+                return {
+                    'name': 'Quiet Ridge',
+                    'latitude': 34.5,
+                    'longitude': -118.2,
+                    'stargazing_score': 84.0,
+                    'static_popularity_risk_score': 22.0,
+                    'night_quiet_likelihood_score': 74.0,
+                    'temporal_popularity_confidence': 63.0,
+                    'nearby_popular_poi_count': 2,
+                    'nearby_night_active_poi_count': 0,
+                    'nearby_day_only_poi_count': 1,
+                    'popularity_signals': ['候选点自身属于观景点类型'],
+                    'temporal_popularity_signals': ['远离城镇，夜间退潮概率更高'],
+                    'popularity_notes': '热门风险较低; 夜间大概率退潮',
+                }
+
+        loc = StargazingLocation.from_spf_location(SPFLocationWithPopularity())
+
+        assert loc.static_popularity_risk_score == 22.0
+        assert loc.night_quiet_likelihood_score == 74.0
+        assert loc.temporal_popularity_confidence == 63.0
+        assert loc.nearby_popular_poi_count == 2
+        assert loc.nearby_night_active_poi_count == 0
+        assert loc.nearby_day_only_poi_count == 1
+        assert loc.popularity_signals == ['候选点自身属于观景点类型']
+        assert loc.temporal_popularity_signals == ['远离城镇，夜间退潮概率更高']
+        assert loc.popularity_notes == '热门风险较低; 夜间大概率退潮'
 
     def test_from_spf_location_falls_back_to_dict_conversion(self):
         class DictLikeLocation(dict):

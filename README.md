@@ -195,7 +195,7 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
 - **`get_local_datetime_info`**: Get current local time information.
 - **`get_tool_catalog`**: Discover available MCP tool metadata and parameters.
 - **`get_best_stargazing_plan`**: Build a ranked regional observing plan with candidate places, weather summaries, best observation windows, and top targets.
-  - **Inputs**: `south`, `west`, `north`, `east`, `time`, `time_zone`, `candidate_limit`, `target_limit`, `weather_provider`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`.
+  - **Inputs**: `south`, `west`, `north`, `east`, `time`, `time_zone`, `candidate_limit`, `target_limit`, `weather_provider`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`, `db_config_path`.
   - **Returns**: `query`, `summary`, and `candidates`, where `query.analysis_resource_id` links the plan back to the underlying `analysis_area` search when available.
   - **Degradation**: Weather or forecast sub-queries may degrade into `summary.warnings` and per-candidate `notes`, while the overall planning response remains successful.
 - **`get_telescope_targets`**: Match deep-sky objects against telescope optics — find what's best visible with your equipment.
@@ -208,9 +208,9 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
   - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).
   - **Returns**: A grid of data points with Bortle class, brightness, and SQM values.
 - **`analysis_area`**: Find best stargazing spots in a region.
-  - **Inputs**: `south`, `west`, `north`, `east`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `db_config_path`, `page`, `page_size`.
-  - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters.
-  - **Validation**: `page >= 1` and `page_size >= 1`; invalid pagination arguments return `CONFIGURATION_ERROR`.
+  - **Inputs**: `south`, `west`, `north`, `east`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`, `db_config_path`, `page`, `page_size`.
+  - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters. Each item may also include popularity heuristic fields such as `static_popularity_risk_score`, `night_quiet_likelihood_score`, and `popularity_notes`.
+  - **Validation**: `page >= 1`, `page_size >= 1`, and `popularity_radius_km > 0`; invalid arguments return `CONFIGURATION_ERROR`.
 
 ### 5. Error Handling
 
