@@ -126,6 +126,43 @@ def test_analyze_area_returns_dependency_results_and_expected_args():
         network_type='drive',
         include_light_pollution=True,
         include_road_connectivity=True,
+        avoid_popular_spots=False,
+        prefer_quiet_at_night=False,
+        popularity_radius_km=3.0,
+    )
+
+
+def test_analyze_area_forwards_popularity_preferences():
+    """Bridge calls should forward explicit popularity preference arguments."""
+    placefinder_module._last_params = None
+    fake_spf = _make_fake_spf()
+    fake_spf.analyze_area = MagicMock(return_value=[])
+
+    with patch.object(placefinder_module, '_load_spf', return_value=fake_spf):
+        pf = StargazingPlaceFinder()
+        pf.analyze_area(
+            39.98,
+            116.18,
+            40.02,
+            116.22,
+            max_locations=3,
+            min_height_diff=50.0,
+            road_radius_km=5.0,
+            network_type='drive',
+            avoid_popular_spots=True,
+            prefer_quiet_at_night=True,
+            popularity_radius_km=4.5,
+        )
+
+    fake_spf.analyze_area.assert_called_once_with(
+        bbox=(39.98, 116.18, 40.02, 116.22),
+        max_locations=3,
+        network_type='drive',
+        include_light_pollution=True,
+        include_road_connectivity=True,
+        avoid_popular_spots=True,
+        prefer_quiet_at_night=True,
+        popularity_radius_km=4.5,
     )
 
 
