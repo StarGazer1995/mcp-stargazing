@@ -119,6 +119,18 @@ class PlanningSummary(BaseModel):
     recommended_location_name: str | None = Field(
         default=None, description='Name of the top-ranked location when available'
     )
+    popularity_preferences_enabled: bool = Field(
+        default=False,
+        description='Whether popularity-aware preferences influenced planning-layer ranking',
+    )
+    primary_recommendation_drivers: list[str] = Field(
+        default_factory=list,
+        description='High-level structured drivers behind the top recommendation',
+    )
+    recommended_location_reason_summary: str | None = Field(
+        default=None,
+        description='Short human-readable summary of why the top location was recommended',
+    )
     warnings: list[str] = Field(
         default_factory=list, description='Plan-level warnings about partial downstream data'
     )

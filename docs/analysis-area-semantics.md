@@ -180,6 +180,8 @@ prefer_quiet_at_night, popularity_radius_km, db_config_path
 
 - Agent 可以从规划结果直接定位到底层搜索
 - Agent 可以在规划后翻阅全部底层搜索结果，无需重复搜索参数
+- 当 `avoid_popular_spots` 或 `prefer_quiet_at_night` 开启时，规划层会继续消费 `analysis_area` 返回的 popularity heuristic 字段（如 `static_popularity_risk_score`、`night_quiet_likelihood_score`），对 `recommendation_score` 做二次调整
+- 这意味着 popularity 偏好对最终规划排序是“底层地点排序 + 上层规划重排”的叠加关系，而不是仅在 `analysis_area` 中生效一次
 
 ### `light_pollution_map`
 

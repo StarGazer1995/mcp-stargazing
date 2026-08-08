@@ -168,6 +168,11 @@ class TestBestStargazingPlan:
                 time_zone='UTC',
                 total_candidates=1,
                 recommended_location_name='Alpha Ridge',
+                popularity_preferences_enabled=True,
+                primary_recommendation_drivers=['dark_sky', 'quiet_at_night'],
+                recommended_location_reason_summary=(
+                    'Alpha Ridge 当前主要因暗空条件更好、夜间更安静而成为首选。'
+                ),
                 warnings=['天气摘要降级处理：EXTERNAL_API_ERROR'],
             ),
             candidates=[
@@ -201,6 +206,8 @@ class TestBestStargazingPlan:
         assert plan.query.prefer_quiet_at_night is True
         assert plan.query.popularity_radius_km == 4.0
         assert plan.summary.recommended_location_name == 'Alpha Ridge'
+        assert plan.summary.popularity_preferences_enabled is True
+        assert plan.summary.primary_recommendation_drivers == ['dark_sky', 'quiet_at_night']
         assert plan.candidates[0].top_targets[0].name == 'M31'
 
     def test_candidate_limit_must_be_positive(self):

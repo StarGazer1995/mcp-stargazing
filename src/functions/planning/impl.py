@@ -186,6 +186,7 @@ def _compute_recommendation_score(
     weather_summary: WeatherPlanningSummary | None,
     best_window: ObservationWindow | None,
     moon_illumination: float | None,
+    popularity_adjustment: float = 0.0,
 ) -> float:
     """Combine place quality, weather, and moonlight into a simple planning score."""
     location_score = float(location.score or 0.0)
@@ -209,8 +210,55 @@ def _compute_recommendation_score(
     if moon_illumination is not None and moon_illumination > 0.7:
         weather_score -= (moon_illumination - 0.7) * 25.0
 
-    combined = location_score * 0.65 + max(0.0, weather_score) * 0.35
+    combined = location_score * 0.65 + max(0.0, weather_score) * 0.35 + popularity_adjustment
     return round(max(0.0, min(100.0, combined)), 2)
+
+
+def _compute_popularity_preference_adjustment(
+    location: StargazingLocation,
+    avoid_popular_spots: bool,
+    prefer_quiet_at_night: bool,
+    popularity_radius_km: float,
+) -> tuple[float, list[str]]:
+    """Translate popularity preferences into planning-score adjustments and reasons."""
+    if not avoid_popular_spots and not prefer_quiet_at_night:
+        return 0.0, []
+
+    radius_factor = max(0.5, min(1.5, popularity_radius_km / 3.0))
+    adjustment = 0.0
+    reasons: list[str] = []
+
+    if avoid_popular_spots and location.static_popularity_risk_score is not None:
+        risk_score = float(location.static_popularity_risk_score)
+        risk_delta = (50.0 - risk_score) / 50.0
+        adjustment += risk_delta * 7.0 * radius_factor
+        if risk_score <= 35.0:
+            reasons.append(f'静态热门风险约 {risk_score:.0f}/100，更符合避开热门点偏好。')
+        elif risk_score >= 65.0:
+            reasons.append(f'静态热门风险约 {risk_score:.0f}/100，已按偏好下调优先级。')
+
+    if prefer_quiet_at_night and location.night_quiet_likelihood_score is not None:
+        quiet_score = float(location.night_quiet_likelihood_score)
+        confidence = float(location.temporal_popularity_confidence or 50.0)
+        confidence_factor = max(0.35, min(1.0, confidence / 100.0))
+        quiet_delta = (quiet_score - 50.0) / 50.0
+        adjustment += quiet_delta * 7.0 * confidence_factor * radius_factor
+        if quiet_score >= 65.0:
+            reasons.append(
+                f'夜间安静概率约 {quiet_score:.0f}/100'
+                f'（置信度 {confidence:.0f}/100），更贴合夜间安静偏好。'
+            )
+        elif quiet_score <= 35.0:
+            reasons.append(f'夜间持续活跃概率偏高，夜间安静概率仅约 {quiet_score:.0f}/100。')
+
+    if (
+        location.popularity_notes
+        and (avoid_popular_spots or prefer_quiet_at_night)
+        and len(reasons) < 2
+    ):
+        reasons.append(location.popularity_notes)
+
+    return round(adjustment, 2), reasons[:2]
 
 
 def _build_recommendation_reasons(
@@ -219,6 +267,7 @@ def _build_recommendation_reasons(
     best_window: ObservationWindow | None,
     moon_illumination: float | None,
     top_targets: list[PlanningTarget],
+    popularity_reasons: list[str] | None = None,
 ) -> list[str]:
     """Create short human-readable explanations for a recommendation."""
     reasons: list[str] = []
@@ -227,6 +276,8 @@ def _build_recommendation_reasons(
         reasons.append(f'波特尔等级约为 {location.bortle_class}，暗空条件较清晰。')
     elif location.score is not None:
         reasons.append(f'地点基础观星评分为 {location.score:.1f}。')
+    if popularity_reasons:
+        reasons.extend(popularity_reasons)
 
     if weather_summary is not None and weather_summary.cloud_cover_percent is not None:
         reasons.append(f'当前云量约 {weather_summary.cloud_cover_percent:.0f}%。')
@@ -243,12 +294,88 @@ def _build_recommendation_reasons(
     return reasons[:5]
 
 
+def _derive_primary_recommendation_drivers(
+    candidate: PlannedLocationCandidate | None,
+    avoid_popular_spots: bool,
+    prefer_quiet_at_night: bool,
+) -> list[str]:
+    """Summarize the main structured drivers behind the top recommendation."""
+    if candidate is None:
+        return []
+
+    drivers: list[str] = []
+    location = candidate.location
+    weather_summary = candidate.weather_summary
+
+    if location.bortle_class is not None and location.bortle_class <= 4:
+        drivers.append('dark_sky')
+    elif location.score is not None and float(location.score) >= 80.0:
+        drivers.append('high_place_score')
+
+    if weather_summary is not None:
+        cloud_cover = weather_summary.cloud_cover_percent
+        visibility = weather_summary.visibility_km
+        if cloud_cover is not None and float(cloud_cover) <= 25.0:
+            drivers.append('clear_weather')
+        elif visibility is not None and float(visibility) >= 15.0:
+            drivers.append('good_visibility')
+
+    if (
+        avoid_popular_spots
+        and location.static_popularity_risk_score is not None
+        and float(location.static_popularity_risk_score) <= 35.0
+    ):
+        drivers.append('low_popularity_risk')
+
+    if (
+        prefer_quiet_at_night
+        and location.night_quiet_likelihood_score is not None
+        and float(location.night_quiet_likelihood_score) >= 65.0
+    ):
+        drivers.append('quiet_at_night')
+
+    if candidate.top_targets:
+        drivers.append('strong_targets')
+
+    return drivers[:4]
+
+
+def _build_recommended_location_reason_summary(
+    candidate: PlannedLocationCandidate | None, primary_drivers: list[str]
+) -> str | None:
+    """Convert the top candidate's main drivers into a concise Chinese summary."""
+    if candidate is None:
+        return None
+
+    label_map = {
+        'dark_sky': '暗空条件更好',
+        'high_place_score': '地点基础评分更高',
+        'clear_weather': '天气更通透',
+        'good_visibility': '能见度更好',
+        'low_popularity_risk': '热门度风险更低',
+        'quiet_at_night': '夜间更安静',
+        'strong_targets': '可观测目标更强',
+    }
+    labels = [label_map[driver] for driver in primary_drivers if driver in label_map]
+    if labels:
+        joined = '、'.join(labels[:3])
+        return f'{candidate.location.name} 当前主要因{joined}而成为首选。'
+
+    if candidate.recommendation_reasons:
+        return candidate.recommendation_reasons[0]
+
+    return None
+
+
 async def _evaluate_candidate(
     location: StargazingLocation,
     time: str,
     time_zone: str,
     target_limit: int,
     weather_provider: str,
+    avoid_popular_spots: bool = False,
+    prefer_quiet_at_night: bool = False,
+    popularity_radius_km: float = 3.0,
 ) -> PlannedLocationCandidate:
     """Evaluate one candidate place by attaching weather and target summaries."""
     weather_result, forecast_result = await asyncio.gather(
@@ -284,11 +411,26 @@ async def _evaluate_candidate(
         moon_phase = forecast_data.get('moon_phase', {}).get('phase_name')
         moon_illumination = forecast_data.get('moon_phase', {}).get('illumination')
 
+    popularity_adjustment, popularity_reasons = _compute_popularity_preference_adjustment(
+        location,
+        avoid_popular_spots=avoid_popular_spots,
+        prefer_quiet_at_night=prefer_quiet_at_night,
+        popularity_radius_km=popularity_radius_km,
+    )
     recommendation_score = _compute_recommendation_score(
-        location, weather_summary, best_window, moon_illumination
+        location,
+        weather_summary,
+        best_window,
+        moon_illumination,
+        popularity_adjustment=popularity_adjustment,
     )
     recommendation_reasons = _build_recommendation_reasons(
-        location, weather_summary, best_window, moon_illumination, top_targets
+        location,
+        weather_summary,
+        best_window,
+        moon_illumination,
+        top_targets,
+        popularity_reasons=popularity_reasons,
     )
 
     return PlannedLocationCandidate(
@@ -395,6 +537,9 @@ async def get_best_stargazing_plan(
                     time_zone=time_zone,
                     target_limit=target_limit,
                     weather_provider=weather_provider,
+                    avoid_popular_spots=avoid_popular_spots,
+                    prefer_quiet_at_night=prefer_quiet_at_night,
+                    popularity_radius_km=popularity_radius_km,
                 )
                 for item in place_items
             ]
@@ -407,6 +552,14 @@ async def get_best_stargazing_plan(
 
         for index, candidate in enumerate(ranked_candidates, start=1):
             candidate.rank = index
+
+        top_candidate = ranked_candidates[0] if ranked_candidates else None
+        primary_drivers = _derive_primary_recommendation_drivers(
+            top_candidate,
+            avoid_popular_spots=avoid_popular_spots,
+            prefer_quiet_at_night=prefer_quiet_at_night,
+        )
+        reason_summary = _build_recommended_location_reason_summary(top_candidate, primary_drivers)
 
         plan = BestStargazingPlan(
             query=PlanningQuery(
@@ -436,6 +589,9 @@ async def get_best_stargazing_plan(
                 recommended_location_name=(
                     ranked_candidates[0].location.name if ranked_candidates else None
                 ),
+                popularity_preferences_enabled=avoid_popular_spots or prefer_quiet_at_night,
+                primary_recommendation_drivers=primary_drivers,
+                recommended_location_reason_summary=reason_summary,
                 warnings=warnings,
             ),
             candidates=ranked_candidates,

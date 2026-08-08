@@ -50,6 +50,9 @@
 | `min_height_diff` | float | 否 | 100.0 | 最小高程差 |
 | `road_radius_km` | float | 否 | 10.0 | 道路搜索半径 |
 | `network_type` | str | 否 | `"drive"` | 道路网络类型 |
+| `avoid_popular_spots` | bool | 否 | `false` | 是否偏好避开启发式热门地点 |
+| `prefer_quiet_at_night` | bool | 否 | `false` | 是否偏好夜间更安静的地点 |
+| `popularity_radius_km` | float | 否 | 3.0 | 热门度偏好的作用半径 |
 | `db_config_path` | str | 否 | None | 数据库配置文件路径 |
 
 ## 输出 schema
@@ -77,6 +80,9 @@
 | `time_zone` | 请求的时区 |
 | `total_candidates` | 返回的候选地点数 |
 | `recommended_location_name` | 排名第一的地点名称 |
+| `popularity_preferences_enabled` | 规划层是否启用了热门度偏好重排 |
+| `primary_recommendation_drivers` | 第一名地点的结构化推荐驱动因素 |
+| `recommended_location_reason_summary` | 第一名地点的简短中文推荐摘要 |
 | `warnings` | 全局降级警告（如天气查询失败） |
 
 ### `PlannedLocationCandidate` — 单个候选地点
@@ -85,7 +91,7 @@
 |------|------|
 | `rank` | 排名（1-based） |
 | `recommendation_score` | 综合推荐得分（0–100） |
-| `recommendation_reasons` | 中文推荐理由（最多 5 条） |
+| `recommendation_reasons` | 中文推荐理由（最多 5 条，开启 popularity 偏好时会优先包含热门度/夜间安静度解释） |
 | `location` | `StargazingLocation` 地点详情 |
 | `weather_summary` | 浓缩版天气摘要（可能为 null） |
 | `best_observation_window` | 最佳观测时段（可能为 null） |
@@ -123,11 +129,15 @@ get_best_stargazing_plan
 ├─ 4. 综合打分
 │   ├─ 地点评分（底层 stargazing_score）× 0.65
 │   ├─ 天气评分（云量、能见度、风速）× 0.35
+│   ├─ 热门度偏好调整（可选）
+│   │   ├─ `avoid_popular_spots=true` 时，参考 `static_popularity_risk_score`
+│   │   └─ `prefer_quiet_at_night=true` 时，参考 `night_quiet_likelihood_score` + `temporal_popularity_confidence`
 │   ├─ 月光惩罚（月面照明 > 70% 时扣分）
 │   └─ 降水概率惩罚
 │
 ├─ 5. 生成推荐理由（中文）
 │   ├─ 波特尔等级
+│   ├─ 热门度 / 夜间安静度解释（如启用）
 │   ├─ 云量 / 能见度
 │   ├─ 最佳观测时段
 │   ├─ 月面照明比例
@@ -142,7 +152,7 @@ get_best_stargazing_plan
 ## 打分算法
 
 ```
-推荐得分 = 地点评分 × 0.65 + max(0, 天气评分) × 0.35
+推荐得分 = 地点评分 × 0.65 + max(0, 天气评分) × 0.35 + 热门度偏好调整
 
 地点评分 = location.score（下层综合评分，0–100）
 
@@ -153,6 +163,15 @@ get_best_stargazing_plan
 
 月光惩罚（独立于天气评分）:
   如果月面照明 > 70%: 天气评分 -= (照明% - 70%) × 25
+
+热门度偏好调整（可选）:
+  - 默认关闭；关闭时不影响规划层排序
+  - `avoid_popular_spots=true` 时：
+    - 根据 `static_popularity_risk_score` 对推荐得分做有限度加减分
+  - `prefer_quiet_at_night=true` 时：
+    - 根据 `night_quiet_likelihood_score` 与 `temporal_popularity_confidence` 做有限度加减分
+  - 该调整与 `analysis_area` 的底层排序叠加，不替代下层排序
+  - `popularity_radius_km` 同时影响下层排序语义与规划层调整强度
 
 最终得分 clamp 到 [0, 100]
 ```
@@ -188,7 +207,8 @@ get_best_stargazing_plan
 1. **候选地点上限固定**：`candidate_limit` 决定了最多评估几个地点，不会自适应区域大小
 2. **天气数据时效**：依赖外部 API，缓存在 `get_weather_by_position` 内部管理
 3. **月相精度**：来自 `get_nightly_forecast` 的 astropy 计算，不依赖网络
-4. **无用户偏好**：当前不区分观测目的（深空摄影 vs 目视 vs 行星观测），所有地点用统一算法打分
+4. **观测目标偏好仍缺失**：当前不区分观测目的（深空摄影 vs 目视 vs 行星观测），所有地点仍使用统一的天气/地点综合算法
+5. **热门度仍为启发式信号**：规划层使用的是 `analysis_area` 返回的 heuristic popularity 字段，还不是外部 provider 化的人流/POI 活跃度模型
 
 ## 未来扩展方向
 
