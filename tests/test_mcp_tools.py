@@ -63,6 +63,10 @@ async def test_get_best_stargazing_plan_fn():
                             'lon': 116.1,
                             'score': 88.0,
                             'bortle_class': 3,
+                            'static_popularity_risk_score': 18.0,
+                            'night_quiet_likelihood_score': 83.0,
+                            'temporal_popularity_confidence': 76.0,
+                            'popularity_notes': '热门风险较低; 夜间大概率退潮',
                         },
                         {
                             'name': 'Beta Valley',
@@ -70,6 +74,10 @@ async def test_get_best_stargazing_plan_fn():
                             'lon': 116.2,
                             'score': 72.0,
                             'bortle_class': 4,
+                            'static_popularity_risk_score': 62.0,
+                            'night_quiet_likelihood_score': 44.0,
+                            'temporal_popularity_confidence': 66.0,
+                            'popularity_notes': '热门风险中等; 夜间安静度一般',
                         },
                     ],
                 },
@@ -160,9 +168,16 @@ async def test_get_best_stargazing_plan_fn():
     assert data['summary']['total_candidates'] == 2
     assert data['summary']['generated_at'] == '2026-06-27T12:00:00+00:00'
     assert data['summary']['recommended_location_name'] == 'Alpha Ridge'
+    assert data['summary']['popularity_preferences_enabled'] is True
+    assert 'quiet_at_night' in data['summary']['primary_recommendation_drivers']
+    assert data['summary']['recommended_location_reason_summary']
     assert len(data['candidates']) == 2
     assert data['candidates'][0]['rank'] == 1
     assert data['candidates'][0]['location']['name'] == 'Alpha Ridge'
+    assert any(
+        '热门风险' in reason or '夜间安静概率' in reason
+        for reason in data['candidates'][0]['recommendation_reasons']
+    )
     assert data['candidates'][0]['top_targets'][0]['name'] == 'M31'
     assert (
         data['candidates'][0]['best_observation_window']['start_time']
@@ -229,10 +244,133 @@ async def test_get_best_stargazing_plan_keeps_partial_results_when_weather_fails
     assert result['_meta']['status'] == 'success'
     data = result['data']
     assert data['summary']['warnings']
+    assert data['summary']['popularity_preferences_enabled'] is False
     assert '天气摘要降级处理' in data['summary']['warnings'][0]
     assert data['candidates'][0]['weather_summary'] is None
     assert data['candidates'][0]['notes']
     assert data['candidates'][0]['top_targets'][0]['name'] == 'M8'
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_popularity_preferences_can_rerank_candidates():
+    """Popularity preferences should affect planning-layer ranking and reasons."""
+    with (
+        patch('src.functions.planning.impl.analysis_area') as mock_analysis_area,
+        patch('src.functions.planning.impl.get_weather_by_position') as mock_weather,
+        patch('src.functions.planning.impl.get_nightly_forecast') as mock_forecast,
+    ):
+        mock_analysis_area.fn = AsyncMock(
+            return_value={
+                'data': {
+                    'resource_id': 'analysis-popularity-rerank',
+                    'items': [
+                        {
+                            'name': 'Scenic Hotspot',
+                            'lat': 40.1,
+                            'lon': 116.1,
+                            'score': 90.0,
+                            'bortle_class': 2,
+                            'static_popularity_risk_score': 88.0,
+                            'night_quiet_likelihood_score': 24.0,
+                            'temporal_popularity_confidence': 84.0,
+                            'popularity_notes': '热门风险较高; 夜间持续活跃概率较高',
+                        },
+                        {
+                            'name': 'Quiet Ridge',
+                            'lat': 40.2,
+                            'lon': 116.2,
+                            'score': 84.0,
+                            'bortle_class': 3,
+                            'static_popularity_risk_score': 18.0,
+                            'night_quiet_likelihood_score': 86.0,
+                            'temporal_popularity_confidence': 82.0,
+                            'popularity_notes': '热门风险较低; 夜间大概率退潮',
+                        },
+                    ],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+        mock_weather.fn = Mock(
+            return_value={
+                'data': {
+                    'summary': {
+                        'current': {
+                            'weather_text': 'Clear',
+                            'cloud_cover_percent': 10.0,
+                            'visibility_km': 20.0,
+                            'wind_speed_kph': 8.0,
+                        },
+                        'hourly': [
+                            {
+                                'time': '2024-06-15T21:00:00+08:00',
+                                'cloud_cover_percent': 10.0,
+                                'precipitation_probability': 0.0,
+                                'wind_speed_kph': 7.0,
+                                'weather_text': 'Clear',
+                            }
+                        ],
+                    }
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+        mock_forecast.fn = AsyncMock(
+            return_value={
+                'data': {
+                    'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.08},
+                    'planets': [{'name': 'Jupiter'}],
+                    'deep_sky': [{'name': 'M31', 'type': 'galaxy', 'score': 91.0}],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+
+        default_result = await get_best_stargazing_plan.fn(
+            south=40.0,
+            west=116.0,
+            north=40.5,
+            east=116.5,
+            time='2024-06-15 20:00:00',
+            time_zone='Asia/Shanghai',
+            candidate_limit=2,
+            avoid_popular_spots=False,
+            prefer_quiet_at_night=False,
+        )
+        popularity_result = await get_best_stargazing_plan.fn(
+            south=40.0,
+            west=116.0,
+            north=40.5,
+            east=116.5,
+            time='2024-06-15 20:00:00',
+            time_zone='Asia/Shanghai',
+            candidate_limit=2,
+            avoid_popular_spots=True,
+            prefer_quiet_at_night=True,
+            popularity_radius_km=4.5,
+        )
+
+    assert default_result['_meta']['status'] == 'success'
+    assert popularity_result['_meta']['status'] == 'success'
+    assert default_result['data']['summary']['recommended_location_name'] == 'Scenic Hotspot'
+    assert default_result['data']['summary']['popularity_preferences_enabled'] is False
+    assert popularity_result['data']['summary']['recommended_location_name'] == 'Quiet Ridge'
+    assert popularity_result['data']['summary']['popularity_preferences_enabled'] is True
+    assert (
+        'low_popularity_risk'
+        in popularity_result['data']['summary']['primary_recommendation_drivers']
+    )
+    assert (
+        'quiet_at_night' in popularity_result['data']['summary']['primary_recommendation_drivers']
+    )
+    assert (
+        'Quiet Ridge' in popularity_result['data']['summary']['recommended_location_reason_summary']
+    )
+    assert popularity_result['data']['candidates'][0]['location']['name'] == 'Quiet Ridge'
+    assert any(
+        '夜间安静概率' in reason or '热门风险较低' in reason
+        for reason in popularity_result['data']['candidates'][0]['recommendation_reasons']
+    )
 
 
 @pytest.mark.asyncio

@@ -15,7 +15,7 @@ The following baseline capabilities are already implemented and should no longer
 - `analysis_area` and `get_best_stargazing_plan` now expose popularity preference parameters (`avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`), and those parameters participate in `resource_id` / cache-key generation.
 - Place results now surface popularity heuristic fields (`static_popularity_risk_score`, `night_quiet_likelihood_score`, `temporal_popularity_confidence`, and related notes/signals) from `stargazing-place-finder`.
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
-- `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets.
+- `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets, and can apply a planning-layer popularity re-rank with explanation fields when popularity preferences are enabled.
 
 ### Bridge and weather cleanup (completed 2026-07)
 
@@ -70,7 +70,7 @@ The following baseline capabilities are already implemented and should no longer
 ## Priority 2: Composite planning tools
 
 1.  `get_best_stargazing_plan`
-    - Extend the shipped MVP with richer ranking policies, observer preferences, and stronger explanation fields.
+    - Extend the shipped MVP with richer observer preferences beyond the current popularity-aware ranking policy.
     - Improve how the planner balances weather quality, moonlight, place quality, and target mix.
 
 2.  Telescope tool improvements
