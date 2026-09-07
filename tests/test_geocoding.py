@@ -14,6 +14,7 @@ from src.functions.weather.geocoding import (
     _geocode_amap,
     _geocode_nominatim,
     _geocode_photon,
+    _geocode_provider_order,
     resolve_place_name,
 )
 from src.response import MCPError
@@ -314,108 +315,188 @@ def test_geocode_nominatim_no_address_attr():
     assert result[0] == 'SomePlace'
 
 
+# ── provider selection ──────────────────────────────────────────
+
+
+def test_provider_order_default_cjk_includes_gazetteer_not_amap():
+    with patch.dict(os.environ, {}, clear=True):
+        assert _geocode_provider_order('北京') == ('gazetteer', 'photon', 'nominatim')
+
+
+def test_provider_order_default_non_cjk_skips_gazetteer():
+    with patch.dict(os.environ, {}, clear=True):
+        assert _geocode_provider_order('Tokyo') == ('photon', 'nominatim')
+
+
+def test_provider_order_amap_requires_key_and_explicit_config():
+    with patch.dict(os.environ, {'AMAP_KEY': 'test_key'}, clear=True):
+        assert 'amap' not in _geocode_provider_order('北京')
+
+    with patch.dict(
+        os.environ,
+        {'AMAP_KEY': 'test_key', 'GEOCODER_PROVIDERS': 'amap,gazetteer'},
+        clear=True,
+    ):
+        assert _geocode_provider_order('北京') == ('amap', 'gazetteer')
+
+    with patch.dict(os.environ, {'GEOCODER_PROVIDERS': 'amap,gazetteer'}, clear=True):
+        assert _geocode_provider_order('北京') == ('gazetteer',)
+
+
+def test_provider_order_falls_back_when_config_is_invalid():
+    with patch.dict(os.environ, {'GEOCODER_PROVIDERS': 'bogus,'}, clear=True):
+        assert _geocode_provider_order('北京') == ('gazetteer', 'photon', 'nominatim')
+
+
 # ── cascading fallback ───────────────────────────────────────────
 
 
-def test_geocode_cjk_uses_amap_first():
-    """CJK query with Amap key → hits Amap, skips Photon/Nominatim."""
+def test_geocode_cjk_uses_gazetteer_first():
+    """CJK query → hits offline gazetteer, skips Photon/Nominatim."""
     with (
-        patch('src.functions.weather.geocoding._geocode_amap') as mock_amap,
-        patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
-        patch('src.functions.weather.geocoding._geocode_nominatim') as mock_nominatim,
-        patch.dict(os.environ, {'AMAP_KEY': 'test_key'}),
-    ):
-        mock_amap.return_value = ('北京市', 39.9, 116.4, 'amap_geo')
-
-        result = _geocode('北京')
-
-    assert result == ('北京市', 39.9, 116.4, 'amap_geo')
-    mock_amap.assert_called_once()
-    mock_photon.assert_not_called()
-    mock_nominatim.assert_not_called()
-
-
-def test_geocode_cjk_no_amap_key_falls_to_photon():
-    """CJK query without Amap key → skips to Photon."""
-    with (
-        patch('src.functions.weather.geocoding._geocode_amap') as mock_amap,
+        patch('src.functions.weather.geocoding._geocode_gazetteer') as mock_gazetteer,
         patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
         patch('src.functions.weather.geocoding._geocode_nominatim') as mock_nominatim,
         patch.dict(os.environ, {}, clear=True),
     ):
+        mock_gazetteer.return_value = ('北京市', 39.9, 116.4, 'gazetteer')
+
+        result = _geocode('北京')
+
+    assert result == ('北京市', 39.9, 116.4, 'gazetteer')
+    mock_gazetteer.assert_called_once()
+    mock_photon.assert_not_called()
+    mock_nominatim.assert_not_called()
+
+
+def test_geocode_amap_not_used_by_default_even_with_key():
+    """AMAP_KEY alone no longer routes CJK queries to paid Amap."""
+    with (
+        patch('src.functions.weather.geocoding._geocode_amap') as mock_amap,
+        patch('src.functions.weather.geocoding._geocode_gazetteer') as mock_gazetteer,
+        patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
+        patch.dict(os.environ, {'AMAP_KEY': 'test_key'}, clear=True),
+    ):
+        mock_gazetteer.return_value = ('北京市', 39.9, 116.4, 'gazetteer')
+
+        result = _geocode('北京')
+
+    assert result[3] == 'gazetteer'
+    mock_amap.assert_not_called()
+    mock_photon.assert_not_called()
+
+
+def test_geocode_cjk_gazetteer_miss_falls_to_photon():
+    """CJK query missing from gazetteer → Photon is tried next."""
+    with (
+        patch('src.functions.weather.geocoding._geocode_gazetteer') as mock_gazetteer,
+        patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
+        patch('src.functions.weather.geocoding._geocode_nominatim') as mock_nominatim,
+        patch.dict(os.environ, {}, clear=True),
+    ):
+        mock_gazetteer.return_value = None
         mock_photon.return_value = ('北京市, 中国', 39.9, 116.4, 'photon')
 
         result = _geocode('北京')
 
     assert result == ('北京市, 中国', 39.9, 116.4, 'photon')
-    mock_amap.assert_not_called()
+    mock_gazetteer.assert_called_once()
     mock_photon.assert_called_once()
     mock_nominatim.assert_not_called()
 
 
-def test_geocode_non_cjk_skips_amap():
+def test_geocode_non_cjk_skips_gazetteer_and_amap():
     """Non-CJK query → goes straight to Photon."""
     with (
-        patch('src.functions.weather.geocoding._geocode_amap') as mock_amap,
+        patch('src.functions.weather.geocoding._geocode_gazetteer') as mock_gazetteer,
         patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
-        patch.dict(os.environ, {'AMAP_KEY': 'test_key'}),
+        patch.dict(os.environ, {}, clear=True),
     ):
         mock_photon.return_value = ('Tokyo, Japan', 35.7, 139.8, 'photon')
 
         result = _geocode('Tokyo')
 
     assert result == ('Tokyo, Japan', 35.7, 139.8, 'photon')
-    mock_amap.assert_not_called()
+    mock_gazetteer.assert_not_called()
+    mock_photon.assert_called_once()
 
 
-def test_geocode_amap_fails_falls_to_photon():
-    """Amap returns None → Photon is tried next."""
+def test_geocode_amap_opt_in_success():
+    """Explicit amap opt-in → Amap is first and Photon is skipped."""
     with (
         patch('src.functions.weather.geocoding._geocode_amap') as mock_amap,
+        patch('src.functions.weather.geocoding._geocode_gazetteer') as mock_gazetteer,
+        patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
+        patch.dict(
+            os.environ,
+            {'AMAP_KEY': 'test_key', 'GEOCODER_PROVIDERS': 'amap,gazetteer'},
+            clear=True,
+        ),
+    ):
+        mock_amap.return_value = ('浙江省湖州市安吉县', 30.64, 119.68, 'amap_geo')
+
+        result = _geocode('浙江安吉')
+
+    assert result == ('浙江省湖州市安吉县', 30.64, 119.68, 'amap_geo')
+    mock_amap.assert_called_once()
+    mock_gazetteer.assert_not_called()
+    mock_photon.assert_not_called()
+
+
+def test_geocode_opt_in_amap_fails_falls_to_gazetteer():
+    """Opt-in Amap returns None → offline gazetteer is tried next."""
+    with (
+        patch('src.functions.weather.geocoding._geocode_amap') as mock_amap,
+        patch('src.functions.weather.geocoding._geocode_gazetteer') as mock_gazetteer,
         patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
         patch('src.functions.weather.geocoding._geocode_nominatim') as mock_nominatim,
-        patch.dict(os.environ, {'AMAP_KEY': 'test_key'}),
+        patch.dict(
+            os.environ,
+            {'AMAP_KEY': 'test_key', 'GEOCODER_PROVIDERS': 'amap,gazetteer,photon'},
+            clear=True,
+        ),
     ):
         mock_amap.return_value = None
-        mock_photon.return_value = ('北京市, 中国', 39.9, 116.4, 'photon')
+        mock_gazetteer.return_value = ('浙江省湖州市安吉县', 30.64, 119.68, 'gazetteer')
 
-        result = _geocode('北京')
+        result = _geocode('浙江安吉')
 
-    assert result[3] == 'photon'
+    assert result[3] == 'gazetteer'
     mock_amap.assert_called_once()
-    mock_photon.assert_called_once()
+    mock_gazetteer.assert_called_once()
+    mock_photon.assert_not_called()
     mock_nominatim.assert_not_called()
 
 
 def test_geocode_photon_fails_falls_to_nominatim():
     """Photon returns None → Nominatim is tried as last resort."""
     with (
-        patch('src.functions.weather.geocoding._geocode_amap') as mock_amap,
+        patch('src.functions.weather.geocoding._geocode_gazetteer') as mock_gazetteer,
         patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
         patch('src.functions.weather.geocoding._geocode_nominatim') as mock_nominatim,
-        patch.dict(os.environ, {'AMAP_KEY': 'test_key'}),
+        patch.dict(os.environ, {}, clear=True),
     ):
-        mock_amap.return_value = None
+        mock_gazetteer.return_value = None
         mock_photon.return_value = None
         mock_nominatim.return_value = ('London, UK', 51.5, -0.13, 'nominatim')
 
         result = _geocode('London')
 
     assert result[3] == 'nominatim'
-    mock_amap.assert_not_called()  # non-CJK
+    mock_gazetteer.assert_not_called()  # non-CJK
     mock_photon.assert_called_once()
     mock_nominatim.assert_called_once()
 
 
-def test_geocode_cjk_all_tiers_fail():
+def test_geocode_cjk_all_providers_fail():
     """All providers return None → _geocode returns None."""
     with (
-        patch('src.functions.weather.geocoding._geocode_amap') as mock_amap,
+        patch('src.functions.weather.geocoding._geocode_gazetteer') as mock_gazetteer,
         patch('src.functions.weather.geocoding._geocode_photon') as mock_photon,
         patch('src.functions.weather.geocoding._geocode_nominatim') as mock_nominatim,
-        patch.dict(os.environ, {'AMAP_KEY': 'test_key'}),
+        patch.dict(os.environ, {}, clear=True),
     ):
-        mock_amap.return_value = None
+        mock_gazetteer.return_value = None
         mock_photon.return_value = None
         mock_nominatim.return_value = None
 

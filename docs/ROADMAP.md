@@ -33,6 +33,22 @@ The following baseline capabilities are already implemented and should no longer
   horizon crossing direction rather than timestamp ordering, preserving valid
   same-day “set before rise” cases.
 
+### Geocoding cost decoupling (completed 2026-09)
+
+- **Offline CJK gazetteer is the default tier** — `src/data/china_divisions.json`
+  ships province/city/district administrative divisions (~3200 rows) and
+  resolves Chinese place names such as `浙江安吉` offline with no API key and
+  no network call.
+- **Amap is now opt-in only** — `AMAP_KEY` alone no longer routes CJK queries
+  to the paid Amap Geocoding API. Deployments must explicitly list `amap` in
+  `GEOCODER_PROVIDERS` (with `AMAP_KEY` set) to re-enable it.
+- **Configurable provider order** — `GEOCODER_PROVIDERS` accepts
+  `gazetteer`, `photon`, `nominatim`, and `amap`. The default chain is
+  gazetteer → Photon → Nominatim for CJK and Photon → Nominatim otherwise.
+- Gazetteer provenance and coordinate datum (GCJ-02) documented in
+  `src/data/README.md`; tests added for provider ordering, Amap opt-in
+  behaviour, and gazetteer matching/ambiguity handling.
+
 ### Phase 4 — Telescope & shooting plan tools (completed 2026-07)
 
 - **`get_telescope_targets`** — Match deep-sky objects against telescope optics (focal length, aperture, sensor, filter). Returns ranked targets with suitability scores, FOV fit, surface brightness, and mosaic recommendations.

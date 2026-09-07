@@ -119,6 +119,15 @@ export QWEATHER_API_KEY="your_api_key"
 # 如需临时兼容旧公共域名（不推荐），显式开启：
 # export QWEATHER_ALLOW_PUBLIC_HOST=1
 
+# Geocoding（默认零付费、零 key）
+# CJK 查询默认使用内置离线行政区划数据；未命中时回退 Photon / Nominatim。
+# 可选 provider 顺序覆盖（全部支持：gazetteer, photon, nominatim, amap）
+# export GEOCODER_PROVIDERS="gazetteer,photon,nominatim"
+
+# 仅当你希望显式启用付费的 Amap 地理编码时才需要：
+# export GEOCODER_PROVIDERS="amap,gazetteer,photon,nominatim"
+# export AMAP_KEY="your_amap_key"
+
 # Optional: Proxy for downloading astronomical data (Simbad/IERS)
 # Highly recommended if you are in a restricted network environment
 export HTTP_PROXY="http://127.0.0.1:7890"

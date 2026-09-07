@@ -103,7 +103,8 @@ src/
 │   └── weather/
 │       ├── impl.py          # get_weather_by_name, get_weather_by_position (with retry)
 │       ├── service.py       # Multi-provider aggregation (open-meteo > qweather > wttr)
-│       ├── geocoding.py     # Cascading geocoder: Amap → Photon → Nominatim
+│       ├── geocoding.py     # Cascading geocoder: gazetteer → Photon → Nominatim (Amap opt-in)
+│       ├── gazetteer.py     # Offline China province/city/district gazetteer
 │       ├── models.py        # Backward-compat re-exports of weather schemas
 │       └── providers/
 │           ├── open_meteo.py
@@ -128,7 +129,7 @@ src/
 
 4. **Async wrapping for blocking I/O** — Astronomy (Astropy) and place-finder (SPF) calls are synchronous. Tools wrap them in `asyncio.to_thread()` to avoid blocking the event loop. Weather tools are sync but wrapped with `retry_on_failure`.
 
-5. **Multi-provider aggregation with degradation** — Weather queries cascade: open-meteo → qweather → wttr. Partial provider failures become notes/warnings in the response rather than failing the entire request. Geocoding cascades similarly: Amap → Photon → Nominatim.
+5. **Multi-provider aggregation with degradation** — Weather queries cascade: open-meteo → qweather → wttr. Partial provider failures become notes/warnings in the response rather than failing the entire request. Geocoding cascades similarly: offline China gazetteer → Photon → Nominatim, with Amap available only as an explicit opt-in provider.
 
 6. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` wraps the `stargazing-place-finder` package's public API. Uses `sys.path` manipulation via `paths.py` to ensure SPF's internal imports resolve correctly. Avoids re-initializing the SPF singleton when parameters haven't changed (compares `_last_params` dict), preventing repeated GeoTIFF open and PostGIS pool creation.
 
@@ -183,7 +184,8 @@ src/
 | `QWEATHER_API_KEY` | QWeather API key (legacy auth) |
 | `QWEATHER_JWT_TOKEN` | QWeather JWT token (preferred auth) |
 | `QWEATHER_ALLOW_PUBLIC_HOST` | Set to `1` to use legacy public API host (deprecated) |
-| `AMAP_KEY` | Amap (高德) API key for CJK geocoding |
+| `GEOCODER_PROVIDERS` | Comma-separated geocoder order: `gazetteer`, `photon`, `nominatim`, `amap` (default: gazetteer→photon→nominatim for CJK) |
+| `AMAP_KEY` | Amap (高德) API key; used only when `amap` is explicitly listed in `GEOCODER_PROVIDERS` |
 | `HTTP_PROXY` / `HTTPS_PROXY` | Proxy for Astropy IERS/SIMBAD downloads |
 | `MCP_HOST` | Server bind address (default `0.0.0.0`) |
 | `ASTROPY_IERS_AUTO_DOWNLOAD` | Set to `1` to enable IERS auto-download |
