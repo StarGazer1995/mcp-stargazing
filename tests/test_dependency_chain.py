@@ -42,6 +42,31 @@ def write_result(
     )
 
 
+def test_redirect_lockfile_to_pypi_for_ci_retry(tmp_path: Path) -> None:
+    lockfile = tmp_path / 'uv.lock'
+    lockfile.write_text(
+        '\n'.join(
+            [
+                'source = { registry = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple" }',
+                'sdist = { url = "https://mirrors.tuna.tsinghua.edu.cn'
+                '/pypi/web/packages/a/pkg.tar.gz" }',
+                'wheels = [',
+                '  { url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages/b/pkg.whl" },',
+                ']',
+            ]
+        ),
+        encoding='utf-8',
+    )
+
+    assert dependency_chain.redirect_lockfile_to_pypi(lockfile) == 3
+    rewritten = lockfile.read_text(encoding='utf-8')
+    assert 'mirrors.tuna.tsinghua.edu.cn' not in rewritten
+    assert 'https://pypi.org/simple' in rewritten
+    assert 'https://files.pythonhosted.org/packages/a/pkg.tar.gz' in rewritten
+    assert 'https://files.pythonhosted.org/packages/b/pkg.whl' in rewritten
+    assert dependency_chain.redirect_lockfile_to_pypi(lockfile) == 0
+
+
 def test_prepare_matrix_for_core_includes_both_consumers() -> None:
     matrix = dependency_chain.prepare_matrix(
         'StarGazer1995/stargazing-core',

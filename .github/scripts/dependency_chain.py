@@ -31,6 +31,11 @@ DEFAULT_REFS = {
     'mcp': 'main',
 }
 
+TUNA_REGISTRY_PREFIX = 'https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple'
+TUNA_PACKAGE_PREFIX = 'https://mirrors.tuna.tsinghua.edu.cn/pypi/web/packages'
+PYPI_REGISTRY = 'https://pypi.org/simple'
+PYPI_PACKAGE_PREFIX = 'https://files.pythonhosted.org/packages'
+
 
 def bool_from_string(value: str) -> bool:
     """Parse a conservative boolean value from a CLI argument."""
@@ -60,6 +65,19 @@ def write_github_output(path: Path, name: str, value: str) -> None:
     delimiter = f'__DEPENDENCY_CHAIN_{name.upper()}__'
     with path.open('a', encoding='utf-8') as output:
         output.write(f'{name}<<{delimiter}\n{value}\n{delimiter}\n')
+
+
+def redirect_lockfile_to_pypi(path: Path) -> int:
+    """Replace Tsinghua artifact URLs in an ephemeral CI lockfile with PyPI."""
+    original = path.read_text(encoding='utf-8')
+    updated = original.replace(TUNA_REGISTRY_PREFIX, PYPI_REGISTRY).replace(
+        TUNA_PACKAGE_PREFIX,
+        PYPI_PACKAGE_PREFIX,
+    )
+    replacements = original.count(TUNA_REGISTRY_PREFIX) + original.count(TUNA_PACKAGE_PREFIX)
+    if replacements:
+        path.write_text(updated, encoding='utf-8')
+    return replacements
 
 
 def prepare_matrix(
@@ -294,6 +312,9 @@ def parse_args() -> argparse.Namespace:
     evaluate.add_argument('--summary-path', type=Path, required=True)
     evaluate.add_argument('--allow-known-baseline', required=True, type=bool_from_string)
 
+    use_pypi = subparsers.add_parser('use-pypi')
+    use_pypi.add_argument('--lockfile', type=Path, required=True)
+
     return parser.parse_args()
 
 
@@ -317,6 +338,9 @@ def main() -> int:
             )
         elif args.command == 'summarize':
             summarize_result(args)
+        elif args.command == 'use-pypi':
+            replacements = redirect_lockfile_to_pypi(args.lockfile)
+            print(f'rewrote {replacements} mirror URLs to official PyPI')
         else:
             return evaluate_results(
                 args.changed_repository,
