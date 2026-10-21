@@ -143,6 +143,19 @@ jobs:
               git -C "$destination" checkout -q FETCH_HEAD
             }
 
+            sync_dependencies() {
+              local label="$1"
+              shift
+              if uv sync "$@"; then
+                return 0
+              fi
+
+              echo "uv sync failed for $label; retrying with official PyPI artifact URLs" >&2
+              python "$RUNNER_TEMP/dependency-chain-tool/dependency_chain.py" use-pypi \
+                --lockfile uv.lock
+              uv sync "$@"
+            }
+
             mkdir -p "$WORK_ROOT/repos" "$WORK_ROOT/wheels"
             clone_repo stargazing-core "$CORE_REF" "$WORK_ROOT/repos/core"
             clone_repo stargazing-place-finder "$SPF_REF" "$WORK_ROOT/repos/spf"
@@ -171,7 +184,7 @@ jobs:
 
             if [[ "$TARGET" == "spf" ]]; then
               cd "$WORK_ROOT/repos/spf"
-              uv sync --frozen --dev
+              sync_dependencies spf --frozen --dev
               uv pip install --python .venv/bin/python --reinstall --no-deps "$core_wheel"
               .venv/bin/python -c \
                 "import stargazing_core; print('stargazing_core', stargazing_core.__version__)"
@@ -182,7 +195,7 @@ jobs:
               set -e
             elif [[ "$TARGET" == "mcp" ]]; then
               cd "$WORK_ROOT/repos/mcp"
-              uv sync --frozen
+              sync_dependencies mcp --frozen
               uv pip install --python .venv/bin/python --reinstall --no-deps \
                 "$core_wheel" "$spf_wheel"
               .venv/bin/python -c \
