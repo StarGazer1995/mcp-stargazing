@@ -65,7 +65,7 @@ assert_used = false
 [[tool.uv.index]]
 name = "pypi"
 url = "https://pypi.org/simple/"
-explicit = true
+default = true
 
 [tool.uv.sources]
 stargazing-core = { index = "pypi" }
