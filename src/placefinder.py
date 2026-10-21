@@ -9,6 +9,8 @@ from src.logging_config import get_logger
 from src.paths import (
     PROJECT_ROOT,
     discard_shadowing_module,
+    find_module_origin,
+    is_within_path,
     prioritize_sys_path,
     resolve_package_source_root,
 )
@@ -39,15 +41,29 @@ def _prepare_legacy_spf_import_path() -> Path | None:
     return source_root
 
 
+def _repair_shadowed_spf_import_path() -> Path | None:
+    """Prioritize SPF imports when a generic module name is shadowed by MCP source."""
+    cache_origin = find_module_origin('cache')
+    if not is_within_path(cache_origin, PROJECT_ROOT):
+        return None
+
+    logger.debug('Repairing shadowed SPF cache import from %s', cache_origin)
+    return _prepare_legacy_spf_import_path()
+
+
 def _load_spf() -> ModuleType:
     """Import SPF, preferring the modern package layout but tolerating legacy wheels."""
     try:
-        return importlib.import_module(SPF_PACKAGE_NAME)
+        spf_module = importlib.import_module(SPF_PACKAGE_NAME)
+        _repair_shadowed_spf_import_path()
+        return spf_module
     except ModuleNotFoundError as exc:
         if exc.name != SPF_PACKAGE_NAME:
             _prepare_legacy_spf_import_path()
             try:
-                return importlib.import_module(SPF_PACKAGE_NAME)
+                spf_module = importlib.import_module(SPF_PACKAGE_NAME)
+                _repair_shadowed_spf_import_path()
+                return spf_module
             except ModuleNotFoundError as retry_exc:
                 if retry_exc.name == SPF_PACKAGE_NAME:
                     raise ModuleNotFoundError(

@@ -54,10 +54,12 @@
 ### 当前解法（`src/paths.py` + namespaced wrapper）
 
 `placefinder.py` 现在优先直接导入 `stargazingplacefinder` 和
-`stargazingplacefinder.config`，仅在兼容旧 SPF wheel 时才回退到
-`paths.py` 中的导入辅助函数。
+`stargazingplacefinder.config`。即使 namespaced wrapper 导入成功，bridge 也会检查
+`cache` 是否被 MCP 自己的 `src/cache.py` 遮蔽；发现遮蔽时，复用
+`paths.py` 中的导入修复函数后再允许 SPF 继续懒加载子模块。
 
-`paths.py` 提供以下工具函数，由 `placefinder.py` 在 legacy fallback 路径中调用：
+`paths.py` 提供以下工具函数，由 `placefinder.py` 在 shadow repair 和 legacy
+fallback 路径中调用：
 
 | 函数 | 职责 |
 |------|------|
@@ -70,12 +72,14 @@
 加载流程：
 
 1. 先尝试直接 `importlib.import_module('stargazingplacefinder')`
-2. 若是 `stargazingplacefinder` 本身缺失，则向上层报“依赖未安装”
-3. 若导入失败来自下层旧版 wheel 的嵌套模块布局（例如 `cache.cache_config`），则进入 legacy fallback
-4. `resolve_package_source_root('stargazingplacefinder')` 确定下层 repo 的 source root
-5. `discard_shadowing_module('cache', PROJECT_ROOT)` 清理 MCP 仓库自身的 `cache` 模块遮蔽
-6. `prioritize_sys_path()` 将下层根路径排到最前，然后重试 `importlib.import_module('stargazingplacefinder')`
-7. 配置加载优先走 `stargazingplacefinder.config`，仅对旧 wheel 回退到顶层 `config`
+2. 成功后检查 `cache` 的模块来源；若来自 MCP 仓库自身的 `src/cache.py`，将 SPF
+   source root 提前并清理被遮蔽的 `cache` 模块
+3. 若是 `stargazingplacefinder` 本身缺失，则向上层报“依赖未安装”
+4. 若导入失败来自下层旧版 wheel 的嵌套模块布局（例如 `cache.cache_config`），则进入 legacy fallback
+5. `resolve_package_source_root('stargazingplacefinder')` 确定下层 repo 的 source root
+6. `discard_shadowing_module('cache', PROJECT_ROOT)` 清理 MCP 仓库自身的 `cache` 模块遮蔽
+7. `prioritize_sys_path()` 将下层根路径排到最前，然后重试 `importlib.import_module('stargazingplacefinder')`
+8. 配置加载优先走 `stargazingplacefinder.config`，仅对旧 wheel 回退到顶层 `config`
 
 ### 长期方向
 
@@ -86,8 +90,8 @@
 - 或将下层 `models` 包重命名
 - 或在 SPF 新版本完全普及后移除 bridge 层的 legacy fallback
 
-无论选择哪种长期方案，当前 bridge 已经将默认路径切换为 namespaced import，
-剩余的 runtime 修补逻辑只服务于旧版 SPF 包兼容，不再作为主路径存在。
+无论选择哪种长期方案，当前 bridge 已经将默认路径切换为 namespaced import。
+少量 runtime 修复继续覆盖 SPF 懒加载子模块与 MCP 源码目录之间的通用模块名冲突。
 
 ## 调用链总览
 
