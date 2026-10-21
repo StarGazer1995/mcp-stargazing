@@ -125,6 +125,7 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           set -uo pipefail
+          set +e
           mkdir -p "$RESULT_DIR"
 
           (
