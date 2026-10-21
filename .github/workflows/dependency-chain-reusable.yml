@@ -114,7 +114,7 @@ jobs:
       - name: Cache SPF light-pollution data
         uses: actions/cache@v4
         with:
-          path: ${{ env.WORK_ROOT }}/repos/spf/src/light_pollution/resources/viirs_china_2025.tif
+          path: ${{ github.workspace }}/.dependency-chain-cache/viirs_china_2025.tif
           key: spf-viirs-china-2025-v1
 
       - name: Run cross-repository tests
@@ -149,10 +149,15 @@ jobs:
             clone_repo mcp-stargazing "$MCP_REF" "$WORK_ROOT/repos/mcp"
 
             geotiff="$WORK_ROOT/repos/spf/src/light_pollution/resources/viirs_china_2025.tif"
+            geotiff_cache="$GITHUB_WORKSPACE/.dependency-chain-cache/viirs_china_2025.tif"
             if [[ ! -s "$geotiff" ]]; then
               mkdir -p "$(dirname "$geotiff")"
-              curl -fSL -o "$geotiff" \
-                "https://github.com/StarGazer1995/stargazing-place-finder/releases/download/geotiff-data-v1/viirs_china_2025.tif"
+              if [[ ! -s "$geotiff_cache" ]]; then
+                mkdir -p "$(dirname "$geotiff_cache")"
+                curl -fSL -o "$geotiff_cache" \
+                  "https://github.com/StarGazer1995/stargazing-place-finder/releases/download/geotiff-data-v1/viirs_china_2025.tif"
+              fi
+              cp "$geotiff_cache" "$geotiff"
             fi
 
             uv build --wheel --out-dir "$WORK_ROOT/wheels/core" "$WORK_ROOT/repos/core"
