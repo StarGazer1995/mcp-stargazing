@@ -30,7 +30,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v5
         with:
-          python-version-file: "pyproject.toml"
+          python-version: "3.13"
 
       - name: Install system dependencies
         run: |
@@ -62,7 +62,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v5
         with:
-          python-version-file: "pyproject.toml"
+          python-version: "3.13"
 
       - name: Build Test Image
         run: docker build --target test -t test-image .

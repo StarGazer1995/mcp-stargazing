@@ -251,13 +251,53 @@ def test_init_with_db_config_path_forwards_path():
 
 
 def test_load_spf_imports_package_directly():
-    """The bridge should import the dependency package without sys.path mutation."""
+    """The bridge should import the dependency package and repair shadowed names."""
     fake_spf = SimpleNamespace()
 
-    with patch.object(importlib, 'import_module', return_value=fake_spf) as mock_import:
+    with (
+        patch.object(importlib, 'import_module', return_value=fake_spf) as mock_import,
+        patch.object(placefinder_module, '_repair_shadowed_spf_import_path') as mock_repair,
+    ):
         assert placefinder_module._load_spf() is fake_spf
 
     mock_import.assert_called_once_with(placefinder_module.SPF_PACKAGE_NAME)
+    mock_repair.assert_called_once_with()
+
+
+def test_repair_shadowed_spf_import_path_only_acts_for_in_repo_modules():
+    """Only an in-repository cache module should trigger SPF path prioritization."""
+    fake_dependency_root = Path('/workspace/stargazing-place-finder/src')
+
+    with (
+        patch.object(
+            placefinder_module,
+            'find_module_origin',
+            return_value=str(placefinder_module.PROJECT_ROOT / 'src' / 'cache.py'),
+        ),
+        patch.object(
+            placefinder_module,
+            '_prepare_legacy_spf_import_path',
+            return_value=fake_dependency_root,
+        ) as mock_prepare,
+    ):
+        assert placefinder_module._repair_shadowed_spf_import_path() == fake_dependency_root
+
+    mock_prepare.assert_called_once_with()
+
+
+def test_repair_shadowed_spf_import_path_ignores_external_modules():
+    """A cache module from the installed SPF wheel should not change sys.path."""
+    with (
+        patch.object(
+            placefinder_module,
+            'find_module_origin',
+            return_value='/venv/site-packages/cache/__init__.py',
+        ),
+        patch.object(placefinder_module, '_prepare_legacy_spf_import_path') as mock_prepare,
+    ):
+        assert placefinder_module._repair_shadowed_spf_import_path() is None
+
+    mock_prepare.assert_not_called()
 
 
 def test_prepare_legacy_spf_import_path_prioritizes_dependency_root():
@@ -337,6 +377,7 @@ def test_load_spf_retries_with_legacy_import_path_for_nested_module_error():
             side_effect=[nested_failure, fake_spf],
         ) as mock_import,
         patch.object(placefinder_module, '_prepare_legacy_spf_import_path') as mock_prepare,
+        patch.object(placefinder_module, '_repair_shadowed_spf_import_path'),
     ):
         assert placefinder_module._load_spf() is fake_spf
 

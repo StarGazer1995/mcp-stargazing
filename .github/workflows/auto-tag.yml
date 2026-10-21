@@ -5,9 +5,23 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
+  dependency-chain:
+    uses: ./.github/workflows/dependency-chain-reusable.yml
+    with:
+      changed_repository: ${{ github.repository }}
+      candidate_ref: ${{ github.sha }}
+      baseline_ref: ${{ github.event.before }}
+      refs_json: '{}'
+      allow_known_baseline: false
+      orchestrator_ref: ${{ github.sha }}
+
   tag-if-version-changed:
     name: Create tag when version bumps
+    needs: dependency-chain
     runs-on: ubuntu-latest
     if: github.event.commits[0].author.name != 'github-actions[bot]'
     steps:

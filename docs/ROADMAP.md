@@ -16,6 +16,9 @@ The following baseline capabilities are already implemented and should no longer
 - Place results now surface popularity heuristic fields (`static_popularity_risk_score`, `night_quiet_likelihood_score`, `temporal_popularity_confidence`, and related notes/signals) from `stargazing-place-finder`.
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
 - `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets.
+- Cross-repository CI now compares baseline and candidate wheel builds across
+  `stargazing-core`, `stargazing-place-finder`, and `mcp-stargazing`. See
+  `docs/dependency-chain-ci.md`.
 
 ### Bridge and weather cleanup (completed 2026-07)
 
