@@ -1,0 +1,267 @@
+name: Dependency Chain
+
+on:
+  workflow_call:
+    inputs:
+      changed_repository:
+        description: Repository containing the candidate change
+        required: true
+        type: string
+      candidate_ref:
+        description: Commit SHA or Git ref to test as the candidate
+        required: true
+        type: string
+      baseline_ref:
+        description: Commit SHA or Git ref to test as the baseline
+        required: true
+        type: string
+      refs_json:
+        description: Optional JSON map of coordinated repository ref overrides
+        required: false
+        default: '{}'
+        type: string
+      allow_known_baseline:
+        description: Allow unchanged baseline failures on PR gates
+        required: false
+        default: true
+        type: boolean
+      orchestrator_ref:
+        description: Ref containing the dependency-chain helper script
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: '0.6.5'
+
+jobs:
+  prepare:
+    name: Prepare dependency matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Fetch dependency-chain helper
+        env:
+          ORCHESTRATOR_REPO: StarGazer1995/mcp-stargazing
+          ORCHESTRATOR_REF: ${{ inputs.orchestrator_ref }}
+        run: |
+          set -euo pipefail
+          helper="$RUNNER_TEMP/dependency-chain-helper"
+          git init -q "$helper"
+          git -C "$helper" remote add origin "https://github.com/${ORCHESTRATOR_REPO}.git"
+          git -C "$helper" fetch --depth=1 origin "$ORCHESTRATOR_REF"
+          git -C "$helper" checkout -q FETCH_HEAD
+
+          tool_dir="$RUNNER_TEMP/dependency-chain-tool"
+          mkdir -p "$tool_dir"
+          cp "$helper/.github/scripts/dependency_chain.py" "$tool_dir/dependency_chain.py"
+
+      - name: Build baseline and candidate matrix
+        id: matrix
+        env:
+          CHANGED_REPOSITORY: ${{ inputs.changed_repository }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          BASELINE_REF: ${{ inputs.baseline_ref }}
+          REFS_JSON: ${{ inputs.refs_json }}
+        run: |
+          python "$RUNNER_TEMP/dependency-chain-tool/dependency_chain.py" prepare \
+            --changed-repository "$CHANGED_REPOSITORY" \
+            --candidate-ref "$CANDIDATE_REF" \
+            --baseline-ref "$BASELINE_REF" \
+            --refs-json "$REFS_JSON" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Upload dependency-chain helper
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-chain-tool
+          path: ${{ runner.temp }}/dependency-chain-tool/dependency_chain.py
+          if-no-files-found: error
+          retention-days: 1
+
+  chain:
+    name: ${{ matrix.mode }} / ${{ matrix.target }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    env:
+      WORK_ROOT: ${{ github.workspace }}/.dependency-chain/${{ matrix.mode }}-${{ matrix.target }}
+      RESULT_DIR: ${{ github.workspace }}/.dependency-chain/${{ matrix.mode }}-${{ matrix.target }}/result
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Download dependency-chain helper
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-chain-tool
+          path: ${{ runner.temp }}/dependency-chain-tool
+
+      - name: Cache SPF light-pollution data
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.WORK_ROOT }}/repos/spf/src/light_pollution/resources/viirs_china_2025.tif
+          key: spf-viirs-china-2025-v1
+
+      - name: Run cross-repository tests
+        env:
+          CORE_REF: ${{ matrix.core_ref }}
+          SPF_REF: ${{ matrix.spf_ref }}
+          MCP_REF: ${{ matrix.mcp_ref }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$RESULT_DIR"
+
+          (
+            set -euo pipefail
+
+            clone_repo() {
+              local repository="$1"
+              local ref="$2"
+              local destination="$3"
+              mkdir -p "$destination"
+              git -C "$destination" init -q
+              git -C "$destination" remote add origin \
+                "https://github.com/StarGazer1995/${repository}.git"
+              git -C "$destination" fetch --depth=1 origin "$ref"
+              git -C "$destination" checkout -q FETCH_HEAD
+            }
+
+            mkdir -p "$WORK_ROOT/repos" "$WORK_ROOT/wheels"
+            clone_repo stargazing-core "$CORE_REF" "$WORK_ROOT/repos/core"
+            clone_repo stargazing-place-finder "$SPF_REF" "$WORK_ROOT/repos/spf"
+            clone_repo mcp-stargazing "$MCP_REF" "$WORK_ROOT/repos/mcp"
+
+            geotiff="$WORK_ROOT/repos/spf/src/light_pollution/resources/viirs_china_2025.tif"
+            if [[ ! -s "$geotiff" ]]; then
+              mkdir -p "$(dirname "$geotiff")"
+              curl -fSL -o "$geotiff" \
+                "https://github.com/StarGazer1995/stargazing-place-finder/releases/download/geotiff-data-v1/viirs_china_2025.tif"
+            fi
+
+            uv build --wheel --out-dir "$WORK_ROOT/wheels/core" "$WORK_ROOT/repos/core"
+            uv build --wheel --out-dir "$WORK_ROOT/wheels/spf" "$WORK_ROOT/repos/spf"
+            uv build --wheel --out-dir "$WORK_ROOT/wheels/mcp" "$WORK_ROOT/repos/mcp"
+
+            core_wheel="$(find "$WORK_ROOT/wheels/core" -name 'stargazing_core-*.whl' -print -quit)"
+            spf_wheel="$(find "$WORK_ROOT/wheels/spf" -name 'stargazing_place_finder-*.whl' -print -quit)"
+            test -n "$core_wheel"
+            test -n "$spf_wheel"
+
+            if [[ "$TARGET" == "spf" ]]; then
+              cd "$WORK_ROOT/repos/spf"
+              uv sync --frozen --dev
+              uv pip install --python .venv/bin/python --reinstall --no-deps "$core_wheel"
+              .venv/bin/python -c \
+                "import stargazing_core; print('stargazing_core', stargazing_core.__version__)"
+              set +e
+              FAST_TESTS=1 .venv/bin/python -m pytest -q \
+                --junitxml="$RESULT_DIR/junit.xml"
+              test_status=$?
+              set -e
+            elif [[ "$TARGET" == "mcp" ]]; then
+              cd "$WORK_ROOT/repos/mcp"
+              uv sync --frozen
+              uv pip install --python .venv/bin/python --reinstall --no-deps \
+                "$core_wheel" "$spf_wheel"
+              .venv/bin/python -c \
+                "import stargazing_core, stargazingplacefinder; print('core+spf imports OK')"
+              set +e
+              .venv/bin/python -m pytest -q \
+                --junitxml="$RESULT_DIR/junit.xml"
+              test_status=$?
+              set -e
+            else
+              echo "Unsupported dependency-chain target: $TARGET" >&2
+              exit 2
+            fi
+
+            exit "$test_status"
+          ) > "$RESULT_DIR/test.log" 2>&1
+          test_status=$?
+
+          printf '%s\n' "$test_status" > "$RESULT_DIR/exit-code.txt"
+          tail -n 200 "$RESULT_DIR/test.log" || true
+          exit 0
+
+      - name: Summarize matrix result
+        env:
+          MODE: ${{ matrix.mode }}
+          TARGET: ${{ matrix.target }}
+          CORE_REF: ${{ matrix.core_ref }}
+          SPF_REF: ${{ matrix.spf_ref }}
+          MCP_REF: ${{ matrix.mcp_ref }}
+        run: |
+          python "$RUNNER_TEMP/dependency-chain-tool/dependency_chain.py" summarize \
+            --mode "$MODE" \
+            --target "$TARGET" \
+            --exit-code-file "$RESULT_DIR/exit-code.txt" \
+            --junit "$RESULT_DIR/junit.xml" \
+            --log "$RESULT_DIR/test.log" \
+            --result "$RESULT_DIR/result.json" \
+            --core-ref "$CORE_REF" \
+            --spf-ref "$SPF_REF" \
+            --mcp-ref "$MCP_REF"
+
+      - name: Upload matrix result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chain-result-${{ matrix.mode }}-${{ matrix.target }}
+          path: ${{ env.RESULT_DIR }}
+          if-no-files-found: error
+          retention-days: 7
+
+  evaluate:
+    name: Evaluate dependency-chain regression
+    needs: chain
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download dependency-chain helper
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-chain-tool
+          path: ${{ runner.temp }}/dependency-chain-tool
+
+      - name: Download matrix results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chain-result-*
+          path: ${{ runner.temp }}/dependency-chain-results
+          merge-multiple: true
+
+      - name: Compare candidate against baseline
+        env:
+          CHANGED_REPOSITORY: ${{ inputs.changed_repository }}
+          ALLOW_KNOWN_BASELINE: ${{ inputs.allow_known_baseline }}
+        run: |
+          set +e
+          python "$RUNNER_TEMP/dependency-chain-tool/dependency_chain.py" evaluate \
+            --changed-repository "$CHANGED_REPOSITORY" \
+            --results-dir "$RUNNER_TEMP/dependency-chain-results" \
+            --summary-path "$RUNNER_TEMP/dependency-chain-summary.md" \
+            --allow-known-baseline "$ALLOW_KNOWN_BASELINE"
+          status=$?
+          set -e
+
+          if [[ -f "$RUNNER_TEMP/dependency-chain-summary.md" ]]; then
+            cat "$RUNNER_TEMP/dependency-chain-summary.md"
+            cat "$RUNNER_TEMP/dependency-chain-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"

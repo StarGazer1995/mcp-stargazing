@@ -10,8 +10,21 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  dependency-chain:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/dependency-chain-reusable.yml
+    with:
+      changed_repository: ${{ github.repository }}
+      candidate_ref: ${{ github.sha }}
+      baseline_ref: main
+      refs_json: '{}'
+      allow_known_baseline: false
+      orchestrator_ref: ${{ github.sha }}
+
   build-and-push:
     name: Build and Push Docker Image
+    needs: dependency-chain
     runs-on: ubuntu-latest
     permissions:
       contents: read

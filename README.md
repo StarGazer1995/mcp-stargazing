@@ -292,6 +292,11 @@ Key tests include:
 - `test_mcp_client.py`: Verifies `tools/list`, `tools/call`, and SSE request-id protocol behavior.
 - `test_structured_errors.py`: Verifies business validation failures stay in the structured response envelope.
 
+Cross-repository compatibility is checked by the reusable
+[dependency-chain workflow](docs/dependency-chain-ci.md). It tests
+`stargazing-core → stargazing-place-finder → mcp-stargazing` using baseline and
+candidate wheels, and blocks changes that add downstream failures.
+
 ## Contributing
 
 1.  Follow the [Code Execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) best practices.

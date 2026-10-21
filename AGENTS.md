@@ -122,6 +122,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 | `AGENTS.md` | 开发规范、注册约定、错误处理规则 | 本 repo 开发者 |
 | `docs/ROADMAP.md` | 能力面状态、已完成 / 计划中的工作 | 本 repo 开发者、PM |
 | `docs/bridge-boundary.md` | `placefinder` bridge 的接口、职责边界与调用链 | 跨 repo 开发者 |
+| `docs/dependency-chain-ci.md` | 三仓依赖链 CI 的触发、baseline 语义与上线顺序 | 跨 repo 开发者 |
 | `docs/analysis-area-semantics.md` | `analysis_area` 的分页、缓存、`resource_id` 语义 | agent 集成者、本 repo 开发者 |
 | `docs/workspace-action-checklist.md` | workspace 级任务清单与验收标准 | 本 repo 开发者 |
 | `docs/workspace-technical-map.md` | workspace 级架构总览与技术债热点 | 本 repo 开发者 |
