@@ -213,7 +213,7 @@ jobs:
             --exit-code-file "$RESULT_DIR/exit-code.txt" \
             --junit "$RESULT_DIR/junit.xml" \
             --log "$RESULT_DIR/test.log" \
-            --result "$RESULT_DIR/result.json" \
+            --result "$RESULT_DIR/result-${MODE}-${TARGET}.json" \
             --core-ref "$CORE_REF" \
             --spf-ref "$SPF_REF" \
             --mcp-ref "$MCP_REF"
