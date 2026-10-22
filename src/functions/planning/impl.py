@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -10,6 +11,7 @@ from src.response import MCPError, format_response
 from src.schemas.places import StargazingLocation
 from src.schemas.planning import (
     BestStargazingPlan,
+    ObservationStyle,
     ObservationWindow,
     PlannedLocationCandidate,
     PlanningQuery,
@@ -32,6 +34,58 @@ from src.utils import (
 # FastMCP chaining pattern.  Signature contracts are documented inline
 # at each call site below; if an upstream tool changes its signature a
 # test in ``test_mcp_tools.py`` will catch the mismatch.
+
+
+@dataclass(frozen=True)
+class _ObservationStyleProfile:
+    """Weights and explanation used by one observer-goal profile."""
+
+    place_weight: float
+    weather_weight: float
+    moon_penalty_multiplier: float
+    reason: str | None
+
+
+_STYLE_PROFILES = {
+    ObservationStyle.BALANCED: _ObservationStyleProfile(0.65, 0.35, 1.0, None),
+    ObservationStyle.DEEP_SKY: _ObservationStyleProfile(
+        0.72,
+        0.28,
+        1.15,
+        '深空摄影偏好提高了暗空与低月光条件的权重。',
+    ),
+    ObservationStyle.VISUAL: _ObservationStyleProfile(
+        0.55,
+        0.45,
+        0.45,
+        '目视观测偏好提高了实时天气权重并降低月光影响。',
+    ),
+    ObservationStyle.PLANETARY: _ObservationStyleProfile(
+        0.42,
+        0.58,
+        0.08,
+        '行星观测偏好显著降低月光惩罚并优先安排行星目标。',
+    ),
+    ObservationStyle.BEGINNER: _ObservationStyleProfile(
+        0.60,
+        0.40,
+        0.25,
+        '入门观测偏好兼顾天气、地点评分与交通便利性。',
+    ),
+}
+
+
+def _validate_observation_style(value: str) -> ObservationStyle:
+    """Normalize an observer-style string or raise a structured configuration error."""
+    try:
+        return ObservationStyle(value)
+    except ValueError as exc:
+        allowed = ', '.join(style.value for style in ObservationStyle)
+        raise MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            f'observation_style must be one of: {allowed}.',
+            {'observation_style': value},
+        ) from exc
 
 
 def _validate_bounds(south: float, west: float, north: float, east: float) -> None:
@@ -159,25 +213,42 @@ def _build_weather_summary(weather_data: dict[str, Any] | None) -> WeatherPlanni
 
 
 def _build_top_targets(
-    forecast_data: dict[str, Any] | None, target_limit: int
+    forecast_data: dict[str, Any] | None,
+    target_limit: int,
+    observation_style: ObservationStyle,
 ) -> list[PlanningTarget]:
     """Convert nightly forecast output into a compact target list."""
     if forecast_data is None:
         return []
 
     targets: list[PlanningTarget] = []
-    for item in forecast_data.get('deep_sky', [])[:target_limit]:
-        targets.append(
-            PlanningTarget(
-                name=item['name'],
-                category=item.get('type', 'deep_sky'),
-                score=item.get('score'),
-            )
-        )
+    deep_sky = forecast_data.get('deep_sky', [])
+    planets = forecast_data.get('planets', [])
+    sources = (
+        (planets, 'planet'),
+        (deep_sky, 'deep_sky'),
+    )
+    if observation_style in {
+        ObservationStyle.BALANCED,
+        ObservationStyle.DEEP_SKY,
+    }:
+        sources = tuple(reversed(sources))
 
-    remaining_slots = max(0, target_limit - len(targets))
-    for item in forecast_data.get('planets', [])[:remaining_slots]:
-        targets.append(PlanningTarget(name=item['name'], category='planet', score=None))
+    for items, fallback_category in sources:
+        for item in items:
+            if len(targets) >= target_limit:
+                return targets
+            targets.append(
+                PlanningTarget(
+                    name=item['name'],
+                    category=(
+                        fallback_category
+                        if fallback_category == 'planet'
+                        else item.get('type', 'deep_sky')
+                    ),
+                    score=item.get('score'),
+                )
+            )
 
     return targets
 
@@ -187,9 +258,11 @@ def _compute_recommendation_score(
     weather_summary: WeatherPlanningSummary | None,
     best_window: ObservationWindow | None,
     moon_illumination: float | None,
+    observation_style: ObservationStyle = ObservationStyle.BALANCED,
     popularity_adjustment: float = 0.0,
 ) -> float:
     """Combine place quality, weather, and moonlight into a simple planning score."""
+    profile = _STYLE_PROFILES[observation_style]
     location_score = float(location.score or 0.0)
     weather_score = 55.0
 
@@ -209,9 +282,18 @@ def _compute_recommendation_score(
         weather_score -= float(best_window.precipitation_probability) * 20.0
 
     if moon_illumination is not None and moon_illumination > 0.7:
-        weather_score -= (moon_illumination - 0.7) * 25.0
+        weather_score -= (moon_illumination - 0.7) * 25.0 * profile.moon_penalty_multiplier
 
-    combined = location_score * 0.65 + max(0.0, weather_score) * 0.35 + popularity_adjustment
+    combined = (
+        location_score * profile.place_weight
+        + max(0.0, weather_score) * profile.weather_weight
+        + popularity_adjustment
+    )
+    if observation_style == ObservationStyle.BEGINNER and location.road_distance_km is not None:
+        if location.road_distance_km <= 5.0:
+            combined += 3.0
+        elif location.road_distance_km > 20.0:
+            combined -= 3.0
     return round(max(0.0, min(100.0, combined)), 2)
 
 
@@ -268,6 +350,7 @@ def _build_recommendation_reasons(
     best_window: ObservationWindow | None,
     moon_illumination: float | None,
     top_targets: list[PlanningTarget],
+    observation_style: ObservationStyle = ObservationStyle.BALANCED,
     popularity_reasons: list[str] | None = None,
 ) -> list[str]:
     """Create short human-readable explanations for a recommendation."""
@@ -277,6 +360,9 @@ def _build_recommendation_reasons(
         reasons.append(f'波特尔等级约为 {location.bortle_class}，暗空条件较清晰。')
     elif location.score is not None:
         reasons.append(f'地点基础观星评分为 {location.score:.1f}。')
+    style_reason = _STYLE_PROFILES[observation_style].reason
+    if style_reason:
+        reasons.append(style_reason)
     if popularity_reasons:
         reasons.extend(popularity_reasons)
 
@@ -299,6 +385,7 @@ def _derive_primary_recommendation_drivers(
     candidate: PlannedLocationCandidate | None,
     avoid_popular_spots: bool,
     prefer_quiet_at_night: bool,
+    observation_style: ObservationStyle = ObservationStyle.BALANCED,
 ) -> list[RecommendationDriver]:
     """Summarize the main structured drivers behind the top recommendation."""
     if candidate is None:
@@ -320,6 +407,9 @@ def _derive_primary_recommendation_drivers(
             drivers.append(RecommendationDriver.CLEAR_WEATHER)
         elif visibility is not None and float(visibility) >= 15.0:
             drivers.append(RecommendationDriver.GOOD_VISIBILITY)
+
+    if observation_style != ObservationStyle.BALANCED:
+        drivers.append(RecommendationDriver.OBSERVATION_STYLE_FIT)
 
     if (
         avoid_popular_spots
@@ -354,6 +444,7 @@ def _build_recommended_location_reason_summary(
         RecommendationDriver.HIGH_PLACE_SCORE: '地点基础评分更高',
         RecommendationDriver.CLEAR_WEATHER: '天气更晴朗',
         RecommendationDriver.GOOD_VISIBILITY: '能见度更好',
+        RecommendationDriver.OBSERVATION_STYLE_FIT: '观测目标偏好匹配',
         RecommendationDriver.LOW_POPULARITY_RISK: '热门度风险更低',
         RecommendationDriver.QUIET_AT_NIGHT: '夜间更安静',
         RecommendationDriver.STRONG_TARGETS: '可观测目标更强',
@@ -375,6 +466,7 @@ async def _evaluate_candidate(
     time_zone: str,
     target_limit: int,
     weather_provider: str,
+    observation_style: ObservationStyle = ObservationStyle.BALANCED,
     avoid_popular_spots: bool = False,
     prefer_quiet_at_night: bool = False,
     popularity_radius_km: float = 3.0,
@@ -406,7 +498,7 @@ async def _evaluate_candidate(
         hourly_items = weather_data.get('summary', {}).get('hourly', [])
         best_window = _pick_best_observation_window(hourly_items, time, time_zone)
 
-    top_targets = _build_top_targets(forecast_data, target_limit)
+    top_targets = _build_top_targets(forecast_data, target_limit, observation_style)
     moon_phase = None
     moon_illumination = None
     if forecast_data is not None:
@@ -424,6 +516,7 @@ async def _evaluate_candidate(
         weather_summary,
         best_window,
         moon_illumination,
+        observation_style=observation_style,
         popularity_adjustment=popularity_adjustment,
     )
     recommendation_reasons = _build_recommendation_reasons(
@@ -432,6 +525,7 @@ async def _evaluate_candidate(
         best_window,
         moon_illumination,
         top_targets,
+        observation_style=observation_style,
         popularity_reasons=popularity_reasons,
     )
 
@@ -464,6 +558,7 @@ async def get_best_stargazing_plan(
     min_height_diff: float = 100.0,
     road_radius_km: float = 10.0,
     network_type: str = 'drive',
+    observation_style: str = 'balanced',
     avoid_popular_spots: bool = False,
     prefer_quiet_at_night: bool = False,
     popularity_radius_km: float = 3.0,
@@ -487,6 +582,8 @@ async def get_best_stargazing_plan(
         min_height_diff: Minimum elevation difference for prominence.
         road_radius_km: Search radius for road access.
         network_type: Type of road network to analyze.
+        observation_style: Observer-goal profile. Supported values are balanced,
+            deep_sky, visual, planetary, and beginner.
         avoid_popular_spots: Penalize heuristically popular locations during place ranking.
         prefer_quiet_at_night: Favor places that are likelier to quiet down at night.
         popularity_radius_km: Preference horizon for popularity heuristics.
@@ -502,6 +599,7 @@ async def get_best_stargazing_plan(
         _validate_positive_int('candidate_limit', candidate_limit)
         _validate_positive_int('target_limit', target_limit)
         _validate_positive_int('max_locations', max_locations)
+        normalized_style = _validate_observation_style(observation_style)
         if popularity_radius_km <= 0:
             raise MCPError(
                 MCPError.CONFIGURATION_ERROR,
@@ -539,6 +637,7 @@ async def get_best_stargazing_plan(
                     time_zone=time_zone,
                     target_limit=target_limit,
                     weather_provider=weather_provider,
+                    observation_style=normalized_style,
                     avoid_popular_spots=avoid_popular_spots,
                     prefer_quiet_at_night=prefer_quiet_at_night,
                     popularity_radius_km=popularity_radius_km,
@@ -560,6 +659,7 @@ async def get_best_stargazing_plan(
             top_candidate,
             avoid_popular_spots=avoid_popular_spots,
             prefer_quiet_at_night=prefer_quiet_at_night,
+            observation_style=normalized_style,
         )
         reason_summary = _build_recommended_location_reason_summary(top_candidate, primary_drivers)
 
@@ -578,6 +678,7 @@ async def get_best_stargazing_plan(
                 min_height_diff=min_height_diff,
                 road_radius_km=road_radius_km,
                 network_type=network_type,
+                observation_style=normalized_style,
                 avoid_popular_spots=avoid_popular_spots,
                 prefer_quiet_at_night=prefer_quiet_at_night,
                 popularity_radius_km=popularity_radius_km,

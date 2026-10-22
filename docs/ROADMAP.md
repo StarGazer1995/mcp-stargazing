@@ -90,7 +90,7 @@ The following baseline capabilities are already implemented and should no longer
 ## Priority 2: Composite planning tools
 
 1.  `get_best_stargazing_plan`
-    - Extend the shipped MVP with richer observer preferences beyond the current popularity-aware ranking policy.
+    - ✅ Added `observation_style` profiles for balanced, deep-sky, visual, planetary, and beginner observing.
     - Improve how the planner balances weather quality, moonlight, place quality, and target mix.
 
 2.  Telescope tool improvements

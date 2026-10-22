@@ -9,6 +9,16 @@ from pydantic import BaseModel, Field
 from src.schemas.places import StargazingLocation
 
 
+class ObservationStyle(StrEnum):
+    """Stable observer-goal profiles supported by the planning tool."""
+
+    BALANCED = 'balanced'
+    DEEP_SKY = 'deep_sky'
+    VISUAL = 'visual'
+    PLANETARY = 'planetary'
+    BEGINNER = 'beginner'
+
+
 class PlanningQuery(BaseModel):
     """Normalized query parameters for a composite planning request."""
 
@@ -27,6 +37,10 @@ class PlanningQuery(BaseModel):
     min_height_diff: float = Field(description='Minimum elevation difference used for place search')
     road_radius_km: float = Field(description='Road search radius used for place search')
     network_type: str = Field(description='Road network mode used for area analysis')
+    observation_style: ObservationStyle = Field(
+        default=ObservationStyle.BALANCED,
+        description='Observer-goal profile used for scoring and target ordering',
+    )
     avoid_popular_spots: bool = Field(
         default=False, description='Whether popularity risk was used to penalize place ranking'
     )
@@ -89,6 +103,7 @@ class RecommendationDriver(StrEnum):
     HIGH_PLACE_SCORE = 'high_place_score'
     CLEAR_WEATHER = 'clear_weather'
     GOOD_VISIBILITY = 'good_visibility'
+    OBSERVATION_STYLE_FIT = 'observation_style_fit'
     LOW_POPULARITY_RISK = 'low_popularity_risk'
     QUIET_AT_NIGHT = 'quiet_at_night'
     STRONG_TARGETS = 'strong_targets'

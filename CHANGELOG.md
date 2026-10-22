@@ -5,6 +5,7 @@
 ### Added
 
 - Popularity-aware planning re-ranking with stable recommendation drivers and explanation fields.
+- Observation-style profiles for balanced, deep-sky, visual, planetary, and beginner planning.
 - `event_scope="next_events"` for cross-midnight rise/set lookups.
 - Runnable examples for `get_telescope_targets` and `get_shooting_plan`.
 - Release metadata guard for tag, ancestry, and built-artifact version consistency.
