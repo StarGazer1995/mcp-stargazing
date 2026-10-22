@@ -1219,12 +1219,38 @@ async def test_get_celestial_rise_set_fn():
             lat=40.0,
             time='2024-06-15 22:00:00',
             time_zone='America/New_York',
+            event_scope='next_events',
         )
 
     assert result['_meta']['status'] == 'success'
     data = result['data']
     assert data['rise_time'] is not None
     assert data['set_time'] is not None
+    mock_calc.assert_called_once_with(
+        'Sun',
+        mock_proc.return_value[0],
+        mock_proc.return_value[1],
+        event_scope='next_events',
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_celestial_rise_set_rejects_invalid_event_scope():
+    """Invalid event scopes should use the structured configuration error contract."""
+    from src.functions.celestial.impl import get_celestial_rise_set
+
+    result = await get_celestial_rise_set.fn(
+        celestial_object='Sun',
+        lon=-74.0,
+        lat=40.0,
+        time='2024-06-15 22:00:00',
+        time_zone='America/New_York',
+        event_scope='tomorrow_only',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.CONFIGURATION_ERROR
+    assert result['error']['details'] == {'event_scope': 'tomorrow_only'}
 
 
 # ---------------------------------------------------------------------------
