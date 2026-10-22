@@ -29,6 +29,7 @@ from src.schemas.places import (
 )
 from src.schemas.planning import (
     BestStargazingPlan,
+    ObservationStyle,
     ObservationWindow,
     PlannedLocationCandidate,
     PlanningQuery,
@@ -69,6 +70,7 @@ __all__ = [
     'NightlyForecast',
     # Planning
     'PlanningQuery',
+    'ObservationStyle',
     'ObservationWindow',
     'WeatherPlanningSummary',
     'PlanningTarget',

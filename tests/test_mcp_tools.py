@@ -381,6 +381,114 @@ async def test_get_best_stargazing_plan_popularity_preferences_can_rerank_candid
 
 
 @pytest.mark.asyncio
+async def test_get_best_stargazing_plan_observation_style_changes_score_and_targets():
+    """Planetary style should reduce moon penalty and put planets before deep-sky targets."""
+    with (
+        patch('src.functions.planning.impl.analysis_area') as mock_analysis_area,
+        patch('src.functions.planning.impl.get_weather_by_position') as mock_weather,
+        patch('src.functions.planning.impl.get_nightly_forecast') as mock_forecast,
+    ):
+        mock_analysis_area.fn = AsyncMock(
+            return_value={
+                'data': {
+                    'resource_id': 'analysis-style',
+                    'items': [
+                        {
+                            'name': 'Moonlit Ridge',
+                            'lat': 40.1,
+                            'lon': 116.1,
+                            'score': 80.0,
+                            'bortle_class': 5,
+                        }
+                    ],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+        mock_weather.fn = Mock(
+            return_value={
+                'data': {
+                    'summary': {
+                        'current': {
+                            'weather_text': 'Clear',
+                            'cloud_cover_percent': 10.0,
+                            'visibility_km': 20.0,
+                            'wind_speed_kph': 8.0,
+                        },
+                        'hourly': [],
+                    }
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+        mock_forecast.fn = AsyncMock(
+            return_value={
+                'data': {
+                    'moon_phase': {'phase_name': 'Waxing Gibbous', 'illumination': 0.95},
+                    'planets': [{'name': 'Jupiter'}, {'name': 'Saturn'}],
+                    'deep_sky': [{'name': 'M42', 'type': 'emission nebula', 'score': 91.0}],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+
+        deep_sky_result = await get_best_stargazing_plan.fn(
+            south=40.0,
+            west=116.0,
+            north=40.5,
+            east=116.5,
+            time='2024-06-15 20:00:00',
+            time_zone='Asia/Shanghai',
+            candidate_limit=1,
+            target_limit=3,
+            observation_style='deep_sky',
+        )
+        planetary_result = await get_best_stargazing_plan.fn(
+            south=40.0,
+            west=116.0,
+            north=40.5,
+            east=116.5,
+            time='2024-06-15 20:00:00',
+            time_zone='Asia/Shanghai',
+            candidate_limit=1,
+            target_limit=3,
+            observation_style='planetary',
+        )
+
+    deep_candidate = deep_sky_result['data']['candidates'][0]
+    planetary_candidate = planetary_result['data']['candidates'][0]
+
+    assert deep_sky_result['data']['query']['observation_style'] == 'deep_sky'
+    assert planetary_result['data']['query']['observation_style'] == 'planetary'
+    assert deep_candidate['top_targets'][0]['name'] == 'M42'
+    assert planetary_candidate['top_targets'][0]['name'] == 'Jupiter'
+    assert planetary_candidate['recommendation_score'] > deep_candidate['recommendation_score']
+    assert (
+        'observation_style_fit'
+        in (planetary_result['data']['summary']['primary_recommendation_drivers'])
+    )
+    assert any('行星观测偏好' in reason for reason in planetary_candidate['recommendation_reasons'])
+
+
+@pytest.mark.asyncio
+async def test_get_best_stargazing_plan_rejects_invalid_observation_style():
+    """Invalid observation styles should use the structured configuration error contract."""
+    result = await get_best_stargazing_plan.fn(
+        south=40.0,
+        west=116.0,
+        north=40.5,
+        east=116.5,
+        time='2024-06-15 20:00:00',
+        time_zone='Asia/Shanghai',
+        observation_style='astrophotography',
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.CONFIGURATION_ERROR
+    assert result['error']['details'] == {'observation_style': 'astrophotography'}
+
+
+@pytest.mark.asyncio
 async def test_get_best_stargazing_plan_rejects_invalid_popularity_radius():
     """Popularity radius should use the standard structured error payload."""
     result = await get_best_stargazing_plan.fn(

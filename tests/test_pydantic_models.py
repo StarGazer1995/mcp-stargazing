@@ -17,6 +17,7 @@ from src.schemas import (
     MoonInfo,
     NightlyForecast,
     NormalizedWeatherData,
+    ObservationStyle,
     ObservationWindow,
     PlannedLocationCandidate,
     PlanningQuery,
@@ -206,6 +207,7 @@ class TestBestStargazingPlan:
         assert plan.query.avoid_popular_spots is True
         assert plan.query.prefer_quiet_at_night is True
         assert plan.query.popularity_radius_km == 4.0
+        assert plan.query.observation_style == ObservationStyle.BALANCED
         assert plan.summary.recommended_location_name == 'Alpha Ridge'
         assert plan.summary.popularity_preferences_enabled is True
         assert plan.summary.primary_recommendation_drivers == [
@@ -222,6 +224,25 @@ class TestBestStargazingPlan:
                 time_zone='UTC',
                 total_candidates=1,
                 primary_recommendation_drivers=['made_up_driver'],
+            )
+
+    def test_observation_style_rejects_unknown_value(self):
+        with pytest.raises(ValidationError):
+            PlanningQuery(
+                south=30.0,
+                west=100.0,
+                north=31.0,
+                east=101.0,
+                time='2024-06-15 20:00:00',
+                time_zone='UTC',
+                candidate_limit=2,
+                target_limit=3,
+                weather_provider='all',
+                max_locations=10,
+                min_height_diff=100.0,
+                road_radius_km=10.0,
+                network_type='drive',
+                observation_style='astrophotography',
             )
 
     def test_candidate_limit_must_be_positive(self):

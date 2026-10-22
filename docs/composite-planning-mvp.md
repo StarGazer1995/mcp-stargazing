@@ -50,6 +50,7 @@
 | `min_height_diff` | float | 否 | 100.0 | 最小高程差 |
 | `road_radius_km` | float | 否 | 10.0 | 道路搜索半径 |
 | `network_type` | str | 否 | `"drive"` | 道路网络类型 |
+| `observation_style` | str | 否 | `"balanced"` | 观测目标偏好：`balanced`、`deep_sky`、`visual`、`planetary`、`beginner` |
 | `avoid_popular_spots` | bool | 否 | `false` | 是否偏好避开启发式热门地点 |
 | `prefer_quiet_at_night` | bool | 否 | `false` | 是否偏好夜间更安静的地点 |
 | `popularity_radius_km` | float | 否 | 3.0 | 热门度偏好的作用半径 |
@@ -93,6 +94,7 @@
 | `high_place_score` | 地点基础评分不低于 80 |
 | `clear_weather` | 当前云量不高于 25% |
 | `good_visibility` | 当前能见度不低于 15 km |
+| `observation_style_fit` | 非 `balanced` 的观测目标偏好参与了评分或目标排序 |
 | `low_popularity_risk` | 开启避热门偏好且静态热门风险不高于 35 |
 | `quiet_at_night` | 开启夜间安静偏好且夜间安静概率不低于 65 |
 | `strong_targets` | 当前地点有可返回的优先目标 |
@@ -139,8 +141,9 @@ get_best_stargazing_plan
 │     )
 │
 ├─ 4. 综合打分
-│   ├─ 地点评分（底层 stargazing_score）× 0.65
-│   ├─ 天气评分（云量、能见度、风速）× 0.35
+│   ├─ 按 observation_style 选择地点/天气权重与月光容忍度
+│   ├─ 地点评分（底层 stargazing_score）
+│   ├─ 天气评分（云量、能见度、风速）
 │   ├─ 热门度偏好调整（可选）
 │   │   ├─ `avoid_popular_spots=true` 时，参考 `static_popularity_risk_score`
 │   │   └─ `prefer_quiet_at_night=true` 时，参考 `night_quiet_likelihood_score` + `temporal_popularity_confidence`
@@ -164,7 +167,19 @@ get_best_stargazing_plan
 ## 打分算法
 
 ```
-推荐得分 = 地点评分 × 0.65 + max(0, 天气评分) × 0.35 + 热门度偏好调整
+推荐得分 = 地点评分 × 地点权重 + max(0, 天气评分) × 天气权重 + 热门度偏好调整
+
+观测偏好权重:
+  balanced:  地点 0.65 / 天气 0.35 / 月光系数 1.00
+  deep_sky:  地点 0.72 / 天气 0.28 / 月光系数 1.15
+  visual:    地点 0.55 / 天气 0.45 / 月光系数 0.45
+  planetary: 地点 0.42 / 天气 0.58 / 月光系数 0.08
+  beginner:  地点 0.60 / 天气 0.40 / 月光系数 0.25，并对近距离道路加分
+
+目标排序:
+  balanced / deep_sky: 深空目标优先，行星补位
+  visual / beginner:   行星优先，深空目标补位
+  planetary:           行星优先，深空目标补位
 
 地点评分 = location.score（下层综合评分，0–100）
 
@@ -219,14 +234,14 @@ get_best_stargazing_plan
 1. **候选地点上限固定**：`candidate_limit` 决定了最多评估几个地点，不会自适应区域大小
 2. **天气数据时效**：依赖外部 API，缓存在 `get_weather_by_position` 内部管理
 3. **月相精度**：来自 `get_nightly_forecast` 的 astropy 计算，不依赖网络
-4. **观测目标偏好仍缺失**：当前不区分观测目的（深空摄影 vs 目视 vs 行星观测），所有地点仍使用统一的天气/地点综合算法
+4. **观测目标偏好为轻量 profile**：当前通过权重与目标排序区分深空、目视、行星和入门场景，还没有分别采集 seeing、透明度或用户历史偏好
 5. **热门度仍为启发式信号**：规划层使用的是 `analysis_area` 返回的 heuristic popularity 字段，还不是外部 provider 化的人流/POI 活跃度模型
 
 ## 未来扩展方向
 
 参见 `docs/ROADMAP.md` Priority 2：
 
-- 支持观测偏好（astrophotography / casual viewing / bright-object）
+- ✅ 支持轻量观测偏好 profile（`deep_sky` / `visual` / `planetary` / `beginner`）
 - `get_best_targets_for_telescope`：按望远镜口径推荐目标
 - 更强的排名策略：多目标优化、用户历史偏好
 - 地点聚类去重（避免返回过于接近的多个候选）
