@@ -169,8 +169,15 @@ async def test_get_best_stargazing_plan_fn():
     assert data['summary']['generated_at'] == '2026-06-27T12:00:00+00:00'
     assert data['summary']['recommended_location_name'] == 'Alpha Ridge'
     assert data['summary']['popularity_preferences_enabled'] is True
-    assert 'quiet_at_night' in data['summary']['primary_recommendation_drivers']
-    assert data['summary']['recommended_location_reason_summary']
+    assert data['summary']['primary_recommendation_drivers'] == [
+        'dark_sky',
+        'clear_weather',
+        'low_popularity_risk',
+        'quiet_at_night',
+    ]
+    assert data['summary']['recommended_location_reason_summary'] == (
+        'Alpha Ridge 当前主要因暗空条件更好、天气更晴朗、热门度风险更低而成为首选。'
+    )
     assert len(data['candidates']) == 2
     assert data['candidates'][0]['rank'] == 1
     assert data['candidates'][0]['location']['name'] == 'Alpha Ridge'

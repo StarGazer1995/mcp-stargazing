@@ -24,6 +24,7 @@ from src.schemas import (
     PlanningTarget,
     ProviderError,
     ProviderSuccess,
+    RecommendationDriver,
     StargazingLocation,
     VisiblePlanet,
     WeatherPlanningSummary,
@@ -207,8 +208,21 @@ class TestBestStargazingPlan:
         assert plan.query.popularity_radius_km == 4.0
         assert plan.summary.recommended_location_name == 'Alpha Ridge'
         assert plan.summary.popularity_preferences_enabled is True
-        assert plan.summary.primary_recommendation_drivers == ['dark_sky', 'quiet_at_night']
+        assert plan.summary.primary_recommendation_drivers == [
+            RecommendationDriver.DARK_SKY,
+            RecommendationDriver.QUIET_AT_NIGHT,
+        ]
         assert plan.candidates[0].top_targets[0].name == 'M31'
+
+    def test_primary_recommendation_driver_rejects_unknown_value(self):
+        with pytest.raises(ValidationError):
+            PlanningSummary(
+                generated_at='2026-06-27T12:00:00+00:00',
+                requested_time='2024-06-15 20:00:00',
+                time_zone='UTC',
+                total_candidates=1,
+                primary_recommendation_drivers=['made_up_driver'],
+            )
 
     def test_candidate_limit_must_be_positive(self):
         with pytest.raises(ValidationError):

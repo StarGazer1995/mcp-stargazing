@@ -80,10 +80,22 @@
 | `time_zone` | 请求的时区 |
 | `total_candidates` | 返回的候选地点数 |
 | `recommended_location_name` | 排名第一的地点名称 |
-| `popularity_preferences_enabled` | 规划层是否启用了热门度偏好重排 |
-| `primary_recommendation_drivers` | 第一名地点的结构化推荐驱动因素 |
-| `recommended_location_reason_summary` | 第一名地点的简短中文推荐摘要 |
+| `popularity_preferences_enabled` | 请求是否开启了热门度偏好；为 `true` 不保证每个候选点都有可用热门度信号 |
+| `primary_recommendation_drivers` | 第一名地点的结构化推荐驱动因素，最多 4 个，按优先级稳定排序 |
+| `recommended_location_reason_summary` | 第一名地点的简短中文推荐摘要，最多组合前 3 个主要驱动因素 |
 | `warnings` | 全局降级警告（如天气查询失败） |
+
+`primary_recommendation_drivers` 的稳定枚举集合为：
+
+| 值 | 含义 |
+|---|---|
+| `dark_sky` | 波特尔等级不高于 4 |
+| `high_place_score` | 地点基础评分不低于 80 |
+| `clear_weather` | 当前云量不高于 25% |
+| `good_visibility` | 当前能见度不低于 15 km |
+| `low_popularity_risk` | 开启避热门偏好且静态热门风险不高于 35 |
+| `quiet_at_night` | 开启夜间安静偏好且夜间安静概率不低于 65 |
+| `strong_targets` | 当前地点有可返回的优先目标 |
 
 ### `PlannedLocationCandidate` — 单个候选地点
 

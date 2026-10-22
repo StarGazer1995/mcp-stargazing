@@ -15,6 +15,7 @@ from src.schemas.planning import (
     PlanningQuery,
     PlanningSummary,
     PlanningTarget,
+    RecommendationDriver,
     WeatherPlanningSummary,
 )
 from src.server_instance import mcp
@@ -298,65 +299,66 @@ def _derive_primary_recommendation_drivers(
     candidate: PlannedLocationCandidate | None,
     avoid_popular_spots: bool,
     prefer_quiet_at_night: bool,
-) -> list[str]:
+) -> list[RecommendationDriver]:
     """Summarize the main structured drivers behind the top recommendation."""
     if candidate is None:
         return []
 
-    drivers: list[str] = []
+    drivers: list[RecommendationDriver] = []
     location = candidate.location
     weather_summary = candidate.weather_summary
 
     if location.bortle_class is not None and location.bortle_class <= 4:
-        drivers.append('dark_sky')
+        drivers.append(RecommendationDriver.DARK_SKY)
     elif location.score is not None and float(location.score) >= 80.0:
-        drivers.append('high_place_score')
+        drivers.append(RecommendationDriver.HIGH_PLACE_SCORE)
 
     if weather_summary is not None:
         cloud_cover = weather_summary.cloud_cover_percent
         visibility = weather_summary.visibility_km
         if cloud_cover is not None and float(cloud_cover) <= 25.0:
-            drivers.append('clear_weather')
+            drivers.append(RecommendationDriver.CLEAR_WEATHER)
         elif visibility is not None and float(visibility) >= 15.0:
-            drivers.append('good_visibility')
+            drivers.append(RecommendationDriver.GOOD_VISIBILITY)
 
     if (
         avoid_popular_spots
         and location.static_popularity_risk_score is not None
         and float(location.static_popularity_risk_score) <= 35.0
     ):
-        drivers.append('low_popularity_risk')
+        drivers.append(RecommendationDriver.LOW_POPULARITY_RISK)
 
     if (
         prefer_quiet_at_night
         and location.night_quiet_likelihood_score is not None
         and float(location.night_quiet_likelihood_score) >= 65.0
     ):
-        drivers.append('quiet_at_night')
+        drivers.append(RecommendationDriver.QUIET_AT_NIGHT)
 
     if candidate.top_targets:
-        drivers.append('strong_targets')
+        drivers.append(RecommendationDriver.STRONG_TARGETS)
 
     return drivers[:4]
 
 
 def _build_recommended_location_reason_summary(
-    candidate: PlannedLocationCandidate | None, primary_drivers: list[str]
+    candidate: PlannedLocationCandidate | None,
+    primary_drivers: list[RecommendationDriver],
 ) -> str | None:
     """Convert the top candidate's main drivers into a concise Chinese summary."""
     if candidate is None:
         return None
 
     label_map = {
-        'dark_sky': '暗空条件更好',
-        'high_place_score': '地点基础评分更高',
-        'clear_weather': '天气更通透',
-        'good_visibility': '能见度更好',
-        'low_popularity_risk': '热门度风险更低',
-        'quiet_at_night': '夜间更安静',
-        'strong_targets': '可观测目标更强',
+        RecommendationDriver.DARK_SKY: '暗空条件更好',
+        RecommendationDriver.HIGH_PLACE_SCORE: '地点基础评分更高',
+        RecommendationDriver.CLEAR_WEATHER: '天气更晴朗',
+        RecommendationDriver.GOOD_VISIBILITY: '能见度更好',
+        RecommendationDriver.LOW_POPULARITY_RISK: '热门度风险更低',
+        RecommendationDriver.QUIET_AT_NIGHT: '夜间更安静',
+        RecommendationDriver.STRONG_TARGETS: '可观测目标更强',
     }
-    labels = [label_map[driver] for driver in primary_drivers if driver in label_map]
+    labels = [label_map[driver] for driver in primary_drivers]
     if labels:
         joined = '、'.join(labels[:3])
         return f'{candidate.location.name} 当前主要因{joined}而成为首选。'

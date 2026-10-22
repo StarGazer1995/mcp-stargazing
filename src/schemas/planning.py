@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
 
 from src.schemas.places import StargazingLocation
@@ -80,6 +82,18 @@ class PlanningTarget(BaseModel):
     score: float | None = Field(default=None, description='Target score when available')
 
 
+class RecommendationDriver(StrEnum):
+    """Stable structured reasons behind a planning recommendation."""
+
+    DARK_SKY = 'dark_sky'
+    HIGH_PLACE_SCORE = 'high_place_score'
+    CLEAR_WEATHER = 'clear_weather'
+    GOOD_VISIBILITY = 'good_visibility'
+    LOW_POPULARITY_RISK = 'low_popularity_risk'
+    QUIET_AT_NIGHT = 'quiet_at_night'
+    STRONG_TARGETS = 'strong_targets'
+
+
 class PlannedLocationCandidate(BaseModel):
     """A ranked location recommendation with weather and target context."""
 
@@ -121,11 +135,13 @@ class PlanningSummary(BaseModel):
     )
     popularity_preferences_enabled: bool = Field(
         default=False,
-        description='Whether popularity-aware preferences influenced planning-layer ranking',
+        description=(
+            'Whether popularity-aware preference flags were requested for planning-layer ranking'
+        ),
     )
-    primary_recommendation_drivers: list[str] = Field(
+    primary_recommendation_drivers: list[RecommendationDriver] = Field(
         default_factory=list,
-        description='High-level structured drivers behind the top recommendation',
+        description='Stable structured drivers behind the top recommendation, ordered by priority',
     )
     recommended_location_reason_summary: str | None = Field(
         default=None,

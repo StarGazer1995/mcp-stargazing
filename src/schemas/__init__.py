@@ -34,6 +34,7 @@ from src.schemas.planning import (
     PlanningQuery,
     PlanningSummary,
     PlanningTarget,
+    RecommendationDriver,
     WeatherPlanningSummary,
 )
 from src.schemas.weather import (
@@ -73,6 +74,7 @@ __all__ = [
     'PlanningTarget',
     'PlannedLocationCandidate',
     'PlanningSummary',
+    'RecommendationDriver',
     'BestStargazingPlan',
     # Places
     'LightPollutionGridPoint',
