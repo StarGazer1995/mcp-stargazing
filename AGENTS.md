@@ -71,7 +71,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 - Keep tests under `tests/` and exercise both registration and tool execution.
 - Existing harness patterns:
   - `tests/test_integration.py` validates tool registration via `mcp._tool_manager._tools`
-  - `tests/test_mcp_tools.py` (41 tests) — every tool's `.fn` wrapper: success, error paths, edge cases
+  - `tests/test_mcp_tools.py` — every tool's `.fn` wrapper: success, error paths, edge cases
   - `tests/test_supervisord_config.py` (15 tests) — supervisor config ↔ Dockerfile consistency
   - `tests/test_serialization.py` validates the JSON response shape
   - `tests/test_mcp_client.py` validates `tools/list`, `tools/call`, and SSE request-id behavior
@@ -152,12 +152,12 @@ This is not a runtime requirement, but it is the best place for team-level regul
 
 每次发布前执行：
 
-- [ ] `README.md` 的 Available Tools 列表与 `@mcp.tool()` 注册集合一致（15 tools across 7 domains）
+- [ ] `README.md` 的 Available Tools 列表与 `@mcp.tool()` 注册集合一致（由 `test_docs_contract.py` 自动验证）
 - [ ] `docs/ROADMAP.md` 的 Recently completed 反映最新交付
 - [ ] `AGENTS.md` 的错误码列表与 `src/response.py:MCPError` 一致
-- [ ] `test_mcp_tools.py` 的 `EXPECTED_TOOLS` 集合与所有已注册工具一致
+- [ ] 所有 `EXPECTED_TOOLS` 集合与已注册工具一致（由协议和注册测试自动验证）
 - [ ] 文档中没有引用已删除的文件路径或工具名
-- [ ] 示例脚本 (`examples/`) 的参数与工具签名一致
+- [ ] 示例脚本 (`examples/`) 的参数与工具签名一致（文档契约会验证 README 引用路径）
 - [ ] `supervisord.conf` 与 `Dockerfile` 端口/路径一致（`test_supervisord_config.py` 自动验证）
 
 ## Future roadmap
