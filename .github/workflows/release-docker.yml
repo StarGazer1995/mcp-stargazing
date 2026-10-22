@@ -34,6 +34,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate release tag and main ancestry
+        run: |
+          python .github/scripts/release_guard.py validate-tag --tag "$GITHUB_REF_NAME"
+          git fetch --depth=1 origin main:refs/remotes/origin/main
+          python .github/scripts/release_guard.py validate-ancestor --ancestor origin/main
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
