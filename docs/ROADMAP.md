@@ -15,6 +15,7 @@ The following baseline capabilities are already implemented and should no longer
 - `analysis_area` and `get_best_stargazing_plan` now expose popularity preference parameters (`avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`), and those parameters participate in `resource_id` / cache-key generation.
 - Place results now surface popularity heuristic fields (`static_popularity_risk_score`, `night_quiet_likelihood_score`, `temporal_popularity_confidence`, and related notes/signals) from `stargazing-place-finder`.
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
+- `get_celestial_rise_set` now supports explicit `calendar_day` and `next_events` scopes, making cross-midnight sunrise/sunset semantics unambiguous.
 - `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets, and can apply a planning-layer popularity re-rank with explanation fields when popularity preferences are enabled.
 - Cross-repository CI now compares baseline and candidate wheel builds across
   `stargazing-core`, `stargazing-place-finder`, and `mcp-stargazing`. See
@@ -65,26 +66,26 @@ The following baseline capabilities are already implemented and should no longer
 - **Docker dual-service** — Production container runs MCP server (:3001) + SPF web UI (:5001) via supervisord. Both services share the same `uv`-managed venv.
 - **Supervisor config validation** — 15 tests in `test_supervisord_config.py` verify supervisor config ↔ Dockerfile consistency (ports, programs, paths, autorestart).
 
-### Test coverage (completed 2026-07)
+### Test coverage
 
-- **265 tests across 26 files** — every one of 15 MCP tools has `.fn`-level test coverage including success, error, and edge-case paths.
-- `test_mcp_tools.py` (41 tests) — centralized tool wrapper tests.
-- `test_supervisord_config.py` (15 tests) — deployment config validation.
+- The pytest suite covers all 15 MCP tools, including success, structured-error, edge-case, serialization, protocol, documentation-contract, and deployment-config paths.
+- `test_mcp_tools.py` centralizes tool-wrapper coverage.
+- `test_supervisord_config.py` validates deployment config consistency.
 
 ## Priority 1: Finish contract hardening
 
 1.  Schema and documentation consistency
     - ✅ Tool descriptions, parameter docs, and return-shape documentation synchronized across code, `README.md`, CLI, and generated tool metadata (all docs updated 2026-07).
-    - [ ] Add stronger field-level checks for tool metadata drift when new tools are introduced (e.g., auto-diff `EXPECTED_TOOLS` vs `get_tool_catalog` output).
+    - ✅ Registered tools are checked against protocol metadata, catalog output, expected-tool sets, and the README tool list.
 
 2.  Error contract consistency
-    - ✅ Agent-visible validation failures migrated to `src.response.MCPError` across all 15 tools. Remaining known gap: telescope tools emit raw `TypeError` from astropy instead of `MCPError.INVALID_COORDINATES` (documented in `CLAUDE.md` Known Sharp Edges).
+    - ✅ Agent-visible validation failures migrated to `src.response.MCPError` across all 15 tools, including telescope coordinate validation.
     - ✅ Mixed error paths eliminated — all tools return `{error, _meta}` or `{data, _meta}` consistently.
     - ✅ Error codes stable and documented in `AGENTS.md`.
 
 3.  Transport and protocol robustness
     - ✅ Protocol-level tests cover SHTTP/SSE request-id, `tools/list`, `tools/call`, and SSE event parsing.
-    - [ ] Add focused coverage for any future transport-specific behavior changes.
+    - Transport-specific changes must add focused protocol tests when they are introduced.
 
 ## Priority 2: Composite planning tools
 
@@ -93,7 +94,7 @@ The following baseline capabilities are already implemented and should no longer
     - Improve how the planner balances weather quality, moonlight, place quality, and target mix.
 
 2.  Telescope tool improvements
-    - Add coordinate validation before `EarthLocation` construction in `get_telescope_targets` and `get_shooting_plan` — currently raw astropy `TypeError` leaks instead of structured `MCPError.INVALID_COORDINATES`.
+    - ✅ Coordinate validation now returns `MCPError.INVALID_COORDINATES` before `EarthLocation` construction.
     - Add telescope preset lookup (e.g., `telescope='RedCat51'` → auto-fill focal_length, aperture).
     - Support multi-night shooting plans beyond single-session scheduling.
 
@@ -126,7 +127,7 @@ The following baseline capabilities are already implemented and should no longer
 ## Documentation and test coverage
 
 - ✅ `AGENTS.md`, `README.md`, and `docs/ROADMAP.md` aligned with current tool surface (2026-07).
-- ✅ Harness tests exist for all 15 tools: success + error + edge cases (265 tests, 26 files).
+- ✅ Harness tests exist for all 15 tools: success, error, edge cases, and documentation contracts.
 - ✅ All new features documented in `README.md`, `AGENTS.md`, and `CLAUDE.md`.
-- [ ] Add `stargazing-place-finder` and `stargazing-core` documentation parity check as a CI step.
-- [ ] Create example scripts for telescope tools (`get_telescope_targets`, `get_shooting_plan`).
+- Cross-repository compatibility is enforced by the wheel-level dependency-chain CI. Per-repository documentation is checked by the owning repository's own contract tests.
+- ✅ Example scripts are available for `get_telescope_targets` and `get_shooting_plan`.

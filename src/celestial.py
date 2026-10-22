@@ -1,7 +1,7 @@
 import json
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from importlib import resources
 from typing import Any
 
@@ -67,7 +67,11 @@ def celestial_pos(
 
 
 def celestial_rise_set(
-    celestial_object: str, observer_location: EarthLocation, date: datetime, horizon: float = 0.0
+    celestial_object: str,
+    observer_location: EarthLocation,
+    date: datetime,
+    horizon: float = 0.0,
+    event_scope: str = 'calendar_day',
 ) -> tuple[datetime | None, datetime | None]:
     """
     Calculate rise and set times of a celestial object.
@@ -76,13 +80,18 @@ def celestial_rise_set(
         observer_location: Observer's EarthLocation.
         date: Date for calculation (timezone-aware datetime).
         horizon: Horizon elevation in degrees (default: 0).
+        event_scope: ``calendar_day`` keeps the historical behavior and searches the
+            full local calendar day containing ``date``. ``next_events`` searches
+            forward from ``date`` for the next rise and next set independently.
     Returns:
         Tuple[Optional[datetime], Optional[datetime]]: localized rise/set datetimes.
     Raises:
-        ValueError: If the object is not supported or horizon is invalid.
+        ValueError: If the event scope or horizon is invalid.
     """
     if not -90 <= horizon <= 90:
         raise ValueError('Horizon must be between -90 and 90 degrees.')
+    if event_scope not in {'calendar_day', 'next_events'}:
+        raise ValueError("event_scope must be 'calendar_day' or 'next_events'.")
     # Attempt to recover IANA timezone name; fall back to FixedOffset if unavailable.
     # str(date.tzinfo) can return e.g. 'UTC+08:00' which is not a valid IANA name.
     tz_str = str(date.tzinfo)
@@ -91,7 +100,7 @@ def celestial_rise_set(
     except (pytz.UnknownTimeZoneError, KeyError):
         time_zone = date.tzinfo
     origin_zone = pytz.timezone(zone='UTC')
-    time_grid = _generate_time_grid(date)
+    time_grid = _generate_time_grid(date, event_scope=event_scope)
     name = celestial_object.lower()
     altaz_frame = AltAz(obstime=time_grid, location=observer_location)
     if name == 'sun':
@@ -346,11 +355,16 @@ def _get_celestial_object(name: str, time: Time) -> SkyCoord:
         raise ValueError(f"Failed to resolve object '{name}': {str(e)}")
 
 
-def _generate_time_grid(date: datetime) -> Time:
-    """Generate a grid of Time objects for the given date (5-minute intervals)."""
-    start = Time(date.replace(hour=0, minute=0, second=0))
-    end = Time(date.replace(hour=23, minute=59, second=59))
-    return start + np.linspace(0, 1, 288) * (end - start)  # 288 = 24h / 5min
+def _generate_time_grid(date: datetime, event_scope: str = 'calendar_day') -> Time:
+    """Generate a 5-minute event-search grid for the requested time scope."""
+    if event_scope == 'next_events':
+        start = Time(date)
+        end = Time(date + timedelta(hours=48))
+    else:
+        start = Time(date.replace(hour=0, minute=0, second=0))
+        end = Time(date.replace(hour=23, minute=59, second=59))
+    intervals = 576 if event_scope == 'next_events' else 288
+    return start + np.linspace(0, 1, intervals) * (end - start)
 
 
 def _find_rise_set_indices(altitudes: np.ndarray, horizon: float) -> tuple[int | None, int | None]:

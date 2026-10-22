@@ -195,7 +195,7 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
 ### 4. Available Tools
 
 - **`get_celestial_pos`**: Calculate altitude/azimuth.
-- **`get_celestial_rise_set`**: Calculate rise/set times (Returns ISO strings).
+- **`get_celestial_rise_set`**: Calculate rise/set times (Returns ISO strings). Use `event_scope="calendar_day"` for the historical full-local-day behavior, or `event_scope="next_events"` to find the first rise and first set after the supplied `time`, rolling across midnight when needed.
 - **`get_moon_info`**: Detailed moon phase, illumination, and age.
 - **`list_visible_planets`**: List of all planets currently above the horizon with positions.
 - **`get_constellation`**: Find the position (Alt/Az) of a constellation center.
@@ -208,11 +208,11 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
   - **Returns**: `query`, `summary`, and `candidates`, where `query.analysis_resource_id` links the plan back to the underlying `analysis_area` search when available. When popularity preferences are enabled, planning also applies a second-stage recommendation adjustment from the returned popularity heuristic fields, surfaces those reasons in `candidates[*].recommendation_reasons`, and summarizes the top recommendation in `summary.popularity_preferences_enabled`, `summary.primary_recommendation_drivers`, and `summary.recommended_location_reason_summary`. The driver values form a stable enum: `dark_sky`, `high_place_score`, `clear_weather`, `good_visibility`, `low_popularity_risk`, `quiet_at_night`, and `strong_targets`.
   - **Degradation**: Weather or forecast sub-queries may degrade into `summary.warnings` and per-candidate `notes`, while the overall planning response remains successful.
 - **`get_telescope_targets`**: Match deep-sky objects against telescope optics — find what's best visible with your equipment.
-  - **Inputs**: `telescope` (preset name or custom config), `ra`/`dec` or `target_name`, `time`, `time_zone`.
-  - **Returns**: Ranked list of observable targets with visibility scores, altitude/azimuth, and telescope-specific framing.
+  - **Inputs**: `focal_length_mm`, `lon`, `lat`, `time`, `time_zone`, plus optional optics fields such as `aperture_mm`, sensor dimensions, pixel size, reducer/Barlow factor, mount type, filter, and `limit`.
+  - **Returns**: Ranked targets with visibility scores, altitude/azimuth, rise/set/transit data, FOV fit, surface brightness, mosaic guidance, and the normalized telescope configuration.
 - **`get_shooting_plan`**: Generate an optimized imaging schedule for a target, maximizing time above altitude threshold.
-  - **Inputs**: `target_name` or `ra`/`dec`, `telescope`, `time`, `time_zone`, `duration_hours`, `min_altitude_deg`.
-  - **Returns**: Time-ordered sequence of exposures with meridian flip warnings and moon separation data.
+  - **Inputs**: the same telescope/observer fields as `get_telescope_targets`, plus optional `limit` and `min_altitude`.
+  - **Returns**: `targets`, `moon`, a single-night `plan` with timed imaging slots, `config`, and `total`.
 - **`light_pollution_map`**: Query light pollution data for a bounding box area.
   - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).
   - **Returns**: A grid of data points with Bortle class, brightness, and SQM values.
@@ -249,6 +249,12 @@ All tools return JSON-serializable data and use structured error handling:
 - **Pagination**: `python examples/pagination_demo.py`
   - Demonstrates fetching large result sets page by page using the `resource_id`.
 
+- **Telescope Targets**: `python examples/telescope_targets_demo.py`
+  - Ranks deep-sky targets for a RedCat51-style optical configuration.
+
+- **Shooting Plan**: `python examples/shooting_plan_demo.py`
+  - Produces a time-ordered single-night imaging plan.
+
 ## Project Structure
 
 ```
@@ -270,8 +276,8 @@ All tools return JSON-serializable data and use structured error handling:
 │   ├── celestial.py          # Core astronomy logic (Astropy wrappers)
 │   ├── placefinder.py        # Place-finder bridge logic
 │   └── qweather_interaction.py # Thin QWeather URL wrappers
-├── tests/                    # Unified test suite (25+ test files)
-├── examples/                 # Usage examples (14 scripts)
+├── tests/                    # Unified test suite covering every registered tool
+├── examples/                 # Runnable usage examples, including both telescope tools
 ├── docs/                     # Design docs and roadmap
 ├── Dockerfile                # Multi-stage Docker build
 ├── supervisord.conf          # Dual-service process manager config

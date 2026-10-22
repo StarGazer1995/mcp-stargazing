@@ -73,11 +73,12 @@ print(result)
   - `time`: `datetime` (timezone-aware) or Astropy `Time`.
 - **Returns**: `(altitude_degrees, azimuth_degrees)`.
 
-### `celestial_rise_set(celestial_object, observer_location, date, horizon=0.0)` (`src/celestial.py`)
-- **Inputs**: 
+### `celestial_rise_set(celestial_object, observer_location, date, horizon=0.0, event_scope="calendar_day")` (`src/celestial.py`)
+- **Inputs**:
   - `date`: Timezone-aware `datetime`.
   - `horizon`: Horizon elevation (default: 0°).
-- **Returns**: `(rise_time, set_time)` as UTC `Time` objects.
+  - `event_scope`: `"calendar_day"` searches the local date containing `date`; `"next_events"` searches forward for the next rise and next set independently.
+- **Returns**: `(rise_time, set_time)` as timezone-localized `datetime` objects.
 
 ## Testing
 Run tests with:

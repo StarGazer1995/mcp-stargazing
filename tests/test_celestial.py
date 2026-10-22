@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import astropy.units as u
 import numpy as np
@@ -58,6 +58,18 @@ def test_calculate_rise_set_sun():
     assert rise < set_
 
 
+def test_calculate_rise_set_sun_next_events_crosses_midnight():
+    """Next-event mode should roll a late-night request into the following day."""
+    reference = UTC.localize(datetime(2023, 10, 1, 23, 0))
+
+    rise, set_ = celestial_rise_set('sun', NYC, reference, event_scope='next_events')
+
+    assert rise is not None and set_ is not None
+    assert rise > reference
+    assert set_ > reference
+    assert rise.date() == reference.date() + timedelta(days=1)
+
+
 def test_calculate_rise_set_deepspace():
     """Test rise/set for deep-space objects (may not rise/set)."""
     date = UTC.localize(datetime(2023, 10, 1))
@@ -69,6 +81,17 @@ def test_calculate_rise_set_invalid_horizon():
     """Test invalid horizon elevation."""
     with pytest.raises(ValueError, match='Horizon must be between'):
         celestial_rise_set('sun', NYC, datetime(2023, 10, 1), horizon=100)
+
+
+def test_calculate_rise_set_invalid_event_scope():
+    """Unknown event scopes should fail explicitly instead of silently changing semantics."""
+    with pytest.raises(ValueError, match='event_scope'):
+        celestial_rise_set(
+            'sun',
+            NYC,
+            UTC.localize(datetime(2023, 10, 1)),
+            event_scope='tomorrow_only',
+        )
 
 
 def test__get_celestial_object():

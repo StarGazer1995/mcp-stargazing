@@ -61,7 +61,12 @@ async def get_celestial_pos(
 
 @mcp.tool()
 async def get_celestial_rise_set(
-    celestial_object: str, lon: float, lat: float, time: str, time_zone: str
+    celestial_object: str,
+    lon: float,
+    lat: float,
+    time: str,
+    time_zone: str,
+    event_scope: str = 'calendar_day',
 ) -> dict[str, Any]:
     """Calculate the rise and set times of a celestial object.
 
@@ -71,16 +76,29 @@ async def get_celestial_rise_set(
         lat: Observer latitude in degrees
         time: Date string "YYYY-MM-DD HH:MM:SS"
         time_zone: IANA timezone string
+        event_scope: "calendar_day" (default) finds the events in the local calendar
+            day containing ``time``. "next_events" finds the next rise and next set
+            independently, rolling into following days when needed.
 
     Returns:
         Dict with keys "data", "_meta". "data" contains "rise_time" and "set_time".
     """
 
     async def operation() -> dict[str, Any]:
+        if event_scope not in {'calendar_day', 'next_events'}:
+            raise MCPError(
+                MCPError.CONFIGURATION_ERROR,
+                "event_scope must be 'calendar_day' or 'next_events'.",
+                {'event_scope': event_scope},
+            )
         location, time_info = process_location_and_time(lon, lat, time, time_zone)
         # Run synchronous celestial calculations in a separate thread
         rise_time, set_time = await asyncio.to_thread(
-            celestial_rise_set, celestial_object, location, time_info
+            celestial_rise_set,
+            celestial_object,
+            location,
+            time_info,
+            event_scope=event_scope,
         )
         rise_set = RiseSet(
             rise_time=rise_time.isoformat() if rise_time else None,

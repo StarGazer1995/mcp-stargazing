@@ -30,6 +30,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate release tag and main ancestry
+        run: |
+          VERSION=$(python .github/scripts/release_guard.py version)
+          python .github/scripts/release_guard.py validate-tag --tag "$GITHUB_REF_NAME"
+          git fetch --depth=1 origin main:refs/remotes/origin/main
+          python .github/scripts/release_guard.py validate-ancestor --ancestor origin/main
+          echo "version=$VERSION" >> "$GITHUB_ENV"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -46,6 +54,9 @@ jobs:
 
       - name: Build package
         run: python -m build
+
+      - name: Validate built distribution versions
+        run: python .github/scripts/release_guard.py validate-dist --version "$version"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

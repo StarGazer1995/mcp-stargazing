@@ -111,8 +111,8 @@ src/
 │           ├── qweather.py
 │           └── wttr.py
 │
-├── tests/                   # 26 test files covering all 15 tools (pytest + pytest-asyncio)
-├── examples/                # 14 example/demo scripts
+├── tests/                   # Full pytest/pytest-asyncio harness for all 15 tools
+├── examples/                # Runnable demos, including both telescope tools
 ├── docs/                    # Design docs and ROADMAP.md
 ├── Dockerfile               # Multi-stage build (test + production)
 ├── supervisord.conf          # Dual-service process manager (MCP + SPF web)
@@ -144,9 +144,9 @@ src/
 ## Testing
 
 - Config in `pyproject.toml`: `pythonpath = ["src"]`, `testpaths = ["tests"]`
-- 26 test files covering all 15 MCP tools, error paths, edge cases, protocols, and config
+- Full pytest suite covering all 15 MCP tools, error paths, edge cases, protocols, docs contracts, and config
 - `test_mcp_client.py` — MCP protocol tests (tools/list, tools/call, SSE request-id)
-- `test_mcp_tools.py` — 41 tests: every tool's `.fn` wrapper (success + error + edge cases)
+- `test_mcp_tools.py` — every tool's `.fn` wrapper (success + error + edge cases)
 - `test_supervisord_config.py` — 15 tests: supervisor config ↔ Dockerfile consistency
 - `test_serialization.py` — Every tool's response validates against expected JSON schema
 - `test_structured_errors.py` — Business error payload normalization
@@ -156,15 +156,18 @@ src/
 
 ## Known Sharp Edges
 
-### Real issues (verified 2026-07-07)
+### Active issues (verified 2026-10-22)
 
-- **Place-finder bridge uses `sys.path` manipulation** (`paths.py`) — inserts SPF's source root into `sys.path` at import time to resolve SPF's internal cross-module imports. Fragile: breaks if SPF's package structure changes or if a same-named module from another dependency shadows it. Long-term fix: SPF should expose a clean public API that doesn't require source-root path hacks.
-- **Global module-level caches are not thread-safe** — `AnalysisCache` (`cache.py`), `OBJECTS_CACHE`, and `CONSTELLATIONS_CACHE` (both in `celestial.py`) use plain `dict` without locks. Multiple asyncio tasks concurrently reading/writing could cause data races. The GIL mitigates bytecode-level corruption but not logical races (e.g., cache stampede on miss).
 - **Weather provider code is repetitive** — `open_meteo.py`, `qweather.py`, and `wttr.py` follow nearly identical fetch → parse → normalize → return patterns. A shared abstract base class or Protocol would eliminate ~60% duplication. Adding a fourth provider currently means copy-pasting one of the three.
-- **`qweather_interaction.py` mixes concerns** — handles JWT generation, API-KEY auth, URL building, HTTP fetching, and error translation in a single module. Split into auth, HTTP client, and error mapping layers.
-- **No observability** — no structured logging, no metrics, no tracing. The only output is `print()` in `main.py`. Hard to monitor in production or debug transient failures.
-- **Telescope tools bypass coordinate validation** — `get_telescope_targets` and `get_shooting_plan` construct `EarthLocation` directly instead of calling `process_location_and_time`. This means invalid coordinates raise raw `TypeError` from astropy instead of the structured `MCPError.INVALID_COORDINATES` that other celestial tools produce. Tests in `test_mcp_tools.py` document this behaviour explicitly; fixing it would require a small refactor to add `validate_coordinates` calls before EarthLocation construction.
-- **Python 3.13+ only** — limits deployment options. Many cloud platforms and Docker base images still default to 3.12.
+- **Legacy SPF wheel compatibility fallback** — modern namespaced imports are preferred; the source-root `sys.path` fallback remains only for older published SPF wheels and should be removed after the compatibility window closes.
+- **Python 3.13+ only** — this is an intentional deployment constraint in `pyproject.toml`.
+
+### Resolved or mitigated
+
+- `AnalysisCache`, object caches, and constellation caches are now lock-protected.
+- QWeather URL construction is separated from shared HTTP transport and error translation.
+- Structured logging is available through `src/logging_config.py`.
+- Telescope tools validate coordinates before constructing `EarthLocation`.
 
 ### Notes
 
