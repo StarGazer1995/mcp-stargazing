@@ -131,7 +131,7 @@ src/
 
 5. **Multi-provider aggregation with degradation** — Weather queries cascade: open-meteo → qweather → wttr. Partial provider failures become notes/warnings in the response rather than failing the entire request. Geocoding cascades similarly: offline China gazetteer → Photon → Nominatim, with Amap available only as an explicit opt-in provider.
 
-6. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` uses only the namespaced public API from `stargazing-place-finder>=0.9.0`. It avoids re-initializing the SPF singleton when parameters haven't changed (compares `_last_params`), preventing repeated GeoTIFF open and PostGIS pool creation.
+6. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` uses only the namespaced public API from `stargazing-place-finder>=0.9.1`. It avoids re-initializing the SPF singleton when parameters haven't changed (compares `_last_params`), preventing repeated GeoTIFF open and PostGIS pool creation.
 
 7. **Pagination with stable resource_id** — `analysis_area` returns `resource_id` keyed on non-pagination query params (MD5 of sorted kwargs). Cache TTL is 3600s. Cache key excludes `page` and `page_size`, so paginating through results hits the same cache entry.
 
@@ -165,7 +165,7 @@ src/
 - `AnalysisCache`, object caches, and constellation caches are now lock-protected.
 - QWeather URL construction is separated from shared HTTP transport and error translation.
 - Weather providers now share one adapter execution contract and registry; adding a provider no longer duplicates fetch → normalize → response wrapping orchestration.
-- The legacy SPF `sys.path` and top-level-module compatibility fallback was removed after raising the minimum SPF version to 0.9.0.
+- The legacy SPF `sys.path` and top-level-module compatibility fallback was removed after raising the minimum SPF version to 0.9.1.
 - Structured logging is available through `src/logging_config.py`.
 - Telescope tools validate coordinates before constructing `EarthLocation`.
 
