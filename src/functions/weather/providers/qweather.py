@@ -17,6 +17,7 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+from ._adapter import WeatherProviderAdapter
 from ._common import to_float as _to_float
 from ._common import to_ratio as _to_ratio
 
@@ -43,16 +44,12 @@ def get_weather_by_position(
     timezone: str | None = None,
 ) -> ProviderSuccess:
     """查询 QWeather 并返回标准化后的 provider 结果。"""
-
-    raw_data = fetch_qweather_raw_weather(lat, lon)
-    normalized = normalize_qweather_weather(
-        raw_data,
+    return WEATHER_PROVIDER.load(
         lat,
         lon,
         location_name=location_name,
         timezone=timezone,
     )
-    return ProviderSuccess(provider='qweather', data=normalized)
 
 
 def fetch_qweather_raw_weather(lat: float, lon: float) -> dict:
@@ -229,3 +226,10 @@ def map_qweather_condition_code(code: str | None) -> str | None:
     if code in fog_codes:
         return 'fog'
     return 'unknown'
+
+
+WEATHER_PROVIDER = WeatherProviderAdapter(
+    name='qweather',
+    fetch_raw=lambda lat, lon, *, timezone=None: fetch_qweather_raw_weather(lat, lon),
+    normalize=normalize_qweather_weather,
+)

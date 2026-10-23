@@ -39,59 +39,23 @@
 | 下层 `models` 模块的内部数据结构 | 避免跨 repo 的模型耦合 |
 
 上层（`mcp-stargazing`）应该：
-- 通过 `src/models/places.py` 定义自己的 Pydantic 模型（`StargazingLocation.from_spf_location()` 做转换）
+- 通过 `src/schemas/places.py` 定义自己的 Pydantic 模型（`StargazingLocation.from_spf_location()` 做转换）
 - 在工具层（`src/functions/places/impl.py`）做缓存、分页、响应包装
 - 不直接 import 下层的任何模型类
 
-## 导入边界与 `models` 命名冲突
+## 导入边界
 
-### 问题根因
+`mcp-stargazing` 最低支持 `stargazing-place-finder>=0.9.0`。Bridge 只导入
+`stargazingplacefinder` 命名空间下的公共 API，不再修改 `sys.path`，也不兼容旧版
+顶层 `config` / `models` / `cache` 布局。
 
-- `mcp-stargazing` 有 `src/models/` 包（Pydantic 模型）
-- `stargazing-place-finder` 依赖链中也有 `models` 包
-- 两个 `models` 包在同一 Python 进程中会互相遮蔽
+这一版本同时把 MCP 自身的分析缓存模块从 `src/cache.py` 改名为
+`src/analysis_cache.py`，避免源码测试环境把 MCP 的 `cache` 模块暴露为顶层包并与
+SPF 的内部模块发生名称遮蔽。
 
-### 当前解法（`src/paths.py` + namespaced wrapper）
-
-`placefinder.py` 现在优先直接导入 `stargazingplacefinder` 和
-`stargazingplacefinder.config`。即使 namespaced wrapper 导入成功，bridge 也会检查
-`cache` 是否被 MCP 自己的 `src/cache.py` 遮蔽；发现遮蔽时，复用
-`paths.py` 中的导入修复函数后再允许 SPF 继续懒加载子模块。
-
-`paths.py` 提供以下工具函数，由 `placefinder.py` 在 shadow repair 和 legacy
-fallback 路径中调用：
-
-| 函数 | 职责 |
-|------|------|
-| `find_module_origin()` | 安全查找模块的来源路径 |
-| `is_repo_models_origin()` | 判断一个模块来源是否属于本 repo 的 `src/models/` |
-| `discard_shadowing_module()` | 从 `sys.modules` 中移除会遮蔽下层包的缓存模块 |
-| `prioritize_sys_path()` | 将下层 repo 的 source root 提升到 `sys.path` 最前面 |
-| `resolve_package_source_root()` | 解析任意包的 source root 路径 |
-
-加载流程：
-
-1. 先尝试直接 `importlib.import_module('stargazingplacefinder')`
-2. 成功后检查 `cache` 的模块来源；若来自 MCP 仓库自身的 `src/cache.py`，将 SPF
-   source root 提前并清理被遮蔽的 `cache` 模块
-3. 若是 `stargazingplacefinder` 本身缺失，则向上层报“依赖未安装”
-4. 若导入失败来自下层旧版 wheel 的嵌套模块布局（例如 `cache.cache_config`），则进入 legacy fallback
-5. `resolve_package_source_root('stargazingplacefinder')` 确定下层 repo 的 source root
-6. `discard_shadowing_module('cache', PROJECT_ROOT)` 清理 MCP 仓库自身的 `cache` 模块遮蔽
-7. `prioritize_sys_path()` 将下层根路径排到最前，然后重试 `importlib.import_module('stargazingplacefinder')`
-8. 配置加载优先走 `stargazingplacefinder.config`，仅对旧 wheel 回退到顶层 `config`
-
-### 长期方向
-
-当前方案已将 runtime compatibility 逻辑严格隔离在 bridge 层，并通过
-`tests/test_placefinder.py` / `tests/test_paths.py` 覆盖。长期来看，更彻底的解法包括：
-
-- 将 `mcp-stargazing/src/models/` 重命名为 `src/schemas/` 或 `src/dtos/` 避免与下层 `models` 冲突
-- 或将下层 `models` 包重命名
-- 或在 SPF 新版本完全普及后移除 bridge 层的 legacy fallback
-
-无论选择哪种长期方案，当前 bridge 已经将默认路径切换为 namespaced import。
-少量 runtime 修复继续覆盖 SPF 懒加载子模块与 MCP 源码目录之间的通用模块名冲突。
+依赖缺失时，bridge 会明确提示需要安装
+`stargazing-place-finder>=0.9.0`。配置只从
+`stargazingplacefinder.config.load_stargazing_config` 加载。
 
 ## 调用链总览
 
@@ -102,7 +66,6 @@ MCP Agent
   → tools/call (analysis_area)
     → src/functions/places/impl.py      # 缓存、分页、响应包装
       → src/placefinder.py              # Bridge: StargazingPlaceFinder.analyze_area()
-        → src/paths.py                  # 导入边界修复
         → stargazingplacefinder         # 下层 public API
           → stargazing_analyzer         # 综合分析引擎
             → light_pollution           # 光污染查询
@@ -117,7 +80,6 @@ MCP Agent
   → tools/call (light_pollution_map)
     → src/functions/places/impl.py      # 模型转换、响应包装
       → src/placefinder.py              # Bridge: get_light_pollution_grid()
-        → src/paths.py                  # 导入边界修复
         → stargazingplacefinder         # 下层 public API
           → light_pollution             # GeoTIFF 查询
 ```
@@ -126,12 +88,12 @@ MCP Agent
 
 | 测试文件 | 覆盖内容 |
 |---------|---------|
-| `tests/test_paths.py` | 路径解析、模块来源检测、shadow 清理、sys.path 重排 |
+| `tests/test_paths.py` | 仓库路径常量 |
 | `tests/test_placefinder.py` | Bridge 的构造、配置加载、legacy fallback、analyze_area 转发、get_light_pollution_grid 转发 |
 
 ## 变更规则
 
 - 新增下层能力的 bridge 转发时，优先保持函数签名与下层一致，不做额外语义转换
 - Bridge 层不引入新的业务模型，只做轻量参数适配
-- 任何对 `paths.py` 的修改必须同步更新 `tests/test_paths.py`
+- 任何对仓库路径常量的修改必须同步更新 `tests/test_paths.py`
 - 如果下层 public API 发生 breaking change，需要同时更新 bridge 接口和本文件

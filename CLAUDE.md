@@ -44,7 +44,7 @@ MCP Transport Layer:   Streamable HTTP (:3001)  |  SSE  |  Local (stdio)
    impl.py (6 domains) celestial.py          Pydantic v2 BaseModel
               |         placefinder.py       (10 model files)
               |         response.py
-              |         cache.py
+              |    analysis_cache.py
               |         retry.py
               |         utils.py
               └─────────────────┼──────────────────┘
@@ -73,10 +73,10 @@ src/
 ├── response.py              # format_response(), format_error(), MCPError (10 error codes)
 ├── celestial.py             # Core astronomy: AltAz, rise/set, moon phase, planets, SIMBAD
 ├── placefinder.py           # Bridge to stargazing-place-finder package (SPF)
-├── cache.py                 # AnalysisCache: TTL-based in-memory cache for analysis_area results
+├── analysis_cache.py        # AnalysisCache: TTL-based in-memory cache for analysis_area results
 ├── retry.py                 # retry_on_failure decorator (async + sync, exponential backoff)
 ├── utils.py                 # Coordinate validation, time parsing, timezone normalization
-├── paths.py                 # sys.path management for SPF import resolution
+├── paths.py                 # Repository path constants
 ├── logging_config.py        # Structured logging (structlog) with request-id context
 ├── qweather_interaction.py  # QWeather API client (JWT + API-KEY auth, URL building)
 │
@@ -131,7 +131,7 @@ src/
 
 5. **Multi-provider aggregation with degradation** — Weather queries cascade: open-meteo → qweather → wttr. Partial provider failures become notes/warnings in the response rather than failing the entire request. Geocoding cascades similarly: offline China gazetteer → Photon → Nominatim, with Amap available only as an explicit opt-in provider.
 
-6. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` wraps the `stargazing-place-finder` package's public API. Uses `sys.path` manipulation via `paths.py` to ensure SPF's internal imports resolve correctly. Avoids re-initializing the SPF singleton when parameters haven't changed (compares `_last_params` dict), preventing repeated GeoTIFF open and PostGIS pool creation.
+6. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` uses only the namespaced public API from `stargazing-place-finder>=0.9.0`. It avoids re-initializing the SPF singleton when parameters haven't changed (compares `_last_params`), preventing repeated GeoTIFF open and PostGIS pool creation.
 
 7. **Pagination with stable resource_id** — `analysis_area` returns `resource_id` keyed on non-pagination query params (MD5 of sorted kwargs). Cache TTL is 3600s. Cache key excludes `page` and `page_size`, so paginating through results hits the same cache entry.
 
@@ -156,16 +156,16 @@ src/
 
 ## Known Sharp Edges
 
-### Active issues (verified 2026-10-22)
+### Active issues (verified 2026-10-23)
 
-- **Weather provider code is repetitive** — `open_meteo.py`, `qweather.py`, and `wttr.py` follow nearly identical fetch → parse → normalize → return patterns. A shared abstract base class or Protocol would eliminate ~60% duplication. Adding a fourth provider currently means copy-pasting one of the three.
-- **Legacy SPF wheel compatibility fallback** — modern namespaced imports are preferred; the source-root `sys.path` fallback remains only for older published SPF wheels and should be removed after the compatibility window closes.
 - **Python 3.13+ only** — this is an intentional deployment constraint in `pyproject.toml`.
 
 ### Resolved or mitigated
 
 - `AnalysisCache`, object caches, and constellation caches are now lock-protected.
 - QWeather URL construction is separated from shared HTTP transport and error translation.
+- Weather providers now share one adapter execution contract and registry; adding a provider no longer duplicates fetch → normalize → response wrapping orchestration.
+- The legacy SPF `sys.path` and top-level-module compatibility fallback was removed after raising the minimum SPF version to 0.9.0.
 - Structured logging is available through `src/logging_config.py`.
 - Telescope tools validate coordinates before constructing `EarthLocation`.
 

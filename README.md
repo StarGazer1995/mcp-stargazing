@@ -93,7 +93,7 @@ Container
 │
 Dependency resolution (single venv, no duplication):
   stargazing-core>=0.1.0  ←  resolved once from PyPI
-  stargazing-place-finder>=0.8.0
+  stargazing-place-finder>=0.9.0
   fastapi, uvicorn, ...   ←  SPF's transitive deps
 ```
 
@@ -270,7 +270,7 @@ All tools return JSON-serializable data and use structured error handling:
 │   │   ├── places/           # Location and area analysis
 │   │   └── time/             # Time utilities
 │   ├── schemas/              # Pydantic v2 data models
-│   ├── cache.py              # Caching logic for analysis results
+│   ├── analysis_cache.py     # Caching logic for analysis results
 │   ├── response.py           # Standardized response formatting
 │   ├── server_instance.py    # FastMCP server instance (avoids circular imports)
 │   ├── main.py               # Entry point and tool registration

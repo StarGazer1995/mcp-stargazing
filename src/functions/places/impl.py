@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from src.cache import ANALYSIS_CACHE, generate_cache_key
+from src.analysis_cache import ANALYSIS_CACHE, generate_cache_key
 from src.logging_config import get_logger, get_request_id, set_request_id
 from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
 from src.response import MCPError, format_error, format_response

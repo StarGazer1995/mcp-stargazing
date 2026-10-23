@@ -1,6 +1,6 @@
 import time
 
-from src.cache import AnalysisCache, generate_cache_key
+from src.analysis_cache import AnalysisCache, generate_cache_key
 
 
 class TestAnalysisCache:

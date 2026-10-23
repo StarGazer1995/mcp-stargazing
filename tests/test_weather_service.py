@@ -1,5 +1,6 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import src.functions.weather.service as weather_service
 from src.functions.weather.service import get_aggregated_weather_by_position
 from src.response import MCPError
 from src.schemas.weather import (
@@ -33,18 +34,21 @@ def test_aggregated_weather_by_position_uses_open_meteo_hourly_first():
         ),
     )
 
-    with (
-        patch(
-            'src.functions.weather.service.open_meteo.get_weather_by_position',
-            return_value=open_meteo_result,
-        ),
-        patch(
-            'src.functions.weather.service.qweather.get_weather_by_position',
-            side_effect=Exception('should not be called'),
-        ),
-        patch(
-            'src.functions.weather.service.wttr.get_weather_by_position', return_value=wttr_result
-        ),
+    open_meteo_adapter = MagicMock()
+    open_meteo_adapter.load.return_value = open_meteo_result
+    qweather_adapter = MagicMock()
+    qweather_adapter.load.side_effect = Exception('should not be called')
+    wttr_adapter = MagicMock()
+    wttr_adapter.load.return_value = wttr_result
+
+    with patch.dict(
+        weather_service._PROVIDER_ADAPTERS,
+        {
+            'open-meteo': open_meteo_adapter,
+            'qweather': qweather_adapter,
+            'wttr': wttr_adapter,
+        },
+        clear=True,
     ):
         result = get_aggregated_weather_by_position(
             39.9, 116.4, provider='all', location_name='Beijing'
@@ -66,19 +70,21 @@ def test_aggregated_weather_by_position_keeps_partial_provider_failures():
         ),
     )
 
-    with (
-        patch(
-            'src.functions.weather.service.open_meteo.get_weather_by_position',
-            return_value=open_meteo_result,
-        ),
-        patch(
-            'src.functions.weather.service.qweather.get_weather_by_position',
-            side_effect=Exception('qweather down'),
-        ),
-        patch(
-            'src.functions.weather.service.wttr.get_weather_by_position',
-            side_effect=Exception('wttr down'),
-        ),
+    open_meteo_adapter = MagicMock()
+    open_meteo_adapter.load.return_value = open_meteo_result
+    qweather_adapter = MagicMock()
+    qweather_adapter.load.side_effect = Exception('qweather down')
+    wttr_adapter = MagicMock()
+    wttr_adapter.load.side_effect = Exception('wttr down')
+
+    with patch.dict(
+        weather_service._PROVIDER_ADAPTERS,
+        {
+            'open-meteo': open_meteo_adapter,
+            'qweather': qweather_adapter,
+            'wttr': wttr_adapter,
+        },
+        clear=True,
     ):
         result = get_aggregated_weather_by_position(40.0, 116.0, provider='all')
 
@@ -98,19 +104,23 @@ def test_aggregated_weather_handles_mcperror_from_provider():
         ),
     )
 
-    with (
-        patch(
-            'src.functions.weather.service.open_meteo.get_weather_by_position',
-            return_value=open_meteo_result,
-        ),
-        patch(
-            'src.functions.weather.service.qweather.get_weather_by_position',
-            side_effect=MCPError(MCPError.CONFIGURATION_ERROR, 'Bad API key', {'key': 'x'}),
-        ),
-        patch(
-            'src.functions.weather.service.wttr.get_weather_by_position',
-            side_effect=Exception('wttr down'),
-        ),
+    open_meteo_adapter = MagicMock()
+    open_meteo_adapter.load.return_value = open_meteo_result
+    qweather_adapter = MagicMock()
+    qweather_adapter.load.side_effect = MCPError(
+        MCPError.CONFIGURATION_ERROR, 'Bad API key', {'key': 'x'}
+    )
+    wttr_adapter = MagicMock()
+    wttr_adapter.load.side_effect = Exception('wttr down')
+
+    with patch.dict(
+        weather_service._PROVIDER_ADAPTERS,
+        {
+            'open-meteo': open_meteo_adapter,
+            'qweather': qweather_adapter,
+            'wttr': wttr_adapter,
+        },
+        clear=True,
     ):
         result = get_aggregated_weather_by_position(40.0, 116.0, provider='all')
 

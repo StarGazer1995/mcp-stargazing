@@ -145,7 +145,7 @@ prefer_quiet_at_night, popularity_radius_km, db_config_path
 - 缓存 key = `resource_id`（即搜索参数的 MD5）
 - 缓存 value = 完整的地点列表（未分页）
 - TTL = 3600 秒（1 小时），基于创建时间
-- 缓存作用域 = 进程内存（`src/cache.py:ANALYSIS_CACHE`）
+- 缓存作用域 = 进程内存（`src/analysis_cache.py:ANALYSIS_CACHE`）
 
 ### 缓存失效
 
