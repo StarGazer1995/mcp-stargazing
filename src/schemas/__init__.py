@@ -16,6 +16,7 @@ from src.schemas.celestial import (
     DeepSkyObject,
     MoonInfo,
     NightlyForecast,
+    NightWindow,
     RiseSet,
     VisiblePlanet,
 )
@@ -29,6 +30,10 @@ from src.schemas.places import (
 )
 from src.schemas.planning import (
     BestStargazingPlan,
+    MultiNightPlanningQuery,
+    MultiNightPlanningSummary,
+    MultiNightStargazingPlan,
+    NightlyStargazingPlan,
     ObservationStyle,
     ObservationWindow,
     PlannedLocationCandidate,
@@ -64,6 +69,7 @@ __all__ = [
     'CelestialPosition',
     'RiseSet',
     'MoonInfo',
+    'NightWindow',
     'VisiblePlanet',
     'ConstellationInfo',
     'DeepSkyObject',
@@ -78,6 +84,10 @@ __all__ = [
     'PlanningSummary',
     'RecommendationDriver',
     'BestStargazingPlan',
+    'MultiNightPlanningQuery',
+    'MultiNightPlanningSummary',
+    'MultiNightStargazingPlan',
+    'NightlyStargazingPlan',
     # Places
     'LightPollutionGridPoint',
     'LightPollutionGrid',

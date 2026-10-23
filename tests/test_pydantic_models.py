@@ -15,7 +15,12 @@ from src.schemas import (
     LightPollutionGridPoint,
     LocationInfo,
     MoonInfo,
+    MultiNightPlanningQuery,
+    MultiNightPlanningSummary,
+    MultiNightStargazingPlan,
     NightlyForecast,
+    NightlyStargazingPlan,
+    NightWindow,
     NormalizedWeatherData,
     ObservationStyle,
     ObservationWindow,
@@ -102,6 +107,13 @@ class TestMoonInfo:
 
 class TestNightlyForecast:
     def test_valid_forecast(self):
+        night_window = NightWindow(
+            local_date='2024-06-15',
+            civil_dusk='2024-06-15T20:30:00-04:00',
+            civil_dawn='2024-06-16T04:30:00-04:00',
+            duration_hours=8.0,
+            time_zone='America/New_York',
+        )
         forecast = NightlyForecast(
             moon_phase=MoonInfo(
                 illumination=0.5,
@@ -122,11 +134,13 @@ class TestNightlyForecast:
                     score=2.5,
                 )
             ],
+            night_window=night_window,
         )
         assert len(forecast.planets) == 1
         assert forecast.planets[0].name == 'Mars'
         assert len(forecast.deep_sky) == 1
         assert forecast.deep_sky[0].name == 'M42'
+        assert forecast.night_window.local_date == '2024-06-15'
 
     def test_empty_forecast(self):
         forecast = NightlyForecast(
@@ -136,6 +150,13 @@ class TestNightlyForecast:
                 age_days=0.0,
                 elongation=0.0,
                 earth_distance=384400.0,
+            ),
+            night_window=NightWindow(
+                local_date='2024-06-15',
+                civil_dusk='2024-06-15T20:30:00+00:00',
+                civil_dawn='2024-06-16T04:30:00+00:00',
+                duration_hours=8.0,
+                time_zone='UTC',
             ),
         )
         assert forecast.planets == []
@@ -263,6 +284,41 @@ class TestBestStargazingPlan:
                 network_type='drive',
                 popularity_radius_km=3.0,
             )
+
+
+class TestMultiNightStargazingPlan:
+    def test_valid_empty_multi_night_plan(self):
+        plan = MultiNightStargazingPlan(
+            query=MultiNightPlanningQuery(
+                south=30.0,
+                west=100.0,
+                north=31.0,
+                east=101.0,
+                start_date='2024-06-15',
+                nights=2,
+                time_zone='UTC',
+                observation_style=ObservationStyle.VISUAL,
+            ),
+            summary=MultiNightPlanningSummary(
+                generated_at='2024-06-15T00:00:00+00:00',
+                requested_nights=2,
+                successful_nights=0,
+                warnings=['night_window_unavailable'],
+            ),
+            nights=[
+                NightlyStargazingPlan(
+                    night_index=1,
+                    date='2024-06-15',
+                    error='No civil-dark window',
+                    warnings=['night_window_unavailable'],
+                )
+            ],
+        )
+
+        assert plan.query.nights == 2
+        assert plan.query.observation_style == ObservationStyle.VISUAL
+        assert plan.summary.best_night_index is None
+        assert plan.nights[0].night_index == 1
 
 
 # ── Places Models ───────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ The following baseline capabilities are already implemented and should no longer
 - Place results now surface popularity heuristic fields (`static_popularity_risk_score`, `night_quiet_likelihood_score`, `temporal_popularity_confidence`, and related notes/signals) from `stargazing-place-finder`.
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
 - `get_celestial_rise_set` now supports explicit `calendar_day` and `next_events` scopes, making cross-midnight sunrise/sunset semantics unambiguous.
+- `get_nightly_forecast` and planning candidates now expose a structured civil-dark `NightWindow`.
 - `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets, and can apply a planning-layer popularity re-rank with explanation fields when popularity preferences are enabled.
 - Cross-repository CI now compares baseline and candidate wheel builds across
   `stargazing-core`, `stargazing-place-finder`, and `mcp-stargazing`. See
@@ -69,7 +70,7 @@ The following baseline capabilities are already implemented and should no longer
 
 ### Test coverage
 
-- The pytest suite covers all 15 MCP tools, including success, structured-error, edge-case, serialization, protocol, documentation-contract, and deployment-config paths.
+- The pytest suite covers all 16 MCP tools, including success, structured-error, edge-case, serialization, protocol, documentation-contract, and deployment-config paths.
 - `test_mcp_tools.py` centralizes tool-wrapper coverage.
 - `test_supervisord_config.py` validates deployment config consistency.
 
@@ -80,7 +81,7 @@ The following baseline capabilities are already implemented and should no longer
     - ✅ Registered tools are checked against protocol metadata, catalog output, expected-tool sets, and the README tool list.
 
 2.  Error contract consistency
-    - ✅ Agent-visible validation failures migrated to `src.response.MCPError` across all 15 tools, including telescope coordinate validation.
+    - ✅ Agent-visible validation failures migrated to `src.response.MCPError` across all 16 tools, including telescope coordinate validation.
     - ✅ Mixed error paths eliminated — all tools return `{error, _meta}` or `{data, _meta}` consistently.
     - ✅ Error codes stable and documented in `AGENTS.md`.
 
@@ -92,6 +93,7 @@ The following baseline capabilities are already implemented and should no longer
 
 1.  `get_best_stargazing_plan`
     - ✅ Added `observation_style` profiles for balanced, deep-sky, visual, planetary, and beginner observing.
+    - ✅ Added `get_multiday_stargazing_plan` for one-to-seven-night comparisons with per-night civil-dark windows.
     - Improve how the planner balances weather quality, moonlight, place quality, and target mix.
 
 2.  Telescope tool improvements
@@ -128,7 +130,7 @@ The following baseline capabilities are already implemented and should no longer
 ## Documentation and test coverage
 
 - ✅ `AGENTS.md`, `README.md`, and `docs/ROADMAP.md` aligned with current tool surface (2026-07).
-- ✅ Harness tests exist for all 15 tools: success, error, edge cases, and documentation contracts.
+- ✅ Harness tests exist for all 16 tools: success, error, edge cases, and documentation contracts.
 - ✅ All new features documented in `README.md`, `AGENTS.md`, and `CLAUDE.md`.
 - Cross-repository compatibility is enforced by the wheel-level dependency-chain CI. Per-repository documentation is checked by the owning repository's own contract tests.
 - ✅ Example scripts are available for `get_telescope_targets` and `get_shooting_plan`.

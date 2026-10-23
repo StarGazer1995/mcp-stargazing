@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from src.celestial import calculate_civil_night_window
 from src.functions.celestial.impl import get_nightly_forecast
 from src.functions.places.impl import analysis_area
 from src.functions.weather.impl import get_weather_by_position
@@ -11,6 +12,10 @@ from src.response import MCPError, format_response
 from src.schemas.places import StargazingLocation
 from src.schemas.planning import (
     BestStargazingPlan,
+    MultiNightPlanningQuery,
+    MultiNightPlanningSummary,
+    MultiNightStargazingPlan,
+    NightlyStargazingPlan,
     ObservationStyle,
     ObservationWindow,
     PlannedLocationCandidate,
@@ -22,6 +27,7 @@ from src.schemas.planning import (
 )
 from src.server_instance import mcp
 from src.utils import (
+    create_earth_location,
     ensure_timezone,
     parse_observation_time,
     parse_time_string,
@@ -472,6 +478,17 @@ async def _evaluate_candidate(
     popularity_radius_km: float = 3.0,
 ) -> PlannedLocationCandidate:
     """Evaluate one candidate place by attaching weather and target summaries."""
+    notes: list[str] = []
+    night_window = None
+    try:
+        night_window = await asyncio.to_thread(
+            calculate_civil_night_window,
+            create_earth_location(location.lat, location.lon),
+            parse_observation_time(time, time_zone),
+        )
+    except ValueError as exc:
+        notes.append(f'夜景窗口不可用：{exc}')
+
     weather_result, forecast_result = await asyncio.gather(
         asyncio.to_thread(
             get_weather_by_position.fn,
@@ -484,7 +501,6 @@ async def _evaluate_candidate(
         ),
     )
 
-    notes: list[str] = []
     weather_data, weather_note = _extract_optional_data(weather_result)
     forecast_data, forecast_note = _extract_optional_data(forecast_result)
     if weather_note is not None:
@@ -538,6 +554,7 @@ async def _evaluate_candidate(
         best_observation_window=best_window,
         moon_phase=moon_phase,
         moon_illumination=moon_illumination,
+        night_window=night_window,
         top_targets=top_targets,
         notes=notes,
     )
@@ -698,6 +715,172 @@ async def get_best_stargazing_plan(
                 warnings=warnings,
             ),
             candidates=ranked_candidates,
+        )
+        return format_response(plan.model_dump())
+
+    return await _respond_with_mcp_error(operation())
+
+
+@mcp.tool()
+async def get_multiday_stargazing_plan(
+    south: float,
+    west: float,
+    north: float,
+    east: float,
+    start_date: str,
+    time_zone: str,
+    nights: int = 3,
+    candidate_limit: int = 3,
+    target_limit: int = 5,
+    weather_provider: str = 'all',
+    max_locations: int = 10,
+    min_height_diff: float = 100.0,
+    road_radius_km: float = 10.0,
+    network_type: str = 'drive',
+    observation_style: str = 'balanced',
+    avoid_popular_spots: bool = False,
+    prefer_quiet_at_night: bool = False,
+    popularity_radius_km: float = 3.0,
+    db_config_path: str = None,
+) -> dict[str, Any]:
+    """Compare one to seven consecutive nights and recommend the best night and place.
+
+    Each night uses its own civil-dark window. The underlying single-night planner
+    is reused for location ranking, weather, targets, and explanations.
+    """
+
+    async def operation() -> dict[str, Any]:
+        _validate_bounds(south, west, north, east)
+        if nights < 1 or nights > 7:
+            raise MCPError(
+                MCPError.CONFIGURATION_ERROR,
+                'nights must be between 1 and 7.',
+                {'nights': nights},
+            )
+        _validate_positive_int('candidate_limit', candidate_limit)
+        _validate_positive_int('target_limit', target_limit)
+        _validate_positive_int('max_locations', max_locations)
+        normalized_style = _validate_observation_style(observation_style)
+        if popularity_radius_km <= 0:
+            raise MCPError(
+                MCPError.CONFIGURATION_ERROR,
+                'popularity_radius_km must be greater than 0.',
+                {'popularity_radius_km': popularity_radius_km},
+            )
+
+        start_noon = parse_observation_time(f'{start_date} 12:00:00', time_zone)
+        center = create_earth_location(
+            (south + north) / 2.0,
+            (west + east) / 2.0,
+        )
+        night_results: list[NightlyStargazingPlan] = []
+
+        for night_index in range(1, nights + 1):
+            reference = start_noon + timedelta(days=night_index - 1)
+            local_date = reference.date().isoformat()
+            try:
+                window = await asyncio.to_thread(
+                    calculate_civil_night_window,
+                    center,
+                    reference,
+                )
+            except ValueError as exc:
+                night_results.append(
+                    NightlyStargazingPlan(
+                        night_index=night_index,
+                        date=local_date,
+                        error=f'无法确定当晚民用暗夜窗口：{exc}',
+                        warnings=['night_window_unavailable'],
+                    )
+                )
+                continue
+
+            dusk = datetime.fromisoformat(window.civil_dusk)
+            dawn = datetime.fromisoformat(window.civil_dawn)
+            planning_time = dusk + (dawn - dusk) / 2.0
+            plan_result = await get_best_stargazing_plan.fn(
+                south=south,
+                west=west,
+                north=north,
+                east=east,
+                time=planning_time.strftime('%Y-%m-%d %H:%M:%S'),
+                time_zone=time_zone,
+                candidate_limit=candidate_limit,
+                target_limit=target_limit,
+                weather_provider=weather_provider,
+                max_locations=max_locations,
+                min_height_diff=min_height_diff,
+                road_radius_km=road_radius_km,
+                network_type=network_type,
+                observation_style=normalized_style.value,
+                avoid_popular_spots=avoid_popular_spots,
+                prefer_quiet_at_night=prefer_quiet_at_night,
+                popularity_radius_km=popularity_radius_km,
+                db_config_path=db_config_path,
+            )
+
+            if plan_result.get('_meta', {}).get('status') == 'error':
+                error = plan_result['error']
+                night_results.append(
+                    NightlyStargazingPlan(
+                        night_index=night_index,
+                        date=local_date,
+                        night_window=window,
+                        error=f'{error["code"]}: {error["message"]}',
+                        warnings=[f'night_plan_failed:{error["code"]}'],
+                    )
+                )
+                continue
+
+            nightly_plan = BestStargazingPlan(**plan_result['data'])
+            night_results.append(
+                NightlyStargazingPlan(
+                    night_index=night_index,
+                    date=local_date,
+                    night_window=window,
+                    plan=nightly_plan,
+                    warnings=nightly_plan.summary.warnings,
+                )
+            )
+
+        successful_nights = [
+            night for night in night_results if night.plan and night.plan.candidates
+        ]
+        best_night = (
+            max(
+                successful_nights,
+                key=lambda night: night.plan.candidates[0].recommendation_score,
+            )
+            if successful_nights
+            else None
+        )
+        best_candidate = best_night.plan.candidates[0] if best_night and best_night.plan else None
+        warnings = sorted(
+            {warning for night in night_results for warning in night.warnings if warning}
+        )
+
+        plan = MultiNightStargazingPlan(
+            query=MultiNightPlanningQuery(
+                south=south,
+                west=west,
+                north=north,
+                east=east,
+                start_date=start_date,
+                nights=nights,
+                time_zone=time_zone,
+                observation_style=normalized_style,
+            ),
+            summary=MultiNightPlanningSummary(
+                generated_at=datetime.now(UTC).isoformat(),
+                requested_nights=nights,
+                successful_nights=len(successful_nights),
+                best_night_index=best_night.night_index if best_night else None,
+                best_night_date=best_night.date if best_night else None,
+                best_location_name=best_candidate.location.name if best_candidate else None,
+                best_score=best_candidate.recommendation_score if best_candidate else None,
+                warnings=warnings,
+            ),
+            nights=night_results,
         )
         return format_response(plan.model_dump())
 

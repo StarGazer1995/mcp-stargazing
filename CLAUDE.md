@@ -98,7 +98,7 @@ src/
 │   ├── telescope/impl.py    # 2 tools: get_telescope_targets, get_shooting_plan
 │   ├── metadata/impl.py     # get_tool_catalog
 │   ├── places/impl.py       # light_pollution_map, analysis_area (paginated)
-│   ├── planning/impl.py     # get_best_stargazing_plan (composite)
+│   ├── planning/impl.py     # Single-night + multi-night composite planning
 │   ├── time/impl.py         # get_local_datetime_info
 │   └── weather/
 │       ├── impl.py          # get_weather_by_name, get_weather_by_position (with retry)
@@ -111,7 +111,7 @@ src/
 │           ├── qweather.py
 │           └── wttr.py
 │
-├── tests/                   # Full pytest/pytest-asyncio harness for all 15 tools
+├── tests/                   # Full pytest/pytest-asyncio harness for all 16 tools
 ├── examples/                # Runnable demos, including both telescope tools
 ├── docs/                    # Design docs and ROADMAP.md
 ├── Dockerfile               # Multi-stage build (test + production)
@@ -144,7 +144,7 @@ src/
 ## Testing
 
 - Config in `pyproject.toml`: `pythonpath = ["src"]`, `testpaths = ["tests"]`
-- Full pytest suite covering all 15 MCP tools, error paths, edge cases, protocols, docs contracts, and config
+- Full pytest suite covering all 16 MCP tools, error paths, edge cases, protocols, docs contracts, and config
 - `test_mcp_client.py` — MCP protocol tests (tools/list, tools/call, SSE request-id)
 - `test_mcp_tools.py` — every tool's `.fn` wrapper (success + error + edge cases)
 - `test_supervisord_config.py` — 15 tests: supervisor config ↔ Dockerfile consistency

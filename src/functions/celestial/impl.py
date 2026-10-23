@@ -2,6 +2,7 @@ import asyncio
 from typing import Any
 
 from src.celestial import (
+    calculate_civil_night_window,
     calculate_moon_info,
     calculate_nightly_forecast,
     celestial_pos,
@@ -241,7 +242,19 @@ async def get_nightly_forecast(
     async def operation() -> dict[str, Any]:
         location, time_info = process_location_and_time(lon, lat, time, time_zone)
 
-        # Run in thread
+        try:
+            night_window = await asyncio.to_thread(
+                calculate_civil_night_window,
+                location,
+                time_info,
+            )
+        except ValueError as exc:
+            raise MCPError(
+                MCPError.CONFIGURATION_ERROR,
+                f'Unable to determine a civil-dark observing window: {exc}',
+                {'lat': lat, 'lon': lon, 'time': time, 'time_zone': time_zone},
+            ) from exc
+
         result = await asyncio.to_thread(calculate_nightly_forecast, location, time_info, limit)
 
         from src.schemas.celestial import DeepSkyObject
@@ -250,6 +263,7 @@ async def get_nightly_forecast(
             moon_phase=MoonInfo(**result['moon_phase']),
             planets=[VisiblePlanet(**p) for p in result['planets']],
             deep_sky=[DeepSkyObject(**o) for o in result['deep_sky']],
+            night_window=night_window,
         )
         return format_response(forecast.model_dump())
 
