@@ -195,9 +195,9 @@ jobs:
             grep -qF "$needle" /tmp/spf-index.html && echo "✅ SPF: $needle"
           done
 
-          # SPF static assets — verify the hashed Vite bundle referenced by index.html
-          JS_SRC=$(grep -oE 'src="[^"]*assets/[^"]+\.js"' /tmp/spf-index.html | head -1 | sed 's/^src="//;s/"$//' || true)
-          CSS_HREF=$(grep -oE 'href="[^"]*assets/[^"]+\.css"' /tmp/spf-index.html | head -1 | sed 's/^href="//;s/"$//' || true)
+          # Verify local frontend assets referenced by index.html (dist or source mode)
+          JS_SRC=$(grep -oE 'src="[^"]+"' /tmp/spf-index.html | grep -vE 'src="https?://' | head -1 | sed 's/^src="//;s/"$//' || true)
+          CSS_HREF=$(grep -oE 'href="[^"]+"' /tmp/spf-index.html | grep -vE 'href="https?://' | head -1 | sed 's/^href="//;s/"$//' || true)
           if [ -z "$JS_SRC" ] || [ -z "$CSS_HREF" ]; then
             echo "❌ SPF index.html does not reference built JS/CSS assets"
             grep -oE '(src|href)="[^"]+"' /tmp/spf-index.html || true
