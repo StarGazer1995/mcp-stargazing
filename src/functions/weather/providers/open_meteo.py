@@ -12,6 +12,7 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+from ._adapter import WeatherProviderAdapter
 from ._common import meters_to_km as _meters_to_km
 from ._common import percent_index_to_ratio as _percent_index_to_ratio
 from ._common import safe_index as _safe_index
@@ -28,16 +29,12 @@ def get_weather_by_position(
     timezone: str | None = None,
 ) -> ProviderSuccess:
     """查询 Open-Meteo 并返回标准化后的 provider 结果。"""
-
-    raw_data = fetch_open_meteo_raw_weather(lat, lon, timezone=timezone)
-    normalized = normalize_open_meteo_weather(
-        raw_data,
+    return WEATHER_PROVIDER.load(
         lat,
         lon,
         location_name=location_name,
         timezone=timezone,
     )
-    return ProviderSuccess(provider='open-meteo', data=normalized)
 
 
 def build_open_meteo_url(
@@ -249,3 +246,12 @@ def _weather_text_from_open_meteo_code(code: int | None) -> str | None:
         99: 'Thunderstorm with hail',
     }
     return mapping.get(code, 'Unknown') if code is not None else None
+
+
+WEATHER_PROVIDER = WeatherProviderAdapter(
+    name='open-meteo',
+    fetch_raw=lambda lat, lon, *, timezone=None: fetch_open_meteo_raw_weather(
+        lat, lon, timezone=timezone
+    ),
+    normalize=normalize_open_meteo_weather,
+)

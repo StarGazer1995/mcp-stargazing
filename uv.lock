@@ -1472,7 +1472,7 @@ requires-dist = [
     { name = "rasterio" },
     { name = "requests" },
     { name = "stargazing-core", specifier = ">=0.2.0", index = "https://pypi.org/simple/" },
-    { name = "stargazing-place-finder", specifier = ">=0.6.6,<1" },
+    { name = "stargazing-place-finder", specifier = ">=0.9.1,<1" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "tzlocal" },
 ]
@@ -2800,17 +2800,19 @@ wheels = [
 
 [[package]]
 name = "stargazing-place-finder"
-version = "0.8.1"
+version = "0.9.1"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "fastapi" },
     { name = "folium" },
+    { name = "fsspec" },
     { name = "geopy" },
     { name = "httpx" },
     { name = "matplotlib" },
     { name = "networkx" },
     { name = "numpy" },
     { name = "osmnx" },
+    { name = "omfiles" },
     { name = "pillow" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
@@ -2822,9 +2824,9 @@ dependencies = [
     { name = "structlog" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/63/97/a991d109e941051ece3881d5f2493af7539f29b87b49acac3d776d044df0/stargazing_place_finder-0.8.1.tar.gz", hash = "sha256:6a3d227f8285bffd2ae84fea00148bc5c182ce6ff057591cd26a19d91a13703a", size = 73367769 }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/44/53cb7db94f07947cd75508fc375e076d65d293df9543de813624e1fe76f8/stargazing_place_finder-0.9.1.tar.gz", hash = "sha256:1c40990757ad4b78b0c9182049f34a8da2f0a2eb1dde074306843b03a45a344f", size = 73695553 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6d/14/5e20ed6028a1f2d9b532f4d0616f8cf5fbf436a1cef99d92a167118986a6/stargazing_place_finder-0.8.1-py3-none-any.whl", hash = "sha256:aa5aa50eaa88ab79caf6e17cc4db1b17ce24a6e2b71d9816847c925a4cfc35ee", size = 73389143 },
+    { url = "https://files.pythonhosted.org/packages/01/25/572f240024cd007abc78e0997fb5934443731a6f81b3c3a4bb1422d31841/stargazing_place_finder-0.9.1-py3-none-any.whl", hash = "sha256:9ffa2b37ce23fc78166a89c677031988e5be900d0e65a5b6f041b8b5a51976e8", size = 73728749 },
 ]
 
 [[package]]

@@ -9,6 +9,7 @@ from src.schemas.weather import (
     ProviderSuccess,
 )
 
+from ._adapter import WeatherProviderAdapter
 from ._common import to_float as _to_float
 from ._common import to_ratio as _percent_text_to_ratio
 from ._http import fetch_weather_json
@@ -21,16 +22,12 @@ def get_weather_by_position(
     timezone: str | None = None,
 ) -> ProviderSuccess:
     """查询 wttr.in 并返回标准化后的 provider 结果。"""
-
-    raw_data = fetch_wttr_raw_weather(lat, lon)
-    normalized = normalize_wttr_weather(
-        raw_data,
+    return WEATHER_PROVIDER.load(
         lat,
         lon,
         location_name=location_name,
         timezone=timezone,
     )
-    return ProviderSuccess(provider='wttr', data=normalized)
 
 
 def build_wttr_query(lat: float, lon: float) -> str:
@@ -199,3 +196,10 @@ def _hourly_max_ratio(rows: list[dict], key: str) -> float | None:
     if not values:
         return None
     return max(values) / 100.0
+
+
+WEATHER_PROVIDER = WeatherProviderAdapter(
+    name='wttr',
+    fetch_raw=lambda lat, lon, *, timezone=None: fetch_wttr_raw_weather(lat, lon),
+    normalize=normalize_wttr_weather,
+)

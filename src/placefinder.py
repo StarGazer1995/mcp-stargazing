@@ -6,14 +6,6 @@ from types import ModuleType
 from typing import Any
 
 from src.logging_config import get_logger
-from src.paths import (
-    PROJECT_ROOT,
-    discard_shadowing_module,
-    find_module_origin,
-    is_within_path,
-    prioritize_sys_path,
-    resolve_package_source_root,
-)
 
 logger = get_logger(__name__)
 
@@ -26,68 +18,21 @@ _last_params: dict[str, Any] | None = None
 _last_params_lock = threading.Lock()
 
 
-def _prepare_legacy_spf_import_path() -> Path | None:
-    """Prioritize the legacy SPF source root for older published package layouts."""
-    source_root = resolve_package_source_root(SPF_PACKAGE_NAME)
-    if source_root is None:
-        logger.warning(
-            'Cannot resolve SPF package source root — place analysis will be unavailable'
-        )
-        return None
-
-    logger.debug('Falling back to legacy SPF import path from %s', source_root)
-    prioritize_sys_path(source_root)
-    discard_shadowing_module('cache', PROJECT_ROOT)
-    return source_root
-
-
-def _repair_shadowed_spf_import_path() -> Path | None:
-    """Prioritize SPF imports when a generic module name is shadowed by MCP source."""
-    cache_origin = find_module_origin('cache')
-    if not is_within_path(cache_origin, PROJECT_ROOT):
-        return None
-
-    logger.debug('Repairing shadowed SPF cache import from %s', cache_origin)
-    return _prepare_legacy_spf_import_path()
-
-
 def _load_spf() -> ModuleType:
-    """Import SPF, preferring the modern package layout but tolerating legacy wheels."""
+    """Import the namespaced SPF package with a clear dependency error."""
     try:
-        spf_module = importlib.import_module(SPF_PACKAGE_NAME)
-        _repair_shadowed_spf_import_path()
-        return spf_module
+        return importlib.import_module(SPF_PACKAGE_NAME)
     except ModuleNotFoundError as exc:
-        if exc.name != SPF_PACKAGE_NAME:
-            _prepare_legacy_spf_import_path()
-            try:
-                spf_module = importlib.import_module(SPF_PACKAGE_NAME)
-                _repair_shadowed_spf_import_path()
-                return spf_module
-            except ModuleNotFoundError as retry_exc:
-                if retry_exc.name == SPF_PACKAGE_NAME:
-                    raise ModuleNotFoundError(
-                        'stargazingplacefinder is required for place analysis features'
-                    ) from retry_exc
-                raise
-        if exc.name == SPF_PACKAGE_NAME:
+        if exc.name == SPF_PACKAGE_NAME or (exc.name or '').startswith(f'{SPF_PACKAGE_NAME}.'):
             raise ModuleNotFoundError(
-                'stargazingplacefinder is required for place analysis features'
+                'stargazing-place-finder>=0.9.0 is required for place analysis features'
             ) from exc
         raise
 
 
 def _load_spf_config():
-    """Load SPF config while remaining compatible with older published packages."""
-    try:
-        from stargazingplacefinder.config import load_stargazing_config
-    except ModuleNotFoundError as exc:
-        # Older SPF wheels expose ``config`` as a top-level package instead of
-        # ``stargazingplacefinder.config``. Keep this fallback so MCP can ship
-        # independently while the new SPF wrapper rolls out.
-        if exc.name != 'stargazingplacefinder.config':
-            raise
-        from config import load_stargazing_config
+    """Load SPF config through its public namespaced API."""
+    from stargazingplacefinder.config import load_stargazing_config
 
     return load_stargazing_config()
 

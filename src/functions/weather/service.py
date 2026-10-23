@@ -20,7 +20,15 @@ from src.schemas.weather import (
     WeatherSummary,
 )
 
-PROVIDER_ORDER = ['open-meteo', 'qweather', 'wttr']
+_PROVIDER_ADAPTERS = {
+    adapter.name: adapter
+    for adapter in (
+        open_meteo.WEATHER_PROVIDER,
+        qweather.WEATHER_PROVIDER,
+        wttr.WEATHER_PROVIDER,
+    )
+}
+PROVIDER_ORDER = list(_PROVIDER_ADAPTERS)
 
 
 def get_aggregated_weather_by_name(
@@ -139,17 +147,13 @@ def _query_single_provider(
 ) -> ProviderSuccess:
     """查询单个 provider 并返回 ProviderSuccess 模型。"""
 
-    if provider_name == 'open-meteo':
-        return open_meteo.get_weather_by_position(
-            lat, lon, location_name=location_name, timezone=timezone
-        )
-    if provider_name == 'qweather':
-        return qweather.get_weather_by_position(
-            lat, lon, location_name=location_name, timezone=timezone
-        )
-    if provider_name == 'wttr':
-        return wttr.get_weather_by_position(
-            lat, lon, location_name=location_name, timezone=timezone
+    adapter = _PROVIDER_ADAPTERS.get(provider_name)
+    if adapter is not None:
+        return adapter.load(
+            lat,
+            lon,
+            location_name=location_name,
+            timezone=timezone,
         )
     raise MCPError(
         MCPError.CONFIGURATION_ERROR,

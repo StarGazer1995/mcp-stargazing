@@ -251,73 +251,15 @@ def test_init_with_db_config_path_forwards_path():
 
 
 def test_load_spf_imports_package_directly():
-    """The bridge should import the dependency package and repair shadowed names."""
+    """The bridge should import the namespaced dependency package directly."""
     fake_spf = SimpleNamespace()
+    original_sys_path = list(sys.path)
 
-    with (
-        patch.object(importlib, 'import_module', return_value=fake_spf) as mock_import,
-        patch.object(placefinder_module, '_repair_shadowed_spf_import_path') as mock_repair,
-    ):
+    with patch.object(importlib, 'import_module', return_value=fake_spf) as mock_import:
         assert placefinder_module._load_spf() is fake_spf
 
     mock_import.assert_called_once_with(placefinder_module.SPF_PACKAGE_NAME)
-    mock_repair.assert_called_once_with()
-
-
-def test_repair_shadowed_spf_import_path_only_acts_for_in_repo_modules():
-    """Only an in-repository cache module should trigger SPF path prioritization."""
-    fake_dependency_root = Path('/workspace/stargazing-place-finder/src')
-
-    with (
-        patch.object(
-            placefinder_module,
-            'find_module_origin',
-            return_value=str(placefinder_module.PROJECT_ROOT / 'src' / 'cache.py'),
-        ),
-        patch.object(
-            placefinder_module,
-            '_prepare_legacy_spf_import_path',
-            return_value=fake_dependency_root,
-        ) as mock_prepare,
-    ):
-        assert placefinder_module._repair_shadowed_spf_import_path() == fake_dependency_root
-
-    mock_prepare.assert_called_once_with()
-
-
-def test_repair_shadowed_spf_import_path_ignores_external_modules():
-    """A cache module from the installed SPF wheel should not change sys.path."""
-    with (
-        patch.object(
-            placefinder_module,
-            'find_module_origin',
-            return_value='/venv/site-packages/cache/__init__.py',
-        ),
-        patch.object(placefinder_module, '_prepare_legacy_spf_import_path') as mock_prepare,
-    ):
-        assert placefinder_module._repair_shadowed_spf_import_path() is None
-
-    mock_prepare.assert_not_called()
-
-
-def test_prepare_legacy_spf_import_path_prioritizes_dependency_root():
-    """Legacy fallback should bring the SPF source root to the front of sys.path."""
-    fake_dependency_root = Path('/workspace/stargazing-place-finder/src')
-    original_sys_path = list(sys.path)
-
-    try:
-        sys.path = ['/app/src', str(fake_dependency_root), '/tmp/other']
-        with patch.object(
-            placefinder_module,
-            'resolve_package_source_root',
-            return_value=fake_dependency_root,
-        ):
-            source_root = placefinder_module._prepare_legacy_spf_import_path()
-
-        assert source_root == fake_dependency_root
-        assert sys.path[0] == str(fake_dependency_root.resolve())
-    finally:
-        sys.path = original_sys_path
+    assert sys.path == original_sys_path
 
 
 def test_load_spf_config_uses_namespaced_wrapper_when_available():
@@ -335,72 +277,23 @@ def test_load_spf_config_uses_namespaced_wrapper_when_available():
         assert placefinder_module._load_spf_config() == 'cfg'
 
 
-def test_load_spf_config_falls_back_to_legacy_top_level_module():
-    """Bridge config loading should stay compatible with older SPF wheels."""
-    import builtins
-
-    real_import = builtins.__import__
-
-    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name == 'stargazingplacefinder.config':
-            exc = ModuleNotFoundError("No module named 'stargazingplacefinder.config'")
-            exc.name = 'stargazingplacefinder.config'
-            raise exc
-        if name == 'config':
-            return SimpleNamespace(load_stargazing_config=lambda: 'legacy-cfg')
-        return real_import(name, globals, locals, fromlist, level)
-
-    with patch('builtins.__import__', side_effect=fake_import):
-        assert placefinder_module._load_spf_config() == 'legacy-cfg'
-
-
 def test_load_spf_wraps_missing_dependency_error():
     """A missing dependency should produce a clear bridge-level error."""
     missing_dependency = ModuleNotFoundError("No module named 'stargazingplacefinder'")
     missing_dependency.name = placefinder_module.SPF_PACKAGE_NAME
 
     with patch.object(importlib, 'import_module', side_effect=missing_dependency):
-        with pytest.raises(ModuleNotFoundError, match='stargazingplacefinder is required'):
+        with pytest.raises(ModuleNotFoundError, match='stargazing-place-finder>=0.9.0'):
             placefinder_module._load_spf()
 
 
-def test_load_spf_retries_with_legacy_import_path_for_nested_module_error():
-    """Legacy SPF wheels should still import after path prioritization."""
-    nested_failure = ModuleNotFoundError("No module named 'cache.cache_config'")
-    nested_failure.name = 'cache.cache_config'
-    fake_spf = SimpleNamespace()
+def test_load_spf_wraps_missing_namespaced_submodule_error():
+    """Broken/incomplete SPF installs should also raise the supported-version message."""
+    nested_failure = ModuleNotFoundError("No module named 'stargazingplacefinder.config'")
+    nested_failure.name = 'stargazingplacefinder.config'
 
-    with (
-        patch.object(
-            importlib,
-            'import_module',
-            side_effect=[nested_failure, fake_spf],
-        ) as mock_import,
-        patch.object(placefinder_module, '_prepare_legacy_spf_import_path') as mock_prepare,
-        patch.object(placefinder_module, '_repair_shadowed_spf_import_path'),
-    ):
-        assert placefinder_module._load_spf() is fake_spf
-
-    assert mock_import.call_count == 2
-    mock_prepare.assert_called_once_with()
-
-
-def test_load_spf_retry_wraps_missing_dependency_after_legacy_fallback():
-    """Retry path should still raise a clear error if the package remains unavailable."""
-    nested_failure = ModuleNotFoundError("No module named 'cache.cache_config'")
-    nested_failure.name = 'cache.cache_config'
-    missing_dependency = ModuleNotFoundError("No module named 'stargazingplacefinder'")
-    missing_dependency.name = placefinder_module.SPF_PACKAGE_NAME
-
-    with (
-        patch.object(
-            importlib,
-            'import_module',
-            side_effect=[nested_failure, missing_dependency],
-        ),
-        patch.object(placefinder_module, '_prepare_legacy_spf_import_path'),
-    ):
-        with pytest.raises(ModuleNotFoundError, match='stargazingplacefinder is required'):
+    with patch.object(importlib, 'import_module', side_effect=nested_failure):
+        with pytest.raises(ModuleNotFoundError, match='stargazing-place-finder>=0.9.0'):
             placefinder_module._load_spf()
 
 

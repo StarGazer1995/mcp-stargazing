@@ -20,6 +20,7 @@ The following baseline capabilities are already implemented and should no longer
 - Cross-repository CI now compares baseline and candidate wheel builds across
   `stargazing-core`, `stargazing-place-finder`, and `mcp-stargazing`. See
   `docs/dependency-chain-ci.md`.
+- Weather provider orchestration now uses a shared adapter registry, and the legacy SPF path-injection compatibility layer is removed.
 
 ### Bridge and weather cleanup (completed 2026-07)
 

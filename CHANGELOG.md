@@ -14,6 +14,8 @@
 
 - Default geocoding path is the offline CJK gazetteer, with paid Amap geocoding available only by explicit opt-in.
 - Weather providers share HTTP transport and structured error translation.
+- Weather providers now share a common adapter/registry execution contract.
+- Minimum supported `stargazing-place-finder` is now 0.9.1; legacy `sys.path` compatibility was removed.
 - Cross-repository wheel compatibility is enforced through dependency-chain CI.
 
 ### Fixed
