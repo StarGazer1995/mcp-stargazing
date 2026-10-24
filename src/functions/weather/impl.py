@@ -4,7 +4,7 @@ from src.functions.weather.service import (
     get_aggregated_weather_by_position,
 )
 from src.logging_config import set_request_id
-from src.response import MCPError, format_error, format_response
+from src.response import MCPError, format_response
 from src.retry import RetryConfig, retry_on_failure
 from src.schemas.weather import AggregatedWeatherResponse
 from src.server_instance import mcp
@@ -63,8 +63,8 @@ def _format_weather_result(result: AggregatedWeatherResponse | dict) -> dict:
     return format_response(result)
 
 
-def _execute_weather_fetch(fetch_weather, error_details: dict) -> dict:
-    """Run a retried weather fetch and translate external failures once."""
+def _execute_weather_capability(fetch_weather, error_details: dict):
+    """Run a weather fetch with retries and raise transport-free structured errors."""
 
     @retry_on_failure(
         RetryConfig(max_attempts=3, base_delay=1.0, max_delay=10.0),
@@ -74,15 +74,39 @@ def _execute_weather_fetch(fetch_weather, error_details: dict) -> dict:
         return fetch_weather()
 
     try:
-        return _format_weather_result(_fetch_weather())
-    except MCPError as exc:
-        return exc.to_response()
+        return _fetch_weather()
+    except MCPError:
+        raise
     except Exception as exc:
-        return format_error(
+        raise MCPError(
             MCPError.EXTERNAL_API_ERROR,
             f'天气查询失败: {exc}',
             error_details,
-        )
+        ) from exc
+
+
+def fetch_weather_by_name_capability(
+    place_name: str, provider: str = 'all'
+) -> AggregatedWeatherResponse | dict:
+    """Fetch normalized weather by place name without an MCP response envelope."""
+    cleaned_name = _normalize_place_name(place_name)
+    normalized_provider = _normalize_provider(provider)
+    return _execute_weather_capability(
+        lambda: get_aggregated_weather_by_name(cleaned_name, provider=normalized_provider),
+        {'place_name': cleaned_name},
+    )
+
+
+def fetch_weather_by_position_capability(
+    lat: float, lon: float, provider: str = 'all'
+) -> AggregatedWeatherResponse | dict:
+    """Fetch normalized weather by coordinates without an MCP response envelope."""
+    _validate_weather_coordinates(lat, lon)
+    normalized_provider = _normalize_provider(provider)
+    return _execute_weather_capability(
+        lambda: get_aggregated_weather_by_position(lat, lon, provider=normalized_provider),
+        {'lat': lat, 'lon': lon},
+    )
 
 
 def _get_qweather_auth_from_env() -> tuple[str | None, str | None, str | None]:
@@ -113,12 +137,7 @@ def get_weather_by_name(place_name: str, provider: str = 'all'):
     """
 
     def operation() -> dict:
-        cleaned_name = _normalize_place_name(place_name)
-        normalized_provider = _normalize_provider(provider)
-        return _execute_weather_fetch(
-            lambda: get_aggregated_weather_by_name(cleaned_name, provider=normalized_provider),
-            {'place_name': cleaned_name},
-        )
+        return _format_weather_result(fetch_weather_by_name_capability(place_name, provider))
 
     return _respond_with_mcp_error(operation)
 
@@ -141,11 +160,6 @@ def get_weather_by_position(lat: float, lon: float, provider: str = 'all'):
     """
 
     def operation() -> dict:
-        _validate_weather_coordinates(lat, lon)
-        normalized_provider = _normalize_provider(provider)
-        return _execute_weather_fetch(
-            lambda: get_aggregated_weather_by_position(lat, lon, provider=normalized_provider),
-            {'lat': lat, 'lon': lon},
-        )
+        return _format_weather_result(fetch_weather_by_position_capability(lat, lon, provider))
 
     return _respond_with_mcp_error(operation)

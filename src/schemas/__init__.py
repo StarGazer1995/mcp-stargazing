@@ -4,6 +4,25 @@ These models define the contract between modules — any internal function
 should accept and return these models rather than raw dicts.
 """
 
+from src.schemas.agent_planning import (
+    AgentEquipmentIntent,
+    AgentLocationIntent,
+    AgentPlanningAlternative,
+    AgentPlanningDecision,
+    AgentPlanningRequest,
+    AgentPlanningResult,
+    EquipmentPreset,
+    EvidenceKind,
+    OpticalOverrides,
+    PlanningChangeCondition,
+    PlanningEvidence,
+    PlanningMissingInput,
+    PlanningNextAction,
+    PlanningUncertainty,
+    ResolvedEquipment,
+    ResolvedPlanningLocation,
+    UncertaintyLevel,
+)
 from src.schemas.base import (
     GeoBounds,
     GeoPoint,
@@ -41,6 +60,7 @@ from src.schemas.planning import (
     PlanningSummary,
     PlanningTarget,
     RecommendationDriver,
+    ScoreBreakdown,
     WeatherPlanningSummary,
 )
 from src.schemas.weather import (
@@ -65,6 +85,24 @@ __all__ = [
     'ProviderType',
     'ErrorCode',
     'PaginatedResult',
+    # Agent-native planning
+    'AgentLocationIntent',
+    'AgentEquipmentIntent',
+    'AgentPlanningRequest',
+    'AgentPlanningDecision',
+    'AgentPlanningAlternative',
+    'AgentPlanningResult',
+    'EquipmentPreset',
+    'OpticalOverrides',
+    'ResolvedEquipment',
+    'ResolvedPlanningLocation',
+    'EvidenceKind',
+    'PlanningEvidence',
+    'UncertaintyLevel',
+    'PlanningUncertainty',
+    'PlanningMissingInput',
+    'PlanningChangeCondition',
+    'PlanningNextAction',
     # Celestial
     'CelestialPosition',
     'RiseSet',
@@ -83,6 +121,7 @@ __all__ = [
     'PlannedLocationCandidate',
     'PlanningSummary',
     'RecommendationDriver',
+    'ScoreBreakdown',
     'BestStargazingPlan',
     'MultiNightPlanningQuery',
     'MultiNightPlanningSummary',

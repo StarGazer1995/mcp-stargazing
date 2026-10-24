@@ -92,7 +92,7 @@ Container
 │   └── program:spf-web  → uv run uvicorn server.main:app --port 5001
 │
 Dependency resolution (single venv, no duplication):
-  stargazing-core>=0.1.0  ←  resolved once from PyPI
+  stargazing-core>=0.2.0  ←  resolved once from PyPI
   stargazing-place-finder>=0.9.1
   fastapi, uvicorn, ...   ←  SPF's transitive deps
 ```
@@ -100,6 +100,27 @@ Dependency resolution (single venv, no duplication):
 ## MCP Server Usage
 
 Start the MCP server to expose tools to AI agents or other clients.
+
+### Agent-first direction
+
+`get_best_stargazing_plan` and `get_multiday_stargazing_plan` are the current composite decision
+entry points. The pre-1.0 roadmap is focused on making planning safe for third-party agents:
+intent-oriented inputs, explicit alternatives, score breakdowns, evidence freshness,
+uncertainty, and recoverable long-running work. New independent astronomy lookup tools are
+deferred until that decision contract is stable.
+
+The application layer now contains an unregistered agent-native contract for that future entry
+point. It accepts a place name, center/radius, or exact bounds; resolves Seestar S50,
+HOPE D60 + ASI2600MC Air, or custom optics configurations; keeps provider and database choices on
+the server; and returns a first-class decision, alternatives, exact score components, evidence,
+uncertainties, material missing inputs, ranking-reversal conditions, and next actions. This does
+**not** add a seventeenth MCP tool yet: registration remains gated on golden scenarios and
+multi-client black-box validation.
+
+See [Third-party Agent Contract](docs/agent-contract.md),
+[Workspace Technical Map](docs/workspace-technical-map.md), and
+[Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 16-tool routing and
+parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md).
 
 ### 1. Environment Setup
 
@@ -273,6 +294,8 @@ All tools return JSON-serializable data and use structured error handling:
 │   │   ├── weather/          # Weather API integration
 │   │   ├── places/           # Location and area analysis
 │   │   └── time/             # Time utilities
+│   ├── services/             # Transport-independent application services
+│   │   └── planning.py       # Single-night and multi-night planning orchestration
 │   ├── schemas/              # Pydantic v2 data models
 │   ├── analysis_cache.py     # Caching logic for analysis results
 │   ├── response.py           # Standardized response formatting
@@ -314,4 +337,5 @@ candidate wheels, and blocks changes that add downstream failures.
 2.  Ensure all new tools return standard JSON responses using `src.response.format_response`.
 3.  Add tests in `tests/` for any new functionality.
 4.  Follow the repository agent conventions in `AGENTS.md` for all MCP tool and agent-facing changes.
-5.  Refer to `docs/ROADMAP.md` for the planned agent and harness feature roadmap.
+5.  Refer to `docs/agent-contract.md` and `docs/ROADMAP.md` for the public agent direction and
+    implementation roadmap.

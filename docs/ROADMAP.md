@@ -74,62 +74,88 @@ The following baseline capabilities are already implemented and should no longer
 - `test_mcp_tools.py` centralizes tool-wrapper coverage.
 - `test_supervisord_config.py` validates deployment config consistency.
 
-## Priority 1: Finish contract hardening
+## Product direction: third-party agent first
 
-1.  Schema and documentation consistency
-    - ✅ Tool descriptions, parameter docs, and return-shape documentation synchronized across code, `README.md`, CLI, and generated tool metadata (all docs updated 2026-07).
-    - ✅ Registered tools are checked against protocol metadata, catalog output, expected-tool sets, and the README tool list.
+The next milestone is not a wider astronomy-tool catalog. It is a stable decision backend that
+an unfamiliar third-party agent can call without understanding repository internals, provider
+selection, or server filesystem configuration. The target contract and implementation checklist
+live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 
-2.  Error contract consistency
-    - ✅ Agent-visible validation failures migrated to `src.response.MCPError` across all 16 tools, including telescope coordinate validation.
-    - ✅ Mixed error paths eliminated — all tools return `{error, _meta}` or `{data, _meta}` consistently.
-    - ✅ Error codes stable and documented in `AGENTS.md`.
+## Priority 1: Agent contract baseline
 
-3.  Transport and protocol robustness
-    - ✅ Protocol-level tests cover SHTTP/SSE request-id, `tools/list`, `tools/call`, and SSE event parsing.
-    - Transport-specific changes must add focused protocol tests when they are introduced.
+- ✅ Standard response and error envelopes are covered by contract tests.
+- ✅ Tool registration, `tools/list`, catalog output, and README names are aligned.
+- ✅ Observation-style profiles, popularity explanations, night windows, and multi-night planning
+  establish the current planning baseline.
+- ✅ Define the target third-party-agent contract, three-repository technical map, and staged
+  implementation checklist.
+- Audit all 16 public tools for agent routing guidance, infrastructure leakage, and compatibility
+  risk.
+- Capture the pre-1.0 schema baseline and define deprecation rules.
 
-## Priority 2: Composite planning tools
+## Priority 2: Application-service boundary
 
-1.  `get_best_stargazing_plan`
-    - ✅ Added `observation_style` profiles for balanced, deep-sky, visual, planetary, and beginner observing.
-    - ✅ Added `get_multiday_stargazing_plan` for one-to-seven-night comparisons with per-night civil-dark windows.
-    - Improve how the planner balances weather quality, moonlight, place quality, and target mix.
+- ✅ Extracted single-night and multi-night validation, orchestration, ranking, and explanation into
+  the transport-independent `PlanningService`; direct service tests cover success and provider
+  degradation.
+- ✅ Multi-night planning now reuses single-night application logic directly instead of calling a
+  second public planning wrapper.
+- ✅ Place analysis, coordinate weather, and nightly forecast expose transport-free internal
+  capabilities; planning no longer calls another public tool wrapper's `.fn`. A source contract
+  test prevents this dependency from returning.
+- ✅ Chose a future `plan_stargazing_session` entry point instead of overloading the existing
+  bbox-first tools; it will remain unregistered until its application models, golden scenarios,
+  migration plan, and multi-client black-box validation pass.
+- Preserve current public behavior while the existing single-night and multi-night tools serve as
+  compatibility entries through at least one documented migration cycle.
+- Keep provider selection, credentials, database paths, and cache internals out of the new primary
+  entry point.
 
-2.  Telescope tool improvements
-    - ✅ Coordinate validation now returns `MCPError.INVALID_COORDINATES` before `EarthLocation` construction.
-    - Add telescope preset lookup (e.g., `telescope='RedCat51'` → auto-fill focal_length, aperture).
-    - Support multi-night shooting plans beyond single-session scheduling.
+## Priority 3: Agent-native planning contract
 
-3.  `get_nightly_forecast` enhancements
-    - Add more agent-friendly summary fields, like `best_time`, `top_targets`, and `conditions`.
-    - Support alternative observer goals: astrophotography, casual viewing, or bright-object observing.
+- ✅ The unregistered application contract accepts a place name, center/radius, or exact bounds,
+  plus date range, observation goal, equipment preset, and explicit user constraints.
+- ✅ `AgentPlanningResult` returns a first-class decision plus alternatives, exact score breakdown,
+  evidence, uncertainties, materially missing inputs, ranking-reversal conditions, and next actions.
+- ✅ Provider selection and database paths remain server policy; normalized defaults are echoed in
+  the request section and protected by contract tests.
+- ✅ Seestar S50, HOPE D60 + ASI2600MC Air, and custom optics are normalized with explicit
+  overrides and drive target matching for the selected session.
+- Keep `plan_stargazing_session` unregistered until golden scenarios and multi-client black-box
+  validation pass.
 
-## Priority 3: Big-search and streaming support
+## Priority 4: Decision quality
 
-1.  Better `analysis_area`
-    - Add true incremental streaming support with progress metadata.
-    - Support long-running scans and resumable sessions.
-    - Preserve stable paging semantics while adding streaming or resumable workflows.
+- Replace early static candidate truncation with broad place recall, low-cost dynamic weather
+  screening, and expensive evaluation only for the strongest candidates.
+- Use the spatial weather primitives already available in `stargazing-core` where they improve
+  regional comparison.
+- Replace the best-single-hour heuristic with continuous observing windows that account for
+  cloud persistence, precipitation, wind, moon events, target altitude, and equipment needs.
+- Make SPF and MCP ownership of popularity scoring explicit so that the same heuristic is not
+  accidentally counted twice.
 
-2.  Performance and caching
-    - Cache regional analysis results when appropriate.
-    - Add cache invalidation rules for stale weather and light pollution data.
+## Priority 5: Evaluation and long-running work
 
-## Priority 4: Expanded astronomy domain support
+- Build real planning golden scenarios for tool selection, ranking, explanations, partial-provider
+  degradation, and empty-result behavior.
+- Run black-box acceptance with at least two independent agent clients before 1.0.
+- Define a real task lifecycle before activating the reserved `task_id` / `progress` fields for
+  long-running area analysis.
+- Preserve paging and `resource_id` semantics while adding polling, resumption, expiry, and
+  restart behavior.
 
-1.  Satellite and ISS tracking
-    - Add a tool for upcoming ISS passes and bright satellite events.
+## Deferred until the decision contract is stable
 
-2.  Meteor shower and eclipse predictions
-    - Add tools for next meteor shower peaks and visible eclipse paths.
-
-3.  Constellation / deep-sky seasonal recommendations
-    - Add higher-level planning queries like `what is the best summer target tonight?`
+- Satellite and ISS tracking.
+- Meteor-shower and eclipse tools.
+- Broad expansion of independent astronomy lookup tools.
+- Real-time crowd data without stable provenance, freshness, and licensing semantics.
 
 ## Documentation and test coverage
 
-- ✅ `AGENTS.md`, `README.md`, and `docs/ROADMAP.md` aligned with current tool surface (2026-07).
+- `AGENTS.md`, `README.md`, `docs/ROADMAP.md`, and the agent-contract documents are checked for
+  current paths and dependency floors.
 - ✅ Harness tests exist for all 16 tools: success, error, edge cases, and documentation contracts.
 - ✅ All new features documented in `README.md`, `AGENTS.md`, and `CLAUDE.md`.
 - Cross-repository compatibility is enforced by the wheel-level dependency-chain CI. Per-repository documentation is checked by the owning repository's own contract tests.

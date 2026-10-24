@@ -110,6 +110,24 @@ class RecommendationDriver(StrEnum):
     STRONG_TARGETS = 'strong_targets'
 
 
+class ScoreBreakdown(BaseModel):
+    """Exact factors used to calculate a candidate's recommendation score."""
+
+    place_base_score: float = Field(description='Underlying place score before weighting')
+    place_weight: float = Field(description='Weight applied to the place score')
+    place_contribution: float = Field(description='Weighted place-score contribution')
+    weather_base_score: float = Field(description='Weather score after weather and moon penalties')
+    weather_weight: float = Field(description='Weight applied to the weather score')
+    weather_contribution: float = Field(description='Weighted weather-score contribution')
+    popularity_adjustment: float = Field(
+        description='Signed adjustment from explicit popularity preferences'
+    )
+    accessibility_adjustment: float = Field(
+        description='Signed adjustment from beginner accessibility heuristics'
+    )
+    final_score: float = Field(description='Final clamped recommendation score on a 0-100 scale')
+
+
 class PlannedLocationCandidate(BaseModel):
     """A ranked location recommendation with weather and target context."""
 
@@ -117,6 +135,10 @@ class PlannedLocationCandidate(BaseModel):
     recommendation_score: float = Field(description='Combined planning score on a 0-100 scale')
     recommendation_reasons: list[str] = Field(
         default_factory=list, description='Short explanations for why this location is recommended'
+    )
+    score_breakdown: ScoreBreakdown | None = Field(
+        default=None,
+        description='Exact scoring components; absent only in older or externally supplied records',
     )
     location: StargazingLocation = Field(description='Candidate stargazing location')
     weather_summary: WeatherPlanningSummary | None = Field(

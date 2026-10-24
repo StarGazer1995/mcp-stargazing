@@ -75,8 +75,9 @@ async def get_telescope_targets(
         data.config — the TelescopeConfig used
         data.total — number of targets returned
     """
-    return await _respond_with_mcp_error(
-        _get_telescope_targets(
+
+    async def operation() -> dict[str, Any]:
+        result = await build_telescope_targets_capability(
             focal_length_mm,
             lon,
             lat,
@@ -93,10 +94,12 @@ async def get_telescope_targets(
             filter_type,
             limit,
         )
-    )
+        return format_response(result)
+
+    return await _respond_with_mcp_error(operation())
 
 
-async def _get_telescope_targets(
+async def build_telescope_targets_capability(
     focal_length_mm: float,
     lon: float,
     lat: float,
@@ -113,6 +116,7 @@ async def _get_telescope_targets(
     filter_type: str | None,
     limit: int,
 ) -> dict[str, Any]:
+    """Match telescope targets without an MCP response envelope."""
     # Parse time
     dt = parse_observation_time(time, time_zone)
 
@@ -153,14 +157,12 @@ async def _get_telescope_targets(
         limit,
     )
 
-    return format_response(
-        {
-            'targets': results['targets'],
-            'moon': results['moon'],
-            'config': config.model_dump(exclude_none=True),
-            'total': len(results['targets']),
-        }
-    )
+    return {
+        'targets': results['targets'],
+        'moon': results['moon'],
+        'config': config.model_dump(exclude_none=True),
+        'total': len(results['targets']),
+    }
 
 
 @mcp.tool()

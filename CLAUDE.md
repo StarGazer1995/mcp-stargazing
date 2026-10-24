@@ -58,11 +58,11 @@ MCP Transport Layer:   Streamable HTTP (:3001)  |  SSE  |  Local (stdio)
 - **telescope** — 2 async tools: target matching for telescope optics, shooting plan generation
 - **weather** — 2 sync tools (with retry): weather by name, weather by position. Multi-provider aggregation.
 - **places** — 2 async tools: light pollution map, analysis area (paginated + cached)
-- **planning** — 1 async tool: composite best-stargazing-plan (places + weather + forecast)
+- **planning** — 2 async tools: single-night and multi-night composite planning
 - **time** — 1 sync tool: local datetime info
 - **metadata** — 1 sync tool: tool catalog discovery
 
-**Data flow**: MCP client → `main.py` (registers all tool modules via import) → `@mcp.tool()` decorators → `functions/*/impl.py` → core layer → external services. All responses pass through `response.py` envelope (`{data, _meta}` or `{error, _meta}`).
+**Data flow**: MCP client → `main.py` (registers all tool modules via import) → `@mcp.tool()` decorators → `functions/*/impl.py` → application/core layer → external services. Planning wrappers delegate validation, orchestration, ranking, and explanation to `services/planning.py`, which consumes transport-free place, weather, forecast, and night-window capabilities rather than another tool's `.fn`. All public responses pass through `response.py` envelope (`{data, _meta}` or `{error, _meta}`).
 
 ## Key Source Layout
 
@@ -79,6 +79,9 @@ src/
 ├── paths.py                 # Repository path constants
 ├── logging_config.py        # Structured logging (structlog) with request-id context
 ├── qweather_interaction.py  # QWeather API client (JWT + API-KEY auth, URL building)
+│
+├── services/
+│   └── planning.py          # Transport-independent single/multi-night application service
 │
 ├── schemas/                 # Pydantic v2 data models
 │   ├── base.py              # GeoPoint, GeoBounds, TimeInfo, ProviderType
@@ -98,7 +101,7 @@ src/
 │   ├── telescope/impl.py    # 2 tools: get_telescope_targets, get_shooting_plan
 │   ├── metadata/impl.py     # get_tool_catalog
 │   ├── places/impl.py       # light_pollution_map, analysis_area (paginated)
-│   ├── planning/impl.py     # Single-night + multi-night composite planning
+│   ├── planning/impl.py     # Thin MCP adapters for composite planning
 │   ├── time/impl.py         # get_local_datetime_info
 │   └── weather/
 │       ├── impl.py          # get_weather_by_name, get_weather_by_position (with retry)
@@ -122,24 +125,25 @@ src/
 ## Critical Design Patterns
 
 1. **Response envelope** — All tools must return `format_response(data)` or `format_error(code, msg)`. Never return raw dicts. The `_meta` wrapper carries `version` and `status` on every response.
+2. **Internal capability boundary** — Cross-domain application services call undecorated capability functions that return Pydantic models or raise `MCPError`; they never chain FastMCP wrapper `.fn` hooks. Public wrappers alone add the response envelope.
 
-2. **Tool registration by import** — `main.py` imports all `functions/*/impl.py` modules at startup. Each module's `@mcp.tool()` decorators register tools on the `MCP` singleton. No explicit tool list — import side effects drive registration.
+3. **Tool registration by import** — `main.py` imports all `functions/*/impl.py` modules at startup. Each module's `@mcp.tool()` decorators register tools on the `MCP` singleton. No explicit tool list — import side effects drive registration.
 
-3. **MCPError for business errors** — Validation failures are raised as `MCPError(code, message, details)` and caught centrally by `_respond_with_mcp_error()` wrappers in tool `impl.py` files. Raw exceptions must not escape tool functions.
+4. **MCPError for business errors** — Validation failures are raised as `MCPError(code, message, details)` and caught centrally by `_respond_with_mcp_error()` wrappers in tool `impl.py` files. Raw exceptions must not escape tool functions.
 
-4. **Async wrapping for blocking I/O** — Astronomy (Astropy) and place-finder (SPF) calls are synchronous. Tools wrap them in `asyncio.to_thread()` to avoid blocking the event loop. Weather tools are sync but wrapped with `retry_on_failure`.
+5. **Async wrapping for blocking I/O** — Astronomy (Astropy) and place-finder (SPF) calls are synchronous. Tools wrap them in `asyncio.to_thread()` to avoid blocking the event loop. Weather tools are sync but wrapped with `retry_on_failure`.
 
-5. **Multi-provider aggregation with degradation** — Weather queries cascade: open-meteo → qweather → wttr. Partial provider failures become notes/warnings in the response rather than failing the entire request. Geocoding cascades similarly: offline China gazetteer → Photon → Nominatim, with Amap available only as an explicit opt-in provider.
+6. **Multi-provider aggregation with degradation** — Weather queries cascade: open-meteo → qweather → wttr. Partial provider failures become notes/warnings in the response rather than failing the entire request. Geocoding cascades similarly: offline China gazetteer → Photon → Nominatim, with Amap available only as an explicit opt-in provider.
 
-6. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` uses only the namespaced public API from `stargazing-place-finder>=0.9.1`. It avoids re-initializing the SPF singleton when parameters haven't changed (compares `_last_params`), preventing repeated GeoTIFF open and PostGIS pool creation.
+7. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` uses only the namespaced public API from `stargazing-place-finder>=0.9.1`. It avoids re-initializing the SPF singleton when parameters haven't changed (compares `_last_params`), preventing repeated GeoTIFF open and PostGIS pool creation.
 
-7. **Pagination with stable resource_id** — `analysis_area` returns `resource_id` keyed on non-pagination query params (MD5 of sorted kwargs). Cache TTL is 3600s. Cache key excludes `page` and `page_size`, so paginating through results hits the same cache entry.
+8. **Pagination with stable resource_id** — `analysis_area` returns `resource_id` keyed on non-pagination query params (MD5 of sorted kwargs). Cache TTL is 3600s. Cache key excludes `page` and `page_size`, so paginating through results hits the same cache entry.
 
-8. **Retry with exponential backoff** — `retry_on_failure` supports both sync and async functions. Default: 3 attempts, 1s base delay, 30s max, 2x backoff. Used by weather tools for transient network errors.
+9. **Retry with exponential backoff** — `retry_on_failure` supports both sync and async functions. Default: 3 attempts, 1s base delay, 30s max, 2x backoff. Used by weather tools for transient network errors.
 
-9. **Docker dual-service via supervisord** — Production container runs both MCP server (:3001) and SPF web UI (:5001) via supervisord. Both services share the same venv and use `uv run` for startup. See `supervisord.conf` for process definitions.
+10. **Docker dual-service via supervisord** — Production container runs both MCP server (:3001) and SPF web UI (:5001) via supervisord. Both services share the same venv and use `uv run` for startup. See `supervisord.conf` for process definitions.
 
-10. **Shared dependency via PyPI** — `stargazing-core` is published to PyPI and consumed by both `mcp-stargazing` and `stargazing-place-finder`. No `[tool.uv.sources]` path overrides in committed config — all dependencies resolve from the registry, ensuring deduplication at build time.
+11. **Shared dependency via PyPI** — `stargazing-core` is published to PyPI and consumed by both `mcp-stargazing` and `stargazing-place-finder`. No `[tool.uv.sources]` path overrides in committed config — all dependencies resolve from the registry, ensuring deduplication at build time.
 
 ## Testing
 
