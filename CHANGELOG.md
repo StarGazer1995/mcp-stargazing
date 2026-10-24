@@ -6,6 +6,8 @@
 
 - Popularity-aware planning re-ranking with stable recommendation drivers and explanation fields.
 - Observation-style profiles for balanced, deep-sky, visual, planetary, and beginner planning.
+- Structured civil-dark `NightWindow` output for nightly forecasts and planning candidates.
+- Multi-night planning across one to seven consecutive nights, with cross-night best-date and best-location selection.
 - `event_scope="next_events"` for cross-midnight rise/set lookups.
 - Runnable examples for `get_telescope_targets` and `get_shooting_plan`.
 - Release metadata guard for tag, ancestry, and built-artifact version consistency.

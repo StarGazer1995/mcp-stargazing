@@ -111,6 +111,7 @@
 | `best_observation_window` | 最佳观测时段（可能为 null） |
 | `moon_phase` | 月相名称 |
 | `moon_illumination` | 月面照明比例 |
+| `night_window` | 该地点的民用暗夜窗口；极昼/极夜等无法确定时为 null |
 | `top_targets` | 推荐天文目标列表 |
 | `notes` | 降级说明（如"天气摘要降级处理"） |
 
@@ -236,6 +237,7 @@ get_best_stargazing_plan
 3. **月相精度**：来自 `get_nightly_forecast` 的 astropy 计算，不依赖网络
 4. **观测目标偏好为轻量 profile**：当前通过权重与目标排序区分深空、目视、行星和入门场景，还没有分别采集 seeing、透明度或用户历史偏好
 5. **热门度仍为启发式信号**：规划层使用的是 `analysis_area` 返回的 heuristic popularity 字段，还不是外部 provider 化的人流/POI 活跃度模型
+6. **NightWindow 目前由太阳高度计算**：包含民用昏影、次日民用晨曦和时长；天气最佳时段仍保存在 `best_observation_window`
 
 ## 未来扩展方向
 
@@ -245,3 +247,15 @@ get_best_stargazing_plan
 - `get_best_targets_for_telescope`：按望远镜口径推荐目标
 - 更强的排名策略：多目标优化、用户历史偏好
 - 地点聚类去重（避免返回过于接近的多个候选）
+
+## 多日规划
+
+`get_multiday_stargazing_plan` 对连续 1–7 个本地夜晚逐一调用单夜规划：
+
+- 先根据区域中心计算每个夜晚的民用暗夜窗口
+- 使用窗口中点作为该夜的单次规划参考时间
+- `analysis_area` 搜索参数不变时复用进程内地点缓存
+- 每晚保留完整候选排名，同时在整个结果中选出最高分夜晚和地点
+- 无法确定民用暗夜窗口或单夜规划失败时保留该夜错误，不影响其他夜晚
+
+顶层输出为 `query`、`summary` 和 `nights[]`。`summary` 提供最佳夜晚日期、最佳地点和分数；`nights[]` 保留每晚的窗口、完整单夜 plan 与降级信息。

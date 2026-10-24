@@ -1,0 +1,123 @@
+"""Transport-independent tests for the planning application service."""
+
+from datetime import UTC, datetime
+
+import pytest
+
+from src.response import MCPError
+from src.schemas import NightWindow
+from src.services.planning import PlanningDependencies, PlanningService
+
+
+def _night_window(local_date: str = '2024-06-15') -> NightWindow:
+    return NightWindow(
+        local_date=local_date,
+        civil_dusk=f'{local_date}T20:30:00+08:00',
+        civil_dawn='2024-06-16T04:30:00+08:00',
+        duration_hours=8.0,
+        time_zone='Asia/Shanghai',
+    )
+
+
+def _service(*, weather_failure: bool = False) -> PlanningService:
+    async def search_places(**_kwargs):
+        return {
+            'resource_id': 'analysis-service-test',
+            'items': [
+                {
+                    'name': 'Transport-Free Ridge',
+                    'lat': 40.1,
+                    'lon': 116.1,
+                    'score': 86.0,
+                    'bortle_class': 3,
+                }
+            ],
+        }
+
+    async def fetch_weather(**_kwargs):
+        if weather_failure:
+            raise MCPError(MCPError.API_TIMEOUT, 'weather timed out')
+        return {
+            'summary': {
+                'current': {
+                    'weather_text': 'Clear',
+                    'cloud_cover_percent': 8.0,
+                    'visibility_km': 20.0,
+                    'wind_speed_kph': 6.0,
+                },
+                'hourly': [],
+            }
+        }
+
+    async def fetch_forecast(**_kwargs):
+        return {
+            'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.02},
+            'planets': [{'name': 'Jupiter'}],
+            'deep_sky': [{'name': 'M31', 'type': 'galaxy', 'score': 90.0}],
+        }
+
+    async def fetch_night_window(_lat, _lon, _reference):
+        return _night_window()
+
+    return PlanningService(
+        PlanningDependencies(
+            search_places=search_places,
+            fetch_weather=fetch_weather,
+            fetch_forecast=fetch_forecast,
+            fetch_night_window=fetch_night_window,
+            now=lambda: datetime(2026, 10, 24, 9, 0, tzinfo=UTC),
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_planning_service_runs_without_mcp_response_envelopes():
+    plan = await _service().build_best_plan(
+        south=40.0,
+        west=116.0,
+        north=40.5,
+        east=116.5,
+        time='2024-06-15 22:00:00',
+        time_zone='Asia/Shanghai',
+        candidate_limit=1,
+    )
+
+    assert plan.query.analysis_resource_id == 'analysis-service-test'
+    assert plan.summary.generated_at == '2026-10-24T09:00:00+00:00'
+    assert plan.summary.recommended_location_name == 'Transport-Free Ridge'
+    assert plan.candidates[0].weather_summary.cloud_cover_percent == 8.0
+    assert plan.candidates[0].top_targets[0].name == 'M31'
+
+
+@pytest.mark.asyncio
+async def test_planning_service_preserves_partial_results_when_weather_fails():
+    plan = await _service(weather_failure=True).build_best_plan(
+        south=40.0,
+        west=116.0,
+        north=40.5,
+        east=116.5,
+        time='2024-06-15 22:00:00',
+        time_zone='Asia/Shanghai',
+        candidate_limit=1,
+    )
+
+    assert plan.summary.total_candidates == 1
+    assert plan.candidates[0].weather_summary is None
+    assert plan.candidates[0].top_targets[0].name == 'M31'
+    assert plan.summary.warnings == ['天气摘要降级处理：API_TIMEOUT: weather timed out']
+
+
+@pytest.mark.asyncio
+async def test_planning_service_raises_structured_validation_errors():
+    with pytest.raises(MCPError) as error:
+        await _service().build_best_plan(
+            south=40.5,
+            west=116.0,
+            north=40.0,
+            east=116.5,
+            time='2024-06-15 22:00:00',
+            time_zone='Asia/Shanghai',
+        )
+
+    assert error.value.code == MCPError.CONFIGURATION_ERROR
+    assert error.value.details == {'south': 40.5, 'north': 40.0}
