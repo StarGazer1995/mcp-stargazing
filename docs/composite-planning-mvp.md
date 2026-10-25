@@ -26,7 +26,8 @@
 上层负责全部组合编排逻辑：
 
 - 调用 `analysis_area` 获取地点候选
-- 对每个候选地点并发调用 `get_weather_by_position` + `get_nightly_forecast`
+- 先对召回池并发调用 `get_weather_by_position`，必要时复用 `stargazing-core` 空间云量网格做区域粗排
+- 只对内部 Top N 候选调用夜景窗口与 `get_nightly_forecast`
 - 从天气数据中提取最佳观测窗口
 - 从夜间目标数据中提取月相与优先目标
 - 计算综合推荐得分
@@ -43,7 +44,7 @@
 | `east` | float | 是 | — | 东边界经度 |
 | `time` | str | 是 | — | 观测时间，ISO 8601 或 `YYYY-MM-DD HH:MM:SS` |
 | `time_zone` | str | 是 | — | IANA 时区，如 `Asia/Shanghai` |
-| `candidate_limit` | int | 否 | 3 | 最多评估的地点数 |
+| `candidate_limit` | int | 否 | 3 | 最多返回的排序地点数；服务端可评估更宽的召回池 |
 | `target_limit` | int | 否 | 5 | 每个地点推荐的优先目标数 |
 | `weather_provider` | str | 否 | `"all"` | 天气数据源，传递给天气工具 |
 | `max_locations` | int | 否 | 10 | 底层分析搜索的最大候选数 |
@@ -128,20 +129,21 @@ get_best_stargazing_plan
 ├─ 2. 地点搜索
 │   └─ analysis_area.fn(south, west, north, east, max_locations, ...)
 │       → 获取候选地点，按底层评分排序
-│       → 截取前 candidate_limit 个
+│       → 保留有界召回池
 │
-├─ 3. 并发评估（每个候选地点）
+├─ 3. 天气粗排
+│   ├─ 对召回池并发调用 get_weather_by_position
+│   └─ 可选：一次读取 stargazing-core 空间云量网格，并采样到候选点
+│
+├─ 4. 精细评估（内部 Top N）
 │   └─ asyncio.gather(
-│       ├─ get_weather_by_position.fn(lat, lon, provider)
-│       │   → 天气摘要 + 逐小时预报
-│       │   → 提取最佳观测窗口（12h 内，云量最低、降水最少）
-│       │
+│       ├─ 夜景窗口 + 天气最佳观测时段
 │       └─ get_nightly_forecast.fn(lon, lat, time, time_zone, limit)
 │           → 月相 + 深空目标 + 行星
 │           → 提取 top N 优先目标
 │     )
 │
-├─ 4. 综合打分
+├─ 5. 综合打分
 │   ├─ 按 observation_style 选择地点/天气权重与月光容忍度
 │   ├─ 地点评分（底层 stargazing_score）
 │   ├─ 天气评分（云量、能见度、风速）
@@ -151,7 +153,7 @@ get_best_stargazing_plan
 │   ├─ 月光惩罚（月面照明 > 70% 时扣分）
 │   └─ 降水概率惩罚
 │
-├─ 5. 生成推荐理由（中文）
+├─ 6. 生成推荐理由（中文）
 │   ├─ 波特尔等级
 │   ├─ 热门度 / 夜间安静度解释（如启用）
 │   ├─ 云量 / 能见度
@@ -159,7 +161,7 @@ get_best_stargazing_plan
 │   ├─ 月面照明比例
 │   └─ 优先目标名称
 │
-└─ 6. 排序并返回
+└─ 7. 排序并返回
     └─ 按 recommendation_score 降序
     └─ 重新编号 rank
     └─ 收集全局 warnings
@@ -188,6 +190,9 @@ get_best_stargazing_plan
           + min(20, 能见度km × 1.5)               # 能见度加分
           - max(0, min(20, (风速kph - 20) × 1.2)) # 大风扣分
           - 降水概率% × 10                         # 降水扣分
+
+空间云量可用时，天气基础分再与 `100 - 空间云量%` 按 70% / 30% 混合，
+用于区域比较；空间模型失败时只使用地点级天气评分。
 
 月光惩罚（独立于天气评分）:
   如果月面照明 > 70%: 天气评分 -= (照明% - 70%) × 25
