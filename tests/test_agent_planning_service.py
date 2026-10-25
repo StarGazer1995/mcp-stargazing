@@ -115,6 +115,8 @@ async def test_best_plan_uses_recall_pool_before_candidate_limit():
     """A weather winner outside the static top-N can overturn the first ranking."""
     search_calls: list[dict] = []
     weather_calls: list[dict] = []
+    forecast_calls: list[dict] = []
+    night_window_calls: list[dict] = []
     locations = [
         {
             'name': 'Static Leader',
@@ -171,6 +173,7 @@ async def test_best_plan_uses_recall_pool_before_candidate_limit():
         }
 
     async def fetch_forecast(**_kwargs):
+        forecast_calls.append(_kwargs)
         return {
             'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.02},
             'planets': [{'name': 'Jupiter'}],
@@ -178,6 +181,7 @@ async def test_best_plan_uses_recall_pool_before_candidate_limit():
         }
 
     async def fetch_night_window(_lat, _lon, reference):
+        night_window_calls.append({'lat': _lat, 'lon': _lon})
         local_date = reference.date().isoformat()
         next_date = (reference.date() + timedelta(days=1)).isoformat()
         return NightWindow(
@@ -214,6 +218,8 @@ async def test_best_plan_uses_recall_pool_before_candidate_limit():
     assert result.candidates[0].rank == 1
     assert search_calls[0]['page_size'] == 4
     assert len(weather_calls) == 4
+    assert len(forecast_calls) == 3
+    assert len(night_window_calls) == 3
 
 
 @pytest.mark.asyncio

@@ -87,6 +87,14 @@ class _ObservationStyleProfile:
     reason: str | None
 
 
+@dataclass(frozen=True)
+class _WeatherScreen:
+    """Cheap weather result reused by the downstream candidate evaluator."""
+
+    data: dict[str, Any] | None
+    note: str | None
+
+
 _STYLE_PROFILES = {
     ObservationStyle.BALANCED: _ObservationStyleProfile(0.65, 0.35, 1.0, None),
     ObservationStyle.DEEP_SKY: _ObservationStyleProfile(
@@ -126,6 +134,8 @@ _EQUIPMENT_PRESETS: dict[EquipmentPreset, dict[str, Any]] = {
 # expensive downstream evaluation.
 _LOCATION_RECALL_MULTIPLIER = 5
 _MIN_LOCATION_RECALL = 10
+_TARGET_EVALUATION_MULTIPLIER = 2
+_MIN_TARGET_EVALUATIONS = 3
 
 
 def _location_recall_limit(candidate_limit: int, max_locations: int) -> int:
@@ -134,6 +144,15 @@ def _location_recall_limit(candidate_limit: int, max_locations: int) -> int:
     return min(
         max_locations,
         max(_MIN_LOCATION_RECALL, candidate_limit * _LOCATION_RECALL_MULTIPLIER),
+    )
+
+
+def _target_evaluation_limit(candidate_limit: int, screened_count: int) -> int:
+    """Bound expensive target evaluation after the weather pre-screen."""
+
+    return min(
+        screened_count,
+        max(_MIN_TARGET_EVALUATIONS, candidate_limit * _TARGET_EVALUATION_MULTIPLIER),
     )
 
 
@@ -508,6 +527,18 @@ class PlanningService:
         except Exception as exc:
             return None, f'{MCPError.EXTERNAL_API_ERROR}: {exc}'
 
+    async def _screen_weather(
+        self, location: StargazingLocation, weather_provider: str
+    ) -> _WeatherScreen:
+        """Fetch only the inexpensive weather summary for a recall candidate."""
+
+        data, note = await self._fetch_optional(
+            self._dependencies.fetch_weather(
+                lat=location.lat, lon=location.lon, provider=weather_provider
+            )
+        )
+        return _WeatherScreen(data=data, note=note)
+
     async def evaluate_candidate(
         self,
         location: StargazingLocation,
@@ -519,6 +550,8 @@ class PlanningService:
         avoid_popular_spots: bool = False,
         prefer_quiet_at_night: bool = False,
         popularity_radius_km: float = 3.0,
+        *,
+        prefetched_weather: _WeatherScreen | None = None,
     ) -> PlannedLocationCandidate:
         notes: list[str] = []
         reference = parse_observation_time(time, time_zone)
@@ -529,22 +562,27 @@ class PlanningService:
         except ValueError as exc:
             night_window = None
             notes.append(f'夜景窗口不可用：{exc}')
-        weather_result, forecast_result = await asyncio.gather(
-            self._fetch_optional(
-                self._dependencies.fetch_weather(
-                    lat=location.lat, lon=location.lon, provider=weather_provider
-                )
-            ),
-            self._fetch_optional(
-                self._dependencies.fetch_forecast(
-                    lon=location.lon,
-                    lat=location.lat,
-                    time=time,
-                    time_zone=time_zone,
-                    limit=target_limit,
-                )
-            ),
+        forecast_operation = self._fetch_optional(
+            self._dependencies.fetch_forecast(
+                lon=location.lon,
+                lat=location.lat,
+                time=time,
+                time_zone=time_zone,
+                limit=target_limit,
+            )
         )
+        if prefetched_weather is None:
+            weather_result, forecast_result = await asyncio.gather(
+                self._fetch_optional(
+                    self._dependencies.fetch_weather(
+                        lat=location.lat, lon=location.lon, provider=weather_provider
+                    )
+                ),
+                forecast_operation,
+            )
+        else:
+            weather_result = (prefetched_weather.data, prefetched_weather.note)
+            forecast_result = await forecast_operation
         weather_data, weather_note = weather_result
         forecast_data, forecast_note = forecast_result
         if weather_note:
@@ -652,6 +690,33 @@ class PlanningService:
         locations = [
             StargazingLocation(**item) for item in places_data.get('items', [])[:recall_limit]
         ]
+        weather_screens = await asyncio.gather(
+            *[self._screen_weather(location, weather_provider) for location in locations]
+        )
+        screened_candidates: list[tuple[float, StargazingLocation, _WeatherScreen]] = []
+        for location, weather_screen in zip(locations, weather_screens, strict=True):
+            weather_summary = _build_weather_summary(weather_screen.data)
+            best_window = None
+            if weather_screen.data is not None:
+                best_window = _pick_best_observation_window(
+                    weather_screen.data.get('summary', {}).get('hourly', []), time, time_zone
+                )
+            popularity_adjustment, _ = _compute_popularity_preference_adjustment(
+                location, avoid_popular_spots, prefer_quiet_at_night, popularity_radius_km
+            )
+            screen_score = _compute_recommendation_score(
+                location,
+                weather_summary,
+                best_window,
+                None,
+                style,
+                popularity_adjustment,
+            ).final_score
+            screened_candidates.append((screen_score, location, weather_screen))
+        screened_candidates.sort(key=lambda item: item[0], reverse=True)
+        target_evaluation_limit = _target_evaluation_limit(
+            candidate_limit, len(screened_candidates)
+        )
         evaluated_candidates = await asyncio.gather(
             *[
                 self.evaluate_candidate(
@@ -664,8 +729,11 @@ class PlanningService:
                     avoid_popular_spots,
                     prefer_quiet_at_night,
                     popularity_radius_km,
+                    prefetched_weather=weather_screen,
                 )
-                for location in locations
+                for _screen_score, location, weather_screen in screened_candidates[
+                    :target_evaluation_limit
+                ]
             ]
         )
         ranked_candidates = sorted(

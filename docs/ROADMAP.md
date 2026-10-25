@@ -131,8 +131,9 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 - ✅ Replaced early static candidate truncation with a bounded place-recall pool before final
   candidate truncation; a regression test proves a weather winner outside the static top-N can
   become the first recommendation.
-- Replace the bounded downstream evaluation with low-cost dynamic weather screening and expensive
-  target evaluation only for the strongest candidates.
+- ✅ Replaced the bounded downstream evaluation with low-cost dynamic weather screening and
+  expensive night-window/target evaluation only for the strongest internal candidates; regression
+  coverage verifies the recall pool is screened while downstream calls stay bounded.
 - Use the spatial weather primitives already available in `stargazing-core` where they improve
   regional comparison.
 - Replace the best-single-hour heuristic with continuous observing windows that account for
