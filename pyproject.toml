@@ -92,7 +92,7 @@ convention = "google"
 [tool.pytest.ini_options]
 minversion = "9.0"
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 addopts = [
     "--strict-markers",
     "--tb=short",

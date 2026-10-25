@@ -73,14 +73,19 @@ ASI2600MC Air 和 custom optics 会驱动首选 session 的设备目标匹配。
 
 ## P4：Agent 评测
 
-- [ ] 建立至少 10 个真实 planning golden scenarios；
-- [ ] 覆盖深空、目视、行星、入门和设备 preset；
-- [ ] 覆盖空候选、provider 部分失败、无夜晚窗口和历史时间；
-- [ ] 评测工具选择正确率；
-- [ ] 评测首次调用成功率；
-- [ ] 评测 ranking correctness 和 explanation faithfulness；
-- [ ] 评测降级后是否仍可行动；
-- [ ] 至少使用两个不同第三方 agent 客户端做黑盒验收。
+- [x] 建立至少 10 个真实 planning golden scenarios；
+- [x] 覆盖深空、目视、行星、入门和设备 preset；
+- [x] 覆盖空候选、provider 部分失败、无夜晚窗口和历史时间；
+- [x] 评测工具选择正确率；
+- [x] 评测首次调用成功率；
+- [x] 评测 ranking correctness 和 explanation faithfulness；
+- [x] 评测降级后是否仍可行动；
+- [x] 至少使用两个不同第三方 agent 客户端做黑盒验收。
+
+结果：可执行 golden scenarios 为 10/10；Codex CLI 与 Claude Code 在同一 HOPE D60 +
+ASI2600MC Air 代表性场景上均为工具选择 2/2、首次实际调用成功 2/2、答案正确 2/2。黑盒
+结论只代表该抽样场景，不等同于两个客户端各自跑完全部 10 题。证据见
+`evaluations/reports/2026-10-25-two-client-smoke.md`。
 
 验收：发布前可以明确判断新变更改善了决策，还是只增加了字段与复杂度。
 

@@ -114,13 +114,15 @@ point. It accepts a place name, center/radius, or exact bounds; resolves Seestar
 HOPE D60 + ASI2600MC Air, or custom optics configurations; keeps provider and database choices on
 the server; and returns a first-class decision, alternatives, exact score components, evidence,
 uncertainties, material missing inputs, ranking-reversal conditions, and next actions. This does
-**not** add a seventeenth MCP tool yet: registration remains gated on golden scenarios and
-multi-client black-box validation.
+**not** add a seventeenth MCP tool yet. The deterministic 10-scenario gate and representative
+Codex/Claude black-box smoke have passed; production registration remains a separate, reviewable
+change.
 
 See [Third-party Agent Contract](docs/agent-contract.md),
 [Workspace Technical Map](docs/workspace-technical-map.md), and
 [Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 16-tool routing and
-parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md).
+parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md). Evaluation assets
+and the two-client evidence are under [`evaluations/`](evaluations/README.md).
 
 ### 1. Environment Setup
 
