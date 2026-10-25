@@ -114,7 +114,7 @@ src/
 │           ├── qweather.py
 │           └── wttr.py
 │
-├── tests/                   # Full pytest/pytest-asyncio harness for all 16 tools
+├── tests/                   # Full pytest/pytest-asyncio harness for all 17 tools
 ├── examples/                # Runnable demos, including both telescope tools
 ├── docs/                    # Design docs and ROADMAP.md
 ├── Dockerfile               # Multi-stage build (test + production)
@@ -148,7 +148,7 @@ src/
 ## Testing
 
 - Config in `pyproject.toml`: `pythonpath = ["src"]`, `testpaths = ["tests"]`
-- Full pytest suite covering all 16 MCP tools, error paths, edge cases, protocols, docs contracts, and config
+- Full pytest suite covering all 17 MCP tools, error paths, edge cases, protocols, docs contracts, and config
 - `test_mcp_client.py` — MCP protocol tests (tools/list, tools/call, SSE request-id)
 - `test_mcp_tools.py` — every tool's `.fn` wrapper (success + error + edge cases)
 - `test_supervisord_config.py` — 15 tests: supervisor config ↔ Dockerfile consistency

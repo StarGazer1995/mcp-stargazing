@@ -30,6 +30,7 @@ def test_tools_registered():
         'analysis_area',
         'get_best_stargazing_plan',
         'get_multiday_stargazing_plan',
+        'plan_stargazing_session',
         'get_local_datetime_info',
     ]
 

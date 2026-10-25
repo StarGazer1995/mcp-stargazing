@@ -1,4 +1,4 @@
-"""Agent-native request and response models for the future unified planner."""
+"""Agent-native request and response models for the unified planner."""
 
 from __future__ import annotations
 
@@ -65,16 +65,44 @@ class OpticalOverrides(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
-    focal_length_mm: float | None = Field(default=None, gt=0)
-    aperture_mm: float | None = Field(default=None, gt=0)
-    sensor_width_mm: float | None = Field(default=None, gt=0)
-    sensor_height_mm: float | None = Field(default=None, gt=0)
-    sensor_pixel_size_um: float | None = Field(default=None, gt=0)
-    central_obstruction_pct: float | None = Field(default=None, ge=0, le=50)
-    reducer_factor: float | None = Field(default=None, gt=0)
-    barlow_factor: float | None = Field(default=None, gt=0)
-    mount_type: str | None = Field(default=None, pattern='^(equatorial|altaz)$')
-    filter_type: str | None = Field(default=None, min_length=1, max_length=32)
+    focal_length_mm: float | None = Field(
+        default=None, gt=0, description='Effective telescope focal length in millimeters'
+    )
+    aperture_mm: float | None = Field(
+        default=None, gt=0, description='Clear telescope aperture in millimeters'
+    )
+    sensor_width_mm: float | None = Field(
+        default=None, gt=0, description='Imaging sensor width in millimeters'
+    )
+    sensor_height_mm: float | None = Field(
+        default=None, gt=0, description='Imaging sensor height in millimeters'
+    )
+    sensor_pixel_size_um: float | None = Field(
+        default=None, gt=0, description='Imaging sensor pixel size in micrometers'
+    )
+    central_obstruction_pct: float | None = Field(
+        default=None,
+        ge=0,
+        le=50,
+        description='Central obstruction as a percentage of aperture diameter',
+    )
+    reducer_factor: float | None = Field(
+        default=None, gt=0, description='Focal reducer multiplier, for example 0.8'
+    )
+    barlow_factor: float | None = Field(
+        default=None, gt=0, description='Barlow multiplier, for example 2.0'
+    )
+    mount_type: str | None = Field(
+        default=None,
+        pattern='^(equatorial|altaz)$',
+        description='Tracking mount type: equatorial or altaz',
+    )
+    filter_type: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=32,
+        description='Optional imaging filter label passed to equipment matching',
+    )
 
 
 class AgentEquipmentIntent(BaseModel):
@@ -112,21 +140,60 @@ class ResolvedEquipment(BaseModel):
 
 
 class AgentPlanningRequest(BaseModel):
-    """User-intent request for the future ``plan_stargazing_session`` entry point."""
+    """User-intent request for the ``plan_stargazing_session`` entry point."""
 
     model_config = ConfigDict(extra='forbid')
 
     location: AgentLocationIntent
-    start_date: str = Field(pattern=r'^\d{4}-\d{2}-\d{2}$')
-    time_zone: str = Field(default='Asia/Shanghai', min_length=1)
-    nights: int = Field(default=3, ge=1, le=7)
-    observation_style: ObservationStyle = Field(default=ObservationStyle.BALANCED)
-    equipment: AgentEquipmentIntent | None = Field(default=None)
-    candidate_limit: int = Field(default=3, ge=1, le=10)
-    target_limit: int = Field(default=5, ge=1, le=20)
-    avoid_popular_spots: bool = Field(default=False)
-    prefer_quiet_at_night: bool = Field(default=False)
-    popularity_radius_km: float = Field(default=3.0, gt=0, le=20)
+    start_date: str = Field(
+        pattern=r'^\d{4}-\d{2}-\d{2}$',
+        description='First local calendar date to evaluate, formatted as YYYY-MM-DD',
+    )
+    time_zone: str = Field(
+        default='Asia/Shanghai',
+        min_length=1,
+        description='IANA timezone used for every requested night',
+    )
+    nights: int = Field(
+        default=3,
+        ge=1,
+        le=7,
+        description='Number of consecutive nights to compare, from one to seven',
+    )
+    observation_style: ObservationStyle = Field(
+        default=ObservationStyle.BALANCED,
+        description='Observing goal used to weight locations, sky conditions, and targets',
+    )
+    equipment: AgentEquipmentIntent | None = Field(
+        default=None,
+        description='Optional preset or custom optics for equipment-aware target matching',
+    )
+    candidate_limit: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description='Maximum ranked location candidates retained for each night',
+    )
+    target_limit: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description='Maximum targets returned for the selected session',
+    )
+    avoid_popular_spots: bool = Field(
+        default=False,
+        description='Prefer lower static popularity risk when heuristic data is available',
+    )
+    prefer_quiet_at_night: bool = Field(
+        default=False,
+        description='Prefer places likely to become quieter after dark',
+    )
+    popularity_radius_km: float = Field(
+        default=3.0,
+        gt=0,
+        le=20,
+        description='Radius in kilometers used by popularity heuristics',
+    )
 
 
 class ResolvedPlanningLocation(BaseModel):
@@ -228,7 +295,7 @@ class PlanningNextAction(BaseModel):
 
 
 class AgentPlanningResult(BaseModel):
-    """Agent-native decision contract produced before MCP tool registration."""
+    """Agent-native decision contract returned by the primary planner."""
 
     request: AgentPlanningRequest = Field(
         description='Normalized request with every default echoed'

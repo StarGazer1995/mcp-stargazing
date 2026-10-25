@@ -1,8 +1,16 @@
-"""Evaluation-only MCP adapter for the draft agent-native planning contract."""
+"""Evaluation-only MCP server with a frozen primary-planner adapter."""
 
 from __future__ import annotations
 
-import src.main  # noqa: F401  # Register the production 16-tool surface as realistic decoys.
+# Register the production support and compatibility tools as realistic decoys while
+# deliberately excluding the production primary-planner adapter below.
+import src.functions.celestial.impl  # noqa: F401
+import src.functions.metadata.impl  # noqa: F401
+import src.functions.places.impl  # noqa: F401
+import src.functions.planning.impl  # noqa: F401
+import src.functions.telescope.impl  # noqa: F401
+import src.functions.time.impl  # noqa: F401
+import src.functions.weather.impl  # noqa: F401
 from evaluations.planning_golden import SCENARIOS_BY_DATE, build_golden_service
 from src.response import MCPError, format_response
 from src.schemas import AgentPlanningRequest

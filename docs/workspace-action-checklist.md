@@ -12,8 +12,8 @@
 - [x] 建立三仓技术地图和能力归属规则；
 - [x] 重新划分 Roadmap，把已完成能力移出未来主线；
 - [x] 增加文档引用与运行依赖版本的防漂移测试；
-- [ ] 合并并发布 multi-night / night-window 变更；
-- [x] 对当前 16 个工具形成公共参数审计表；
+- [x] 合并 multi-night / night-window 变更；发版仍由独立发布指令触发；
+- [x] 对原有 16 个工具形成公共参数审计表，并在注册主入口后扩展为 17 个；
 - [ ] 为每个工具补充稳定的 `use when` / `do not use when` 路由说明；
 - [ ] 保存 1.0 前公共 schema baseline。
 
@@ -51,11 +51,10 @@ bbox-first 工具。新入口只有在应用模型、golden scenarios 和多客�
 - [x] 增加 `would_change_if` 与 `next_actions`；
 - [x] 默认值全部回显并有契约测试。
 
-当前状态：P2 已在未注册的 application contract 中完成。`AgentPlanningRequest` 与
+当前状态：P2 已在 application contract 中完成。`AgentPlanningRequest` 与
 `AgentPlanningResult` 可直接做 transport-free 测试；Seestar S50、HOPE D60 +
-ASI2600MC Air 和 custom optics 会驱动首选 session 的设备目标匹配。公开 MCP 集合仍为 16
-个工具；`plan_stargazing_session` 要等 P4 golden scenarios 和至少两个第三方 agent
-客户端黑盒验收通过后再注册。
+ASI2600MC Air 和 custom optics 会驱动首选 session 的设备目标匹配。P4 gate 通过后，
+`plan_stargazing_session` 已作为第 17 个公开工具注册；旧的 bbox-first planning 工具继续兼容。
 
 验收：第三方 agent 不需要理解仓库、provider 或服务器文件系统即可完成一次规划。
 
@@ -86,6 +85,10 @@ ASI2600MC Air 和 custom optics 会驱动首选 session 的设备目标匹配。
 ASI2600MC Air 代表性场景上均为工具选择 2/2、首次实际调用成功 2/2、答案正确 2/2。黑盒
 结论只代表该抽样场景，不等同于两个客户端各自跑完全部 10 题。证据见
 `evaluations/reports/2026-10-25-two-client-smoke.md`。
+
+生产注册：`plan_stargazing_session` 已通过独立变更进入生产 MCP surface；README、
+`tools/list`、`get_tool_catalog`、契约测试和 evaluation adapter 已同步。P3 决策质量和 P5
+长任务仍待推进；不在没有状态机的情况下提前暴露形式化 `task_id`。
 
 验收：发布前可以明确判断新变更改善了决策，还是只增加了字段与复杂度。
 

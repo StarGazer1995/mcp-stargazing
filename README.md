@@ -103,24 +103,21 @@ Start the MCP server to expose tools to AI agents or other clients.
 
 ### Agent-first direction
 
-`get_best_stargazing_plan` and `get_multiday_stargazing_plan` are the current composite decision
-entry points. The pre-1.0 roadmap is focused on making planning safe for third-party agents:
-intent-oriented inputs, explicit alternatives, score breakdowns, evidence freshness,
-uncertainty, and recoverable long-running work. New independent astronomy lookup tools are
-deferred until that decision contract is stable.
-
-The application layer now contains an unregistered agent-native contract for that future entry
-point. It accepts a place name, center/radius, or exact bounds; resolves Seestar S50,
+`plan_stargazing_session` is the preferred composite decision entry point for third-party agents.
+It accepts a place name, center/radius, or exact bounds; resolves Seestar S50,
 HOPE D60 + ASI2600MC Air, or custom optics configurations; keeps provider and database choices on
 the server; and returns a first-class decision, alternatives, exact score components, evidence,
-uncertainties, material missing inputs, ranking-reversal conditions, and next actions. This does
-**not** add a seventeenth MCP tool yet. The deterministic 10-scenario gate and representative
-Codex/Claude black-box smoke have passed; production registration remains a separate, reviewable
-change.
+uncertainties, material missing inputs, ranking-reversal conditions, and next actions.
+
+`get_best_stargazing_plan` and `get_multiday_stargazing_plan` remain registered as compatibility
+entries for existing bbox-first callers. The deterministic 10-scenario gate and representative
+Codex/Claude black-box smoke passed before the primary entry point was registered. New independent
+astronomy lookup tools remain deferred while long-running task semantics and the 1.0 contract are
+completed.
 
 See [Third-party Agent Contract](docs/agent-contract.md),
 [Workspace Technical Map](docs/workspace-technical-map.md), and
-[Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 16-tool routing and
+[Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 17-tool routing and
 parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md). Evaluation assets
 and the two-client evidence are under [`evaluations/`](evaluations/README.md).
 
@@ -226,6 +223,11 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
 - **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather with automatic retry on network failures.
 - **`get_local_datetime_info`**: Get current local time information.
 - **`get_tool_catalog`**: Discover available MCP tool metadata and parameters.
+- **`plan_stargazing_session`**: Preferred end-to-end entry point for deciding when, where, and what to observe across one to seven nights.
+  - **Inputs**: a `request` object containing `location` (exactly one of `place_name`, `center`, or `bounds`), `start_date`, optional `time_zone`, `nights`, `observation_style`, `equipment`, candidate/target limits, and popularity preferences.
+  - **Equipment**: stable presets are `seestar_s50` and `hope_d60_asi2600mc_air`; advanced callers may use `custom` or override individual optical fields.
+  - **Returns**: normalized request and resolved geography, a first-choice `decision`, ranked `alternatives`, traceable `evidence`, `uncertainties`, material `missing_inputs`, `would_change_if` conditions, and concrete `next_actions`.
+  - **Routing**: use this for a complete observing decision. Use weather, celestial, telescope, or place tools directly for focused fact lookups.
 - **`get_best_stargazing_plan`**: Build a ranked regional observing plan with candidate places, weather summaries, best observation windows, and top targets.
   - **Inputs**: `south`, `west`, `north`, `east`, `time`, `time_zone`, `candidate_limit`, `target_limit`, `weather_provider`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `observation_style`, `avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`, `db_config_path`.
   - **Returns**: `query`, `summary`, and `candidates`, where `query.analysis_resource_id` links the plan back to the underlying `analysis_area` search when available. When popularity preferences are enabled, planning also applies a second-stage recommendation adjustment from the returned popularity heuristic fields, surfaces those reasons in `candidates[*].recommendation_reasons`, and summarizes the top recommendation in `summary.popularity_preferences_enabled`, `summary.primary_recommendation_drivers`, and `summary.recommended_location_reason_summary`. The driver values form a stable enum: `dark_sky`, `high_place_score`, `clear_weather`, `good_visibility`, `observation_style_fit`, `low_popularity_risk`, `quiet_at_night`, and `strong_targets`.

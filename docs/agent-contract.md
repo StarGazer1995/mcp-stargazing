@@ -21,14 +21,18 @@
 
 ### 主决策入口
 
-当前主入口是：
+当前首选主入口是：
+
+- `plan_stargazing_session`
+
+以下入口为现有 bbox-first 调用方继续保留：
 
 - `get_best_stargazing_plan`
 - `get_multiday_stargazing_plan`
 
-目标形态是在 1.0 前形成一个更 agent-native 的统一观测规划入口。主入口概念名确定为
-`plan_stargazing_session`；在输入、输出、迁移评审和黑盒 agent 验收通过前，不注册这个
-新工具，避免制造第二套尚未成熟的重叠契约。
+`plan_stargazing_session` 已在输入、输出、迁移评审、10 个 golden scenarios 和两个第三方
+agent 客户端代表性黑盒验收通过后注册。旧入口至少保留一个有文档的迁移周期，避免现有调用方
+被迫立即迁移。
 
 主入口负责回答：
 
@@ -88,7 +92,7 @@ preset 的任一光学字段都可通过 `overrides` 显式覆盖。HOPE D60 + A
 
 ## 目标响应结构
 
-主规划结果最终应稳定表达以下语义。字段名需经过实现评审后再冻结：
+主规划结果当前稳定表达以下语义；字段将在 1.0 契约冻结阶段正式冻结：
 
 ```json
 {
@@ -147,13 +151,14 @@ MCP tool wrapper
 4. 只有在新入口覆盖旧场景、迁移文档发布并至少经历一个有文档的弃用周期后，才考虑
    弃用旧入口；删除或重命名留到后续 major 版本。
 
-第 1、2 步已经完成：`AgentPlanningRequest` 支持地点文本、中心点加
+第 1、2、3 步已经完成：`AgentPlanningRequest` 支持地点文本、中心点加
 半径和精确 bbox，`AgentPlanningResult` 提供 decision、alternatives、精确评分分解、证据、
 不确定性、关键缺失输入、排名反转条件和下一步动作。Seestar S50、HOPE D60 +
 ASI2600MC Air 和 custom optics 会先归一化，再对首选 session 做设备目标匹配；provider 和
 数据库路径不进入请求模型。10 个冻结 golden scenarios 全部通过，Codex CLI 与 Claude Code
 在代表性 HOPE D60 + ASI2600MC Air 场景中均首次选择正确工具、首次实际调用成功并返回正确
-答案。当前仍保持 16 个公开工具；注册 `plan_stargazing_session` 留给下一项独立变更。
+答案。`plan_stargazing_session` 已作为第 17 个公开工具注册；两个旧 planning 入口继续保持
+兼容，尚未进入弃用周期。
 
 ## 版本与弃用策略
 

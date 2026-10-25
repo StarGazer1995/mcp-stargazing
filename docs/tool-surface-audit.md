@@ -2,13 +2,14 @@
 
 ## 目的
 
-本文记录 1.0 前 16 个已注册工具的用途、路由边界和第三方 agent 风险。它是迁移审计，不替代 `tools/list` 或 README 中的当前契约。
+本文记录 1.0 前 17 个已注册工具的用途、路由边界和第三方 agent 风险。它是迁移审计，不替代 `tools/list` 或 README 中的当前契约。
 
 ## 分层结论
 
 | 层级 | 工具 | 结论 |
 |---|---|---|
-| 当前主入口 | `get_best_stargazing_plan`、`get_multiday_stargazing_plan` | 应优先用于“去哪、哪天、看什么”的组合决策 |
+| 首选主入口 | `plan_stargazing_session` | 第三方 agent 应优先用于“去哪、哪天、看什么”的组合决策 |
+| 兼容入口 | `get_best_stargazing_plan`、`get_multiday_stargazing_plan` | 继续服务已有 bbox-first 调用方 |
 | 支撑能力 | celestial、weather、places、telescope 工具 | 用于精确问题、深入查询或主规划后的补充 |
 | 发现/诊断 | `get_tool_catalog`、`get_local_datetime_info` | 用于能力发现和环境时间，不应替代业务规划 |
 
@@ -16,8 +17,9 @@
 
 | 工具 | Agent 应在何时使用 | 不应在何时使用 | 1.0 前关注点 |
 |---|---|---|---|
-| `get_best_stargazing_plan` | 已有 bbox、观测时间与时区，要比较区域内地点 | 只有一个坐标或只问单个天体位置 | 当前主入口；移除新入口中的部署参数，补决策、备选、证据与分数分解 |
-| `get_multiday_stargazing_plan` | 比较连续 1–7 个夜晚 | 需要更长周期、非连续日期或实时任务状态 | 当前多日入口；补设备约束、连续窗口和跨夜差异解释 |
+| `plan_stargazing_session` | 需要跨一至七晚完成地点、时间、目标与设备的综合决策 | 只查询单项天气、天体位置或光污染事实 | 当前首选主入口；冻结契约前继续验证字段稳定性与长任务边界 |
+| `get_best_stargazing_plan` | 已有 bbox、观测时间与时区，要比较区域内地点 | 只有一个坐标或只问单个天体位置 | 兼容单晚入口；保持现有参数和返回结构稳定 |
+| `get_multiday_stargazing_plan` | 比较连续 1–7 个夜晚 | 需要更长周期、非连续日期或实时任务状态 | 兼容多日入口；保持现有参数和返回结构稳定 |
 | `analysis_area` | 需要地点候选、分页或规划后的底层结果 | 已经只需要最终观测决策 | `db_config_path` 属于基础设施泄漏；长任务和缓存新鲜度语义待补 |
 | `light_pollution_map` | 需要区域光污染网格或可视化数据 | 只想知道最终推荐地点 | 返回数据可能较大；未来需要更清晰的资源与数据版本语义 |
 | `get_weather_by_name` | 只有地点文本，需要天气事实 | 需要完整观星决策 | `provider` 默认应由服务端管理；地点解析 provenance 需要进入 evidence |

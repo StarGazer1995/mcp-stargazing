@@ -147,7 +147,7 @@ jobs:
             -H "mcp-session-id: $SESSION_ID" \
             -d '{"jsonrpc":"2.0","id":"tools-list","method":"tools/list"}')
           for tool in get_telescope_targets get_shooting_plan get_best_stargazing_plan \
-            get_multiday_stargazing_plan \
+            get_multiday_stargazing_plan plan_stargazing_session \
             get_celestial_pos light_pollution_map get_weather_by_name; do
             echo "$TOOLS" | grep -q "\"$tool\""
             echo "✅ MCP: $tool"
