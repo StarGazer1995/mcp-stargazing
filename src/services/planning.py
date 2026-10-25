@@ -120,6 +120,22 @@ _EQUIPMENT_PRESETS: dict[EquipmentPreset, dict[str, Any]] = {
     },
 }
 
+# Keep the public result small while allowing weather and target signals to
+# overturn a purely static place ranking. ``max_locations`` remains the caller's
+# search budget; this cap only limits how many returned places receive the more
+# expensive downstream evaluation.
+_LOCATION_RECALL_MULTIPLIER = 5
+_MIN_LOCATION_RECALL = 10
+
+
+def _location_recall_limit(candidate_limit: int, max_locations: int) -> int:
+    """Return the number of places to evaluate before final score truncation."""
+
+    return min(
+        max_locations,
+        max(_MIN_LOCATION_RECALL, candidate_limit * _LOCATION_RECALL_MULTIPLIER),
+    )
+
 
 def _validate_observation_style(value: str) -> ObservationStyle:
     try:
@@ -632,10 +648,11 @@ class PlanningService:
             page=1,
             page_size=max_locations,
         )
+        recall_limit = _location_recall_limit(candidate_limit, max_locations)
         locations = [
-            StargazingLocation(**item) for item in places_data.get('items', [])[:candidate_limit]
+            StargazingLocation(**item) for item in places_data.get('items', [])[:recall_limit]
         ]
-        candidates = await asyncio.gather(
+        evaluated_candidates = await asyncio.gather(
             *[
                 self.evaluate_candidate(
                     location,
@@ -651,7 +668,10 @@ class PlanningService:
                 for location in locations
             ]
         )
-        candidates = sorted(candidates, key=lambda item: item.recommendation_score, reverse=True)
+        ranked_candidates = sorted(
+            evaluated_candidates, key=lambda item: item.recommendation_score, reverse=True
+        )
+        candidates = ranked_candidates[:candidate_limit]
         for rank, candidate in enumerate(candidates, start=1):
             candidate.rank = rank
         top_candidate = candidates[0] if candidates else None
