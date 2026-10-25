@@ -1,4 +1,4 @@
-"""Deterministic decision-quality gates for the draft agent-native planner."""
+"""Deterministic decision-quality gates for the agent-native planner."""
 
 from pathlib import Path
 from xml.etree import ElementTree

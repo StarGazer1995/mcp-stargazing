@@ -17,6 +17,9 @@ The following baseline capabilities are already implemented and should no longer
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
 - `get_celestial_rise_set` now supports explicit `calendar_day` and `next_events` scopes, making cross-midnight sunrise/sunset semantics unambiguous.
 - `get_nightly_forecast` and planning candidates now expose a structured civil-dark `NightWindow`.
+- `plan_stargazing_session` is now the preferred third-party-agent entry point, returning a
+  decision, alternatives, evidence, uncertainties, material missing inputs, ranking-reversal
+  conditions, and next actions without exposing provider or database configuration.
 - `get_best_stargazing_plan` now provides an MVP regional planning flow that combines candidate places, weather summaries, moon phase, and top targets, and can apply a planning-layer popularity re-rank with explanation fields when popularity preferences are enabled.
 - Cross-repository CI now compares baseline and candidate wheel builds across
   `stargazing-core`, `stargazing-place-finder`, and `mcp-stargazing`. See
@@ -70,7 +73,7 @@ The following baseline capabilities are already implemented and should no longer
 
 ### Test coverage
 
-- The pytest suite covers all 16 MCP tools, including success, structured-error, edge-case, serialization, protocol, documentation-contract, and deployment-config paths.
+- The pytest suite covers all 17 MCP tools, including success, structured-error, edge-case, serialization, protocol, documentation-contract, and deployment-config paths.
 - `test_mcp_tools.py` centralizes tool-wrapper coverage.
 - `test_supervisord_config.py` validates deployment config consistency.
 
@@ -89,7 +92,7 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   establish the current planning baseline.
 - ✅ Define the target third-party-agent contract, three-repository technical map, and staged
   implementation checklist.
-- Audit all 16 public tools for agent routing guidance, infrastructure leakage, and compatibility
+- Audit all 17 public tools for agent routing guidance, infrastructure leakage, and compatibility
   risk.
 - Capture the pre-1.0 schema baseline and define deprecation rules.
 
@@ -103,9 +106,8 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 - ✅ Place analysis, coordinate weather, and nightly forecast expose transport-free internal
   capabilities; planning no longer calls another public tool wrapper's `.fn`. A source contract
   test prevents this dependency from returning.
-- ✅ Chose a future `plan_stargazing_session` entry point instead of overloading the existing
-  bbox-first tools; it will remain unregistered until its application models, golden scenarios,
-  migration plan, and multi-client black-box validation pass.
+- ✅ Registered `plan_stargazing_session` as the preferred primary entry after its application
+  models, golden scenarios, migration plan, and multi-client black-box validation passed.
 - Preserve current public behavior while the existing single-night and multi-night tools serve as
   compatibility entries through at least one documented migration cycle.
 - Keep provider selection, credentials, database paths, and cache internals out of the new primary
@@ -113,7 +115,7 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 
 ## Priority 3: Agent-native planning contract
 
-- ✅ The unregistered application contract accepts a place name, center/radius, or exact bounds,
+- ✅ The registered primary contract accepts a place name, center/radius, or exact bounds,
   plus date range, observation goal, equipment preset, and explicit user constraints.
 - ✅ `AgentPlanningResult` returns a first-class decision plus alternatives, exact score breakdown,
   evidence, uncertainties, materially missing inputs, ranking-reversal conditions, and next actions.
@@ -121,8 +123,8 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   the request section and protected by contract tests.
 - ✅ Seestar S50, HOPE D60 + ASI2600MC Air, and custom optics are normalized with explicit
   overrides and drive target matching for the selected session.
-- ✅ Ten frozen planning scenarios and representative Codex/Claude black-box acceptance passed;
-  keep production registration as a separate reviewable change.
+- ✅ Ten frozen planning scenarios and representative Codex/Claude black-box acceptance passed
+  before production registration; the bbox-first planning tools remain compatibility entries.
 
 ## Priority 4: Decision quality
 
@@ -140,7 +142,7 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 - ✅ Ten read-only planning golden scenarios cover tool selection, ranking, explanations,
   partial-provider degradation, empty results, missing night windows, historical dates, and both
   stable equipment presets.
-- ✅ Codex CLI and Claude Code each selected the draft primary planner on the first actual tool
+- ✅ Codex CLI and Claude Code each selected the candidate primary planner on the first actual tool
   call and returned the expected HOPE D60 + ASI2600MC Air answer (2/2 representative smoke).
 - Define a real task lifecycle before activating the reserved `task_id` / `progress` fields for
   long-running area analysis.
@@ -158,7 +160,7 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 
 - `AGENTS.md`, `README.md`, `docs/ROADMAP.md`, and the agent-contract documents are checked for
   current paths and dependency floors.
-- ✅ Harness tests exist for all 16 tools: success, error, edge cases, and documentation contracts.
+- ✅ Harness tests exist for all 17 tools: success, error, edge cases, and documentation contracts.
 - ✅ All new features documented in `README.md`, `AGENTS.md`, and `CLAUDE.md`.
 - Cross-repository compatibility is enforced by the wheel-level dependency-chain CI. Per-repository documentation is checked by the owning repository's own contract tests.
 - ✅ Example scripts are available for `get_telescope_targets` and `get_shooting_plan`.

@@ -14,6 +14,7 @@ from src.functions.celestial.impl import (
 )
 from src.functions.metadata.impl import get_tool_catalog
 from src.functions.places.impl import analysis_area, light_pollution_map
+from src.functions.planning.agent_impl import plan_stargazing_session
 from src.functions.planning.impl import (
     _evaluate_candidate,
     get_best_stargazing_plan,
@@ -23,7 +24,7 @@ from src.functions.telescope.impl import get_shooting_plan, get_telescope_target
 from src.functions.time.impl import get_local_datetime_info
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
 from src.response import MCPError
-from src.schemas import NightWindow, StargazingLocation
+from src.schemas import AgentPlanningRequest, NightWindow, StargazingLocation
 from src.services.planning import PlanningService
 
 EXPECTED_TOOLS = {
@@ -43,6 +44,7 @@ EXPECTED_TOOLS = {
     'get_weather_by_position',
     'light_pollution_map',
     'list_visible_planets',
+    'plan_stargazing_session',
 }
 
 
@@ -62,6 +64,53 @@ def _capability_payload(response: dict):
 # ---------------------------------------------------------------------------
 # Planning tool
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_plan_stargazing_session_fn_wraps_agent_decision():
+    """The primary planner should expose the application result in the MCP envelope."""
+    request = AgentPlanningRequest(
+        location={'center': {'lat': 30.63, 'lon': 119.68}},
+        start_date='2026-10-25',
+    )
+    service = MagicMock()
+    application_result = MagicMock()
+    application_result.model_dump.return_value = {
+        'decision': {'date': '2026-10-25'},
+        'alternatives': [],
+    }
+    service.build_agent_plan = AsyncMock(return_value=application_result)
+
+    with patch('src.functions.planning.agent_impl._build_planning_service', return_value=service):
+        result = await plan_stargazing_session.fn(request)
+
+    service.build_agent_plan.assert_awaited_once_with(request)
+    assert result['_meta']['status'] == 'success'
+    assert result['data']['decision']['date'] == '2026-10-25'
+
+
+@pytest.mark.asyncio
+async def test_plan_stargazing_session_fn_returns_structured_service_error():
+    """Application errors should stay actionable instead of escaping the tool boundary."""
+    request = AgentPlanningRequest(
+        location={'center': {'lat': 30.63, 'lon': 119.68}},
+        start_date='2026-10-25',
+    )
+    service = MagicMock()
+    service.build_agent_plan = AsyncMock(
+        side_effect=MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            'Place-name resolution is not configured.',
+            {'field': 'location.place_name'},
+        )
+    )
+
+    with patch('src.functions.planning.agent_impl._build_planning_service', return_value=service):
+        result = await plan_stargazing_session.fn(request)
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.CONFIGURATION_ERROR
+    assert result['error']['details']['field'] == 'location.place_name'
 
 
 @pytest.mark.asyncio

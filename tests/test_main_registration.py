@@ -17,6 +17,7 @@ EXPECTED_TOOLS = {
     'get_weather_by_position',
     'light_pollution_map',
     'list_visible_planets',
+    'plan_stargazing_session',
 }
 
 

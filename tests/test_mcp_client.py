@@ -31,6 +31,7 @@ EXPECTED_TOOLS = {
     'get_weather_by_position',
     'light_pollution_map',
     'list_visible_planets',
+    'plan_stargazing_session',
 }
 
 
@@ -318,22 +319,4 @@ def test_tools_list_returns_all_expected_tools(running_mcp_server):
     host, port, path, session_id = running_mcp_server
     tools = _list_tools(host, port, path, session_id)
 
-    expected = {
-        'analysis_area',
-        'get_celestial_pos',
-        'get_celestial_rise_set',
-        'get_best_stargazing_plan',
-        'get_multiday_stargazing_plan',
-        'get_constellation',
-        'get_local_datetime_info',
-        'get_moon_info',
-        'get_nightly_forecast',
-        'get_shooting_plan',
-        'get_telescope_targets',
-        'get_tool_catalog',
-        'get_weather_by_name',
-        'get_weather_by_position',
-        'light_pollution_map',
-        'list_visible_planets',
-    }
-    assert tools == expected
+    assert tools == EXPECTED_TOOLS

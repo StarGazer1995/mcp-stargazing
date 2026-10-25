@@ -881,7 +881,7 @@ class PlanningService:
         )
 
     async def build_agent_plan(self, request: AgentPlanningRequest) -> AgentPlanningResult:
-        """Build the unregistered agent-native planning contract.
+        """Build the agent-native planning contract.
 
         Provider selection and storage configuration remain server policy. The
         normalized request and every default are echoed in the result so an

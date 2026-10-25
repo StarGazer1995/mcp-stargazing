@@ -1,4 +1,4 @@
-"""Contract tests for the unregistered agent-native planning service."""
+"""Contract tests for the agent-native planning service."""
 
 from datetime import UTC, datetime, timedelta
 
