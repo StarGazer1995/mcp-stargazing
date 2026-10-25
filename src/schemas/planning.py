@@ -29,7 +29,9 @@ class PlanningQuery(BaseModel):
     east: float = Field(description='Eastern longitude bound')
     time: str = Field(description='Requested observation time string')
     time_zone: str = Field(description='Requested IANA timezone string')
-    candidate_limit: int = Field(ge=1, description='Maximum number of candidate places to evaluate')
+    candidate_limit: int = Field(
+        ge=1, description='Maximum number of ranked candidate places returned'
+    )
     target_limit: int = Field(ge=1, description='Maximum number of recommended targets per place')
     weather_provider: str = Field(description='Weather provider mode used for weather summaries')
     max_locations: int = Field(

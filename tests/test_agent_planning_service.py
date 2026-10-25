@@ -111,6 +111,112 @@ def _agent_service(*, weather_failure: bool = False):
 
 
 @pytest.mark.asyncio
+async def test_best_plan_uses_recall_pool_before_candidate_limit():
+    """A weather winner outside the static top-N can overturn the first ranking."""
+    search_calls: list[dict] = []
+    weather_calls: list[dict] = []
+    locations = [
+        {
+            'name': 'Static Leader',
+            'lat': 30.60,
+            'lon': 119.60,
+            'score': 96.0,
+            'bortle_class': 3,
+        },
+        {
+            'name': 'Static Runner',
+            'lat': 30.70,
+            'lon': 119.70,
+            'score': 88.0,
+            'bortle_class': 3,
+        },
+        {
+            'name': 'Static Third',
+            'lat': 30.80,
+            'lon': 119.80,
+            'score': 82.0,
+            'bortle_class': 4,
+        },
+        {
+            'name': 'Clear Plateau',
+            'lat': 30.90,
+            'lon': 119.90,
+            'score': 72.0,
+            'bortle_class': 4,
+        },
+    ]
+
+    async def search_places(**kwargs):
+        search_calls.append(kwargs)
+        return {'resource_id': 'recall-regression', 'items': locations}
+
+    async def fetch_weather(**kwargs):
+        weather_calls.append(kwargs)
+        weather = {
+            30.60: (90.0, 4.0),
+            30.70: (80.0, 5.0),
+            30.80: (70.0, 10.0),
+            30.90: (0.0, 25.0),
+        }[round(float(kwargs['lat']), 2)]
+        return {
+            'summary': {
+                'current': {
+                    'weather_text': 'Clear' if weather[0] == 0 else 'Cloudy',
+                    'cloud_cover_percent': weather[0],
+                    'visibility_km': weather[1],
+                    'wind_speed_kph': 5.0,
+                },
+                'hourly': [],
+            }
+        }
+
+    async def fetch_forecast(**_kwargs):
+        return {
+            'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.02},
+            'planets': [{'name': 'Jupiter'}],
+            'deep_sky': [{'name': 'M31', 'type': 'galaxy', 'score': 90.0}],
+        }
+
+    async def fetch_night_window(_lat, _lon, reference):
+        local_date = reference.date().isoformat()
+        next_date = (reference.date() + timedelta(days=1)).isoformat()
+        return NightWindow(
+            local_date=local_date,
+            civil_dusk=f'{local_date}T20:00:00+08:00',
+            civil_dawn=f'{next_date}T04:00:00+08:00',
+            duration_hours=8.0,
+            time_zone='Asia/Shanghai',
+        )
+
+    service = PlanningService(
+        PlanningDependencies(
+            search_places=search_places,
+            fetch_weather=fetch_weather,
+            fetch_forecast=fetch_forecast,
+            fetch_night_window=fetch_night_window,
+            now=lambda: datetime(2026, 10, 25, 9, 0, tzinfo=UTC),
+        )
+    )
+
+    result = await service.build_best_plan(
+        south=30.5,
+        west=119.5,
+        north=31.0,
+        east=120.0,
+        time='2026-10-25 20:00:00',
+        time_zone='Asia/Shanghai',
+        candidate_limit=1,
+        max_locations=4,
+    )
+
+    assert result.summary.total_candidates == 1
+    assert result.candidates[0].location.name == 'Clear Plateau'
+    assert result.candidates[0].rank == 1
+    assert search_calls[0]['page_size'] == 4
+    assert len(weather_calls) == 4
+
+
+@pytest.mark.asyncio
 async def test_agent_plan_resolves_place_and_returns_auditable_decision():
     service, calls = _agent_service()
     request = AgentPlanningRequest(
