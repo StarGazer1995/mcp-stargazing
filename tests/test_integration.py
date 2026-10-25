@@ -29,6 +29,7 @@ def test_tools_registered():
         'get_weather_by_position',
         'analysis_area',
         'get_best_stargazing_plan',
+        'get_multiday_stargazing_plan',
         'get_local_datetime_info',
     ]
 

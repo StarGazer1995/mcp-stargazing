@@ -6,6 +6,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from src.schemas.celestial import NightWindow
 from src.schemas.places import StargazingLocation
 
 
@@ -109,6 +110,24 @@ class RecommendationDriver(StrEnum):
     STRONG_TARGETS = 'strong_targets'
 
 
+class ScoreBreakdown(BaseModel):
+    """Exact factors used to calculate a candidate's recommendation score."""
+
+    place_base_score: float = Field(description='Underlying place score before weighting')
+    place_weight: float = Field(description='Weight applied to the place score')
+    place_contribution: float = Field(description='Weighted place-score contribution')
+    weather_base_score: float = Field(description='Weather score after weather and moon penalties')
+    weather_weight: float = Field(description='Weight applied to the weather score')
+    weather_contribution: float = Field(description='Weighted weather-score contribution')
+    popularity_adjustment: float = Field(
+        description='Signed adjustment from explicit popularity preferences'
+    )
+    accessibility_adjustment: float = Field(
+        description='Signed adjustment from beginner accessibility heuristics'
+    )
+    final_score: float = Field(description='Final clamped recommendation score on a 0-100 scale')
+
+
 class PlannedLocationCandidate(BaseModel):
     """A ranked location recommendation with weather and target context."""
 
@@ -116,6 +135,10 @@ class PlannedLocationCandidate(BaseModel):
     recommendation_score: float = Field(description='Combined planning score on a 0-100 scale')
     recommendation_reasons: list[str] = Field(
         default_factory=list, description='Short explanations for why this location is recommended'
+    )
+    score_breakdown: ScoreBreakdown | None = Field(
+        default=None,
+        description='Exact scoring components; absent only in older or externally supplied records',
     )
     location: StargazingLocation = Field(description='Candidate stargazing location')
     weather_summary: WeatherPlanningSummary | None = Field(
@@ -129,6 +152,10 @@ class PlannedLocationCandidate(BaseModel):
     )
     moon_illumination: float | None = Field(
         default=None, description='Moon illumination fraction for the requested time'
+    )
+    night_window: NightWindow | None = Field(
+        default=None,
+        description='Civil-dark observing window for this candidate when available',
     )
     top_targets: list[PlanningTarget] = Field(
         default_factory=list, description='Top astronomy targets for this location and time'
@@ -174,4 +201,58 @@ class BestStargazingPlan(BaseModel):
     summary: PlanningSummary = Field(description='High-level run summary')
     candidates: list[PlannedLocationCandidate] = Field(
         default_factory=list, description='Ranked recommended observing locations'
+    )
+
+
+class MultiNightPlanningQuery(BaseModel):
+    """Normalized query for a multi-night planning request."""
+
+    south: float = Field(description='Southern latitude bound')
+    west: float = Field(description='Western longitude bound')
+    north: float = Field(description='Northern latitude bound')
+    east: float = Field(description='Eastern longitude bound')
+    start_date: str = Field(description='First local date in YYYY-MM-DD format')
+    nights: int = Field(ge=1, le=7, description='Number of consecutive nights to evaluate')
+    time_zone: str = Field(description='Requested IANA timezone string')
+    observation_style: ObservationStyle = Field(
+        default=ObservationStyle.BALANCED,
+        description='Observer-goal profile used for every nightly plan',
+    )
+
+
+class NightlyStargazingPlan(BaseModel):
+    """One night within a multi-night planning result."""
+
+    night_index: int = Field(ge=1, description='One-based night sequence number')
+    date: str = Field(description='Local date on which the night starts')
+    night_window: NightWindow | None = Field(
+        default=None, description='Civil-dark window for the regional center'
+    )
+    plan: BestStargazingPlan | None = Field(
+        default=None, description='Nightly location ranking and explanations'
+    )
+    error: str | None = Field(default=None, description='Night-level failure reason')
+    warnings: list[str] = Field(default_factory=list, description='Night-level warnings')
+
+
+class MultiNightPlanningSummary(BaseModel):
+    """Cross-night best result and degradation summary."""
+
+    generated_at: str = Field(description='Generation timestamp as an ISO string')
+    requested_nights: int = Field(ge=1, le=7, description='Number of nights requested')
+    successful_nights: int = Field(ge=0, description='Nights with at least one candidate')
+    best_night_index: int | None = Field(default=None, description='Best one-based night index')
+    best_night_date: str | None = Field(default=None, description='Best local night date')
+    best_location_name: str | None = Field(default=None, description='Best location across nights')
+    best_score: float | None = Field(default=None, description='Best recommendation score')
+    warnings: list[str] = Field(default_factory=list, description='Cross-night warnings')
+
+
+class MultiNightStargazingPlan(BaseModel):
+    """Top-level multi-night planning response."""
+
+    query: MultiNightPlanningQuery = Field(description='Normalized multi-night query')
+    summary: MultiNightPlanningSummary = Field(description='Cross-night summary')
+    nights: list[NightlyStargazingPlan] = Field(
+        default_factory=list, description='One entry per requested night'
     )

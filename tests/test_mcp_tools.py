@@ -1,7 +1,8 @@
 """Tests for MCP tool wrappers not covered by other test files."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -13,17 +14,24 @@ from src.functions.celestial.impl import (
 )
 from src.functions.metadata.impl import get_tool_catalog
 from src.functions.places.impl import analysis_area, light_pollution_map
-from src.functions.planning.impl import get_best_stargazing_plan
+from src.functions.planning.impl import (
+    _evaluate_candidate,
+    get_best_stargazing_plan,
+    get_multiday_stargazing_plan,
+)
 from src.functions.telescope.impl import get_shooting_plan, get_telescope_targets
 from src.functions.time.impl import get_local_datetime_info
 from src.functions.weather.impl import get_weather_by_name, get_weather_by_position
 from src.response import MCPError
+from src.schemas import NightWindow, StargazingLocation
+from src.services.planning import PlanningService
 
 EXPECTED_TOOLS = {
     'analysis_area',
     'get_celestial_pos',
     'get_celestial_rise_set',
     'get_best_stargazing_plan',
+    'get_multiday_stargazing_plan',
     'get_constellation',
     'get_local_datetime_info',
     'get_moon_info',
@@ -37,6 +45,20 @@ EXPECTED_TOOLS = {
     'list_visible_planets',
 }
 
+
+def _area_capability_result(data: dict):
+    """Build the transport-free place capability shape used by planning tests."""
+    return SimpleNamespace(result=_capability_payload(data), warnings=[])
+
+
+def _capability_payload(response: dict):
+    """Convert an existing fixture envelope into a transport-free payload."""
+    if response.get('_meta', {}).get('status') == 'error':
+        error = response['error']
+        raise MCPError(error['code'], error['message'], error.get('details'))
+    return response.get('data', response)
+
+
 # ---------------------------------------------------------------------------
 # Planning tool
 # ---------------------------------------------------------------------------
@@ -47,13 +69,13 @@ async def test_get_best_stargazing_plan_fn():
     """``get_best_stargazing_plan.fn`` returns ranked composite recommendations."""
     with (
         patch('src.functions.planning.impl.datetime') as mock_datetime,
-        patch('src.functions.planning.impl.analysis_area') as mock_analysis_area,
-        patch('src.functions.planning.impl.get_weather_by_position') as mock_weather,
-        patch('src.functions.planning.impl.get_nightly_forecast') as mock_forecast,
+        patch('src.functions.planning.impl.analyze_area_capability') as mock_analysis_area,
+        patch('src.functions.planning.impl.fetch_weather_by_position_capability') as mock_weather,
+        patch('src.functions.planning.impl.build_nightly_forecast_capability') as mock_forecast,
     ):
         mock_datetime.now.return_value = datetime(2026, 6, 27, 12, 0, tzinfo=UTC)
-        mock_analysis_area.fn = AsyncMock(
-            return_value={
+        mock_analysis_area.return_value = _area_capability_result(
+            {
                 'data': {
                     'resource_id': 'analysis-abc123',
                     'items': [
@@ -84,8 +106,8 @@ async def test_get_best_stargazing_plan_fn():
                 '_meta': {'status': 'success'},
             }
         )
-        mock_weather.fn = Mock(
-            side_effect=lambda lat, lon, provider: {
+        mock_weather.side_effect = lambda lat, lon, provider: _capability_payload(
+            {
                 'data': {
                     'summary': {
                         'current': {
@@ -110,8 +132,8 @@ async def test_get_best_stargazing_plan_fn():
                 '_meta': {'status': 'success'},
             }
         )
-        mock_forecast.fn = AsyncMock(
-            side_effect=lambda lon, lat, time, time_zone, limit: {
+        mock_forecast.side_effect = lambda lon, lat, time, time_zone, limit: _capability_payload(
+            {
                 'data': {
                     'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.1}
                     if lat == 40.1
@@ -144,7 +166,7 @@ async def test_get_best_stargazing_plan_fn():
 
     assert result['_meta']['status'] == 'success'
     data = result['data']
-    mock_analysis_area.fn.assert_awaited_once_with(
+    mock_analysis_area.assert_awaited_once_with(
         south=40.0,
         west=116.0,
         north=40.5,
@@ -200,12 +222,12 @@ async def test_get_best_stargazing_plan_fn():
 async def test_get_best_stargazing_plan_keeps_partial_results_when_weather_fails():
     """Weather failure should degrade gracefully into notes and warnings."""
     with (
-        patch('src.functions.planning.impl.analysis_area') as mock_analysis_area,
-        patch('src.functions.planning.impl.get_weather_by_position') as mock_weather,
-        patch('src.functions.planning.impl.get_nightly_forecast') as mock_forecast,
+        patch('src.functions.planning.impl.analyze_area_capability') as mock_analysis_area,
+        patch('src.functions.planning.impl.fetch_weather_by_position_capability') as mock_weather,
+        patch('src.functions.planning.impl.build_nightly_forecast_capability') as mock_forecast,
     ):
-        mock_analysis_area.fn = AsyncMock(
-            return_value={
+        mock_analysis_area.return_value = _area_capability_result(
+            {
                 'data': {
                     'resource_id': 'analysis-soft-failure',
                     'items': [
@@ -221,14 +243,12 @@ async def test_get_best_stargazing_plan_keeps_partial_results_when_weather_fails
                 '_meta': {'status': 'success'},
             }
         )
-        mock_weather.fn = Mock(
-            return_value={
-                'error': {'code': 'EXTERNAL_API_ERROR', 'message': '天气查询失败: timeout'},
-                '_meta': {'status': 'error'},
-            }
+        mock_weather.side_effect = MCPError(
+            MCPError.EXTERNAL_API_ERROR,
+            '天气查询失败: timeout',
         )
-        mock_forecast.fn = AsyncMock(
-            return_value={
+        mock_forecast.return_value = _capability_payload(
+            {
                 'data': {
                     'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.05},
                     'planets': [{'name': 'Saturn'}],
@@ -262,12 +282,12 @@ async def test_get_best_stargazing_plan_keeps_partial_results_when_weather_fails
 async def test_get_best_stargazing_plan_popularity_preferences_can_rerank_candidates():
     """Popularity preferences should affect planning-layer ranking and reasons."""
     with (
-        patch('src.functions.planning.impl.analysis_area') as mock_analysis_area,
-        patch('src.functions.planning.impl.get_weather_by_position') as mock_weather,
-        patch('src.functions.planning.impl.get_nightly_forecast') as mock_forecast,
+        patch('src.functions.planning.impl.analyze_area_capability') as mock_analysis_area,
+        patch('src.functions.planning.impl.fetch_weather_by_position_capability') as mock_weather,
+        patch('src.functions.planning.impl.build_nightly_forecast_capability') as mock_forecast,
     ):
-        mock_analysis_area.fn = AsyncMock(
-            return_value={
+        mock_analysis_area.return_value = _area_capability_result(
+            {
                 'data': {
                     'resource_id': 'analysis-popularity-rerank',
                     'items': [
@@ -298,8 +318,8 @@ async def test_get_best_stargazing_plan_popularity_preferences_can_rerank_candid
                 '_meta': {'status': 'success'},
             }
         )
-        mock_weather.fn = Mock(
-            return_value={
+        mock_weather.return_value = _capability_payload(
+            {
                 'data': {
                     'summary': {
                         'current': {
@@ -322,8 +342,8 @@ async def test_get_best_stargazing_plan_popularity_preferences_can_rerank_candid
                 '_meta': {'status': 'success'},
             }
         )
-        mock_forecast.fn = AsyncMock(
-            return_value={
+        mock_forecast.return_value = _capability_payload(
+            {
                 'data': {
                     'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.08},
                     'planets': [{'name': 'Jupiter'}],
@@ -384,12 +404,12 @@ async def test_get_best_stargazing_plan_popularity_preferences_can_rerank_candid
 async def test_get_best_stargazing_plan_observation_style_changes_score_and_targets():
     """Planetary style should reduce moon penalty and put planets before deep-sky targets."""
     with (
-        patch('src.functions.planning.impl.analysis_area') as mock_analysis_area,
-        patch('src.functions.planning.impl.get_weather_by_position') as mock_weather,
-        patch('src.functions.planning.impl.get_nightly_forecast') as mock_forecast,
+        patch('src.functions.planning.impl.analyze_area_capability') as mock_analysis_area,
+        patch('src.functions.planning.impl.fetch_weather_by_position_capability') as mock_weather,
+        patch('src.functions.planning.impl.build_nightly_forecast_capability') as mock_forecast,
     ):
-        mock_analysis_area.fn = AsyncMock(
-            return_value={
+        mock_analysis_area.return_value = _area_capability_result(
+            {
                 'data': {
                     'resource_id': 'analysis-style',
                     'items': [
@@ -405,8 +425,8 @@ async def test_get_best_stargazing_plan_observation_style_changes_score_and_targ
                 '_meta': {'status': 'success'},
             }
         )
-        mock_weather.fn = Mock(
-            return_value={
+        mock_weather.return_value = _capability_payload(
+            {
                 'data': {
                     'summary': {
                         'current': {
@@ -421,8 +441,8 @@ async def test_get_best_stargazing_plan_observation_style_changes_score_and_targ
                 '_meta': {'status': 'success'},
             }
         )
-        mock_forecast.fn = AsyncMock(
-            return_value={
+        mock_forecast.return_value = _capability_payload(
+            {
                 'data': {
                     'moon_phase': {'phase_name': 'Waxing Gibbous', 'illumination': 0.95},
                     'planets': [{'name': 'Jupiter'}, {'name': 'Saturn'}],
@@ -489,6 +509,189 @@ async def test_get_best_stargazing_plan_rejects_invalid_observation_style():
 
 
 @pytest.mark.asyncio
+async def test_get_multiday_stargazing_plan_selects_best_night():
+    """Multi-night planning should reuse nightly planning and choose the clearer night."""
+    windows = [
+        NightWindow(
+            local_date='2024-06-15',
+            civil_dusk='2024-06-15T20:30:00+08:00',
+            civil_dawn='2024-06-16T04:30:00+08:00',
+            duration_hours=8.0,
+            time_zone='Asia/Shanghai',
+        ),
+        NightWindow(
+            local_date='2024-06-16',
+            civil_dusk='2024-06-16T20:31:00+08:00',
+            civil_dawn='2024-06-17T04:31:00+08:00',
+            duration_hours=8.0,
+            time_zone='Asia/Shanghai',
+        ),
+    ]
+    weather_results = [
+        {
+            'data': {
+                'summary': {
+                    'current': {
+                        'cloud_cover_percent': 85.0,
+                        'visibility_km': 8.0,
+                        'wind_speed_kph': 10.0,
+                    },
+                    'hourly': [],
+                }
+            },
+            '_meta': {'status': 'success'},
+        },
+        {
+            'data': {
+                'summary': {
+                    'current': {
+                        'cloud_cover_percent': 8.0,
+                        'visibility_km': 24.0,
+                        'wind_speed_kph': 6.0,
+                    },
+                    'hourly': [],
+                }
+            },
+            '_meta': {'status': 'success'},
+        },
+    ]
+
+    with (
+        patch('src.functions.planning.impl.calculate_civil_night_window') as mock_window,
+        patch('src.functions.planning.impl.analyze_area_capability') as mock_analysis_area,
+        patch('src.functions.planning.impl.fetch_weather_by_position_capability') as mock_weather,
+        patch('src.functions.planning.impl.build_nightly_forecast_capability') as mock_forecast,
+    ):
+        mock_window.side_effect = [windows[0], windows[0], windows[1], windows[1]]
+        mock_analysis_area.return_value = _area_capability_result(
+            {
+                'data': {
+                    'resource_id': 'analysis-multiday',
+                    'items': [
+                        {
+                            'name': 'Dark Ridge',
+                            'lat': 40.1,
+                            'lon': 116.1,
+                            'score': 82.0,
+                            'bortle_class': 3,
+                        }
+                    ],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+        mock_weather.side_effect = [_capability_payload(result) for result in weather_results]
+        mock_forecast.return_value = _capability_payload(
+            {
+                'data': {
+                    'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.02},
+                    'planets': [{'name': 'Jupiter'}],
+                    'deep_sky': [{'name': 'M31', 'type': 'galaxy', 'score': 90.0}],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+
+        result = await get_multiday_stargazing_plan.fn(
+            south=40.0,
+            west=116.0,
+            north=40.5,
+            east=116.5,
+            start_date='2024-06-15',
+            time_zone='Asia/Shanghai',
+            nights=2,
+            candidate_limit=1,
+            observation_style='deep_sky',
+        )
+
+    assert result['_meta']['status'] == 'success'
+    data = result['data']
+    assert data['query']['nights'] == 2
+    assert data['summary']['successful_nights'] == 2
+    assert data['summary']['best_night_date'] == '2024-06-16'
+    assert data['summary']['best_location_name'] == 'Dark Ridge'
+    assert len(data['nights']) == 2
+    assert data['nights'][0]['night_window']['local_date'] == '2024-06-15'
+    assert data['nights'][1]['plan']['candidates'][0]['night_window']['local_date'] == '2024-06-16'
+
+
+@pytest.mark.asyncio
+async def test_get_multiday_stargazing_plan_rejects_invalid_night_count():
+    """Night counts outside one to seven should use the structured error contract."""
+    result = await get_multiday_stargazing_plan.fn(
+        south=40.0,
+        west=116.0,
+        north=40.5,
+        east=116.5,
+        start_date='2024-06-15',
+        time_zone='Asia/Shanghai',
+        nights=8,
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.CONFIGURATION_ERROR
+    assert result['error']['details'] == {'nights': 8}
+
+
+@pytest.mark.asyncio
+async def test_get_multiday_stargazing_plan_keeps_partial_night_failures():
+    """Window and nightly-plan failures should stay isolated to their own nights."""
+    window = NightWindow(
+        local_date='2024-06-16',
+        civil_dusk='2024-06-16T20:31:00+08:00',
+        civil_dawn='2024-06-17T04:31:00+08:00',
+        duration_hours=8.0,
+        time_zone='Asia/Shanghai',
+    )
+    with (
+        patch(
+            'src.functions.planning.impl.calculate_civil_night_window',
+            side_effect=[ValueError('no darkness'), window],
+        ),
+        patch.object(
+            PlanningService,
+            'build_best_plan',
+            AsyncMock(side_effect=MCPError(MCPError.EXTERNAL_API_ERROR, 'planning failed')),
+        ),
+    ):
+        result = await get_multiday_stargazing_plan.fn(
+            south=40.0,
+            west=116.0,
+            north=40.5,
+            east=116.5,
+            start_date='2024-06-15',
+            time_zone='Asia/Shanghai',
+            nights=2,
+        )
+
+    data = result['data']
+    assert data['summary']['successful_nights'] == 0
+    assert data['summary']['best_night_index'] is None
+    assert 'night_window_unavailable' in data['summary']['warnings']
+    assert 'night_plan_failed:EXTERNAL_API_ERROR' in data['summary']['warnings']
+    assert 'no darkness' in data['nights'][0]['error']
+    assert data['nights'][1]['error'] == 'EXTERNAL_API_ERROR: planning failed'
+
+
+@pytest.mark.asyncio
+async def test_get_multiday_stargazing_plan_rejects_invalid_popularity_radius():
+    """Multi-night planning should share the single-night popularity validation."""
+    result = await get_multiday_stargazing_plan.fn(
+        south=40.0,
+        west=116.0,
+        north=40.5,
+        east=116.5,
+        start_date='2024-06-15',
+        time_zone='Asia/Shanghai',
+        popularity_radius_km=0,
+    )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.CONFIGURATION_ERROR
+    assert result['error']['details'] == {'popularity_radius_km': 0}
+
+
+@pytest.mark.asyncio
 async def test_get_best_stargazing_plan_rejects_invalid_popularity_radius():
     """Popularity radius should use the standard structured error payload."""
     result = await get_best_stargazing_plan.fn(
@@ -516,10 +719,18 @@ async def test_get_best_stargazing_plan_rejects_invalid_popularity_radius():
 async def test_get_nightly_forecast_fn():
     """``get_nightly_forecast.fn`` returns a structured forecast response."""
     with (
+        patch('src.functions.celestial.impl.calculate_civil_night_window') as mock_window,
         patch('src.functions.celestial.impl.calculate_nightly_forecast') as mock_calc,
         patch('src.functions.celestial.impl.process_location_and_time') as mock_proc,
     ):
         mock_proc.return_value = (MagicMock(), MagicMock())
+        mock_window.return_value = NightWindow(
+            local_date='2024-06-15',
+            civil_dusk='2024-06-15T20:30:00-04:00',
+            civil_dawn='2024-06-16T04:30:00-04:00',
+            duration_hours=8.0,
+            time_zone='America/New_York',
+        )
         mock_calc.return_value = {
             'moon_phase': {
                 'phase_name': 'Full Moon',
@@ -562,6 +773,76 @@ async def test_get_nightly_forecast_fn():
     assert len(data['deep_sky']) == 1
     assert data['deep_sky'][0]['name'] == 'M31'
     assert data['deep_sky'][0]['catalog'] == 'M'
+    assert data['night_window']['local_date'] == '2024-06-15'
+
+
+@pytest.mark.asyncio
+async def test_get_nightly_forecast_rejects_unavailable_night_window():
+    """A missing civil-dark window should return a structured configuration error."""
+    with (
+        patch(
+            'src.functions.celestial.impl.calculate_civil_night_window',
+            side_effect=ValueError('polar day'),
+        ),
+        patch('src.functions.celestial.impl.process_location_and_time') as mock_proc,
+    ):
+        mock_proc.return_value = (MagicMock(), MagicMock())
+        result = await get_nightly_forecast.fn(
+            lon=-74.0,
+            lat=40.0,
+            time='2024-06-15 22:00:00',
+            time_zone='America/New_York',
+        )
+
+    assert result['_meta']['status'] == 'error'
+    assert result['error']['code'] == MCPError.CONFIGURATION_ERROR
+    assert 'civil-dark observing window' in result['error']['message']
+
+
+@pytest.mark.asyncio
+async def test_evaluate_candidate_degrades_when_night_window_is_unavailable():
+    """A missing window should be a candidate note, not a failed plan."""
+    location = StargazingLocation(
+        name='Polar Site',
+        lat=78.0,
+        lon=15.0,
+        score=80.0,
+        bortle_class=3,
+    )
+    with (
+        patch(
+            'src.functions.planning.impl.calculate_civil_night_window',
+            side_effect=ValueError('polar day'),
+        ),
+        patch('src.functions.planning.impl.fetch_weather_by_position_capability') as mock_weather,
+        patch('src.functions.planning.impl.build_nightly_forecast_capability') as mock_forecast,
+    ):
+        mock_weather.return_value = _capability_payload(
+            {
+                'data': {'summary': {'current': {'cloud_cover_percent': 10.0}, 'hourly': []}},
+                '_meta': {'status': 'success'},
+            }
+        )
+        mock_forecast.return_value = _capability_payload(
+            {
+                'data': {
+                    'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.01},
+                    'planets': [],
+                    'deep_sky': [{'name': 'M31', 'type': 'galaxy', 'score': 90.0}],
+                },
+                '_meta': {'status': 'success'},
+            }
+        )
+        candidate = await _evaluate_candidate(
+            location=location,
+            time='2024-06-15 22:00:00',
+            time_zone='UTC',
+            target_limit=3,
+            weather_provider='all',
+        )
+
+    assert candidate.night_window is None
+    assert any('夜景窗口不可用' in note for note in candidate.notes)
 
 
 @pytest.mark.asyncio

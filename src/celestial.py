@@ -32,6 +32,7 @@ from stargazing_core import (
 )
 
 from src.logging_config import get_logger
+from src.schemas.celestial import NightWindow
 
 logger = get_logger(__name__)
 
@@ -124,6 +125,80 @@ def celestial_rise_set(
     rise_time = __convert_timezone(time_grid[rise_idx]) if rise_idx is not None else None
     set_time = __convert_timezone(time_grid[set_idx]) if set_idx is not None else None
     return rise_time, set_time
+
+
+def calculate_civil_night_window(
+    observer_location: EarthLocation,
+    reference_time: datetime,
+    *,
+    civil_horizon: float = -6.0,
+) -> NightWindow:
+    """Return the civil-dark window containing or immediately following a reference time."""
+    if reference_time.tzinfo is None:
+        raise ValueError('Reference time must be timezone-aware.')
+
+    try:
+        time_zone = pytz.timezone(str(reference_time.tzinfo))
+    except (pytz.UnknownTimeZoneError, KeyError):
+        time_zone = reference_time.tzinfo
+
+    offsets_hours = np.arange(-12, 36.5, 0.5)
+    grid = Time([reference_time + timedelta(hours=float(hours)) for hours in offsets_hours])
+    frame = AltAz(obstime=grid, location=observer_location)
+    altitudes = np.asarray(get_sun(grid).transform_to(frame).alt.deg)
+    above = altitudes > civil_horizon
+    diff = np.diff(above.astype(int))
+    dusk_indices = np.where(diff == -1)[0]
+    dawn_indices = np.where(diff == 1)[0]
+
+    pairs: list[tuple[float, float]] = []
+    for dusk_idx in dusk_indices:
+        dawn_idx = next((idx for idx in dawn_indices if idx > dusk_idx), None)
+        if dawn_idx is None:
+            continue
+        dusk_fraction = (civil_horizon - altitudes[dusk_idx]) / (
+            altitudes[dusk_idx + 1] - altitudes[dusk_idx]
+        )
+        dawn_fraction = (civil_horizon - altitudes[dawn_idx]) / (
+            altitudes[dawn_idx + 1] - altitudes[dawn_idx]
+        )
+        dusk_unix = grid[dusk_idx].unix + dusk_fraction * (
+            grid[dusk_idx + 1].unix - grid[dusk_idx].unix
+        )
+        dawn_unix = grid[dawn_idx].unix + dawn_fraction * (
+            grid[dawn_idx + 1].unix - grid[dawn_idx].unix
+        )
+        pairs.append((float(dusk_unix), float(dawn_unix)))
+
+    if not pairs:
+        raise ValueError('No civil-dark window found in the 48-hour search range.')
+
+    reference_unix = reference_time.timestamp()
+    selected = next(
+        (
+            (dusk_unix, dawn_unix)
+            for dusk_unix, dawn_unix in pairs
+            if dusk_unix <= reference_unix < dawn_unix
+        ),
+        next(
+            (
+                (dusk_unix, dawn_unix)
+                for dusk_unix, dawn_unix in pairs
+                if dusk_unix >= reference_unix
+            ),
+            pairs[0],
+        ),
+    )
+    dusk, dawn = (
+        datetime.fromtimestamp(value, tz=pytz.UTC).astimezone(time_zone) for value in selected
+    )
+    return NightWindow(
+        local_date=dusk.date().isoformat(),
+        civil_dusk=dusk.isoformat(),
+        civil_dawn=dawn.isoformat(),
+        duration_hours=round((dawn - dusk).total_seconds() / 3600.0, 2),
+        time_zone=str(time_zone),
+    )
 
 
 # calculate_moon_info is re-exported from stargazing_core (imported at top of file)

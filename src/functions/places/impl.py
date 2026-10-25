@@ -1,5 +1,6 @@
 import asyncio
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,15 @@ from src.schemas.places import (
 from src.server_instance import mcp
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class AnalysisAreaCapabilityResult:
+    """Transport-free area analysis result plus non-fatal quality warnings."""
+
+    result: AnalysisAreaResult
+    warnings: list[str]
+
 
 # Lazy-loaded SPF exception classes (populated on first use)
 _spf_exc_classes: dict[str, type] | None = None
@@ -145,6 +155,148 @@ async def light_pollution_map(
     return format_response(grid.model_dump())
 
 
+async def analyze_area_capability(
+    south: float,
+    west: float,
+    north: float,
+    east: float,
+    max_locations: int = 30,
+    min_height_diff: float = 100.0,
+    road_radius_km: float = 10.0,
+    network_type: str = 'drive',
+    avoid_popular_spots: bool = False,
+    prefer_quiet_at_night: bool = False,
+    popularity_radius_km: float = 3.0,
+    db_config_path: str = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> AnalysisAreaCapabilityResult:
+    """Analyze and paginate candidate places without an MCP response envelope."""
+    if page < 1:
+        raise MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            'page must be greater than or equal to 1.',
+            {'page': page},
+        )
+    if page_size < 1:
+        raise MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            'page_size must be greater than or equal to 1.',
+            {'page_size': page_size},
+        )
+    if popularity_radius_km <= 0:
+        raise MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            'popularity_radius_km must be greater than 0.',
+            {'popularity_radius_km': popularity_radius_km},
+        )
+
+    calc_params = {
+        'south': south,
+        'west': west,
+        'north': north,
+        'east': east,
+        'max_locations': max_locations,
+        'min_height_diff': min_height_diff,
+        'road_radius_km': road_radius_km,
+        'network_type': network_type,
+        'avoid_popular_spots': avoid_popular_spots,
+        'prefer_quiet_at_night': prefer_quiet_at_night,
+        'popularity_radius_km': popularity_radius_km,
+        'db_config_path': db_config_path,
+    }
+    resource_id = generate_cache_key(**calc_params)
+    cached = ANALYSIS_CACHE.get(resource_id)
+
+    if cached is None:
+
+        def _compute():
+            try:
+                resolved_db_path = db_config_path or os.environ.get('STARGAZING_DB_CONFIG')
+                db_config_p = Path(resolved_db_path) if resolved_db_path else None
+                stargazing_place_finder = StargazingPlaceFinder(db_config_path=db_config_p)
+                results = stargazing_place_finder.analyze_area(
+                    south=south,
+                    west=west,
+                    north=north,
+                    east=east,
+                    min_height_diff=min_height_diff,
+                    road_radius_km=road_radius_km,
+                    max_locations=max_locations,
+                    network_type=network_type,
+                    avoid_popular_spots=avoid_popular_spots,
+                    prefer_quiet_at_night=prefer_quiet_at_night,
+                    popularity_radius_km=popularity_radius_km,
+                )
+                return [StargazingLocation.from_spf_location(item) for item in results]
+            except ModuleNotFoundError:
+                raise MCPError(
+                    MCPError.CONFIGURATION_ERROR,
+                    'stargazing-place-finder is not installed — '
+                    'place analysis features are unavailable',
+                )
+            except Exception as exc:
+                raise _translate_spf_error(exc) from exc
+
+        try:
+            cached = await asyncio.to_thread(_compute)
+        except MCPError:
+            raise
+        except Exception as exc:
+            raise _translate_spf_error(exc) from exc
+        ANALYSIS_CACHE.set(resource_id, cached)
+
+    total = len(cached)
+    start_idx = (page - 1) * page_size
+    page_items = cached[start_idx : start_idx + page_size]
+
+    warnings: list[str] = []
+    total_elevation_missing = sum(
+        1 for loc in cached if loc.elevation_m is None or loc.elevation_m == 0
+    )
+    total_bortle_missing = sum(1 for loc in cached if loc.bortle_class is None)
+    total_road_missing = sum(1 for loc in cached if loc.road_distance_km is None)
+
+    if total_elevation_missing == total and total > 0:
+        logger.warning(
+            'All %d locations have elevation=0 — elevation data source may be unavailable '
+            '(check STARGAZING_DB_CONFIG and Open-Elevation API connectivity)',
+            total,
+        )
+    elif total_elevation_missing > 0:
+        logger.warning(
+            '%d/%d locations have no elevation data — results may be incomplete',
+            total_elevation_missing,
+            total,
+        )
+
+    if total_bortle_missing == total and total > 0:
+        warnings.append(
+            'All locations have no Bortle class — light pollution GeoTIFF may be '
+            'unavailable or the coordinates are outside data coverage.'
+        )
+    elif total_bortle_missing > 0:
+        warnings.append(f'{total_bortle_missing}/{total} locations have no Bortle class.')
+
+    if road_radius_km > 0 and total_road_missing == total and total > 0:
+        warnings.append(
+            'All locations have no road distance — road connectivity check may have '
+            'failed. Set road_radius_km=0 to skip road checks for faster results.'
+        )
+
+    return AnalysisAreaCapabilityResult(
+        result=AnalysisAreaResult(
+            items=page_items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=(total + page_size - 1) // page_size,
+            resource_id=resource_id,
+        ),
+        warnings=warnings,
+    )
+
+
 @mcp.tool()
 async def analysis_area(
     south: float,
@@ -213,124 +365,23 @@ async def analysis_area(
             {'popularity_radius_km': popularity_radius_km},
         )
 
-    # 1. Generate Cache Key based on calculation parameters (excluding pagination)
-    calc_params = {
-        'south': south,
-        'west': west,
-        'north': north,
-        'east': east,
-        'max_locations': max_locations,
-        'min_height_diff': min_height_diff,
-        'road_radius_km': road_radius_km,
-        'network_type': network_type,
-        'avoid_popular_spots': avoid_popular_spots,
-        'prefer_quiet_at_night': prefer_quiet_at_night,
-        'popularity_radius_km': popularity_radius_km,
-        'db_config_path': db_config_path,
-    }
-    resource_id = generate_cache_key(**calc_params)
-
-    # 2. Check Cache
-    cached = ANALYSIS_CACHE.get(resource_id)
-
-    # 3. If miss, compute (in thread)
-    if cached is None:
-
-        def _compute():
-            try:
-                # Resolve db_config_path: explicit arg → env var → None
-                resolved_db_path = db_config_path
-                if not resolved_db_path:
-                    resolved_db_path = os.environ.get('STARGAZING_DB_CONFIG')
-                db_config_p = Path(resolved_db_path) if resolved_db_path else None
-                stargazing_place_finder = StargazingPlaceFinder(db_config_path=db_config_p)
-                results = stargazing_place_finder.analyze_area(
-                    south=south,
-                    west=west,
-                    north=north,
-                    east=east,
-                    min_height_diff=min_height_diff,
-                    road_radius_km=road_radius_km,
-                    max_locations=max_locations,
-                    network_type=network_type,
-                    avoid_popular_spots=avoid_popular_spots,
-                    prefer_quiet_at_night=prefer_quiet_at_night,
-                    popularity_radius_km=popularity_radius_km,
-                )
-                # Convert spf StargazingLocation objects to our models
-                return [StargazingLocation.from_spf_location(item) for item in results]
-            except ModuleNotFoundError:
-                raise MCPError(
-                    MCPError.CONFIGURATION_ERROR,
-                    'stargazing-place-finder is not installed — '
-                    'place analysis features are unavailable',
-                )
-            except Exception as exc:
-                raise _translate_spf_error(exc) from exc
-
-        try:
-            cached = await asyncio.to_thread(_compute)
-        except MCPError:
-            raise
-        except Exception as exc:
-            raise _translate_spf_error(exc) from exc
-        ANALYSIS_CACHE.set(resource_id, cached)
-
-    # 4. Pagination
-    total = len(cached)
-    start_idx = (page - 1) * page_size
-    end_idx = start_idx + page_size
-
-    # Slice results (safe even if indices are out of bounds)
-    page_items = cached[start_idx:end_idx]
-
-    # 5. Build data-quality warnings for missing fields.
-    # Elevation gaps are logged internally but NOT exposed in the response —
-    # they reflect infrastructure status (PostGIS, Open-Elevation) that is
-    # not actionable for end users.
-    warnings: list[str] = []
-    total_elevation_missing = sum(
-        1 for loc in cached if loc.elevation_m is None or loc.elevation_m == 0
-    )
-    total_bortle_missing = sum(1 for loc in cached if loc.bortle_class is None)
-    total_road_missing = sum(1 for loc in cached if loc.road_distance_km is None)
-
-    if total_elevation_missing == total and total > 0:
-        logger.warning(
-            'All %d locations have elevation=0 — elevation data source may be unavailable '
-            '(check STARGAZING_DB_CONFIG and Open-Elevation API connectivity)',
-            total,
-        )
-    elif total_elevation_missing > 0:
-        logger.warning(
-            '%d/%d locations have no elevation data — results may be incomplete',
-            total_elevation_missing,
-            total,
-        )
-
-    if total_bortle_missing == total and total > 0:
-        warnings.append(
-            'All locations have no Bortle class — light pollution GeoTIFF may be '
-            'unavailable or the coordinates are outside data coverage.'
-        )
-    elif total_bortle_missing > 0:
-        warnings.append(f'{total_bortle_missing}/{total} locations have no Bortle class.')
-
-    if road_radius_km > 0 and total_road_missing == total and total > 0:
-        warnings.append(
-            'All locations have no road distance — road connectivity check may have '
-            'failed. Set road_radius_km=0 to skip road checks for faster results.'
-        )
-
-    result = AnalysisAreaResult(
-        items=page_items,
-        total=total,
+    capability_result = await analyze_area_capability(
+        south=south,
+        west=west,
+        north=north,
+        east=east,
+        max_locations=max_locations,
+        min_height_diff=min_height_diff,
+        road_radius_km=road_radius_km,
+        network_type=network_type,
+        avoid_popular_spots=avoid_popular_spots,
+        prefer_quiet_at_night=prefer_quiet_at_night,
+        popularity_radius_km=popularity_radius_km,
+        db_config_path=db_config_path,
         page=page,
         page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size,
-        resource_id=resource_id,
     )
     meta: dict[str, Any] = {}
-    if warnings:
-        meta['warnings'] = warnings
-    return format_response(result.model_dump(), meta=meta)
+    if capability_result.warnings:
+        meta['warnings'] = capability_result.warnings
+    return format_response(capability_result.result.model_dump(), meta=meta)

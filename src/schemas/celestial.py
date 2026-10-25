@@ -39,6 +39,16 @@ class DeepSkyObject(CelestialPosition):
     )
 
 
+class NightWindow(BaseModel):
+    """Civil-dark observing window around a reference time."""
+
+    local_date: str = Field(description='Local calendar date on which the night starts')
+    civil_dusk: str = Field(description='Civil dusk timestamp with timezone offset')
+    civil_dawn: str = Field(description='Following civil dawn timestamp with timezone offset')
+    duration_hours: float = Field(ge=0, description='Civil-dark duration in hours')
+    time_zone: str = Field(description='IANA timezone used for the window')
+
+
 class NightlyForecast(BaseModel):
     """Curated list of best objects to view for a given night."""
 
@@ -47,3 +57,4 @@ class NightlyForecast(BaseModel):
     deep_sky: list[DeepSkyObject] = Field(
         default_factory=list, description='Recommended deep sky objects'
     )
+    night_window: NightWindow = Field(description='Civil-dark window for the requested night')

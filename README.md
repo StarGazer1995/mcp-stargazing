@@ -92,7 +92,7 @@ Container
 │   └── program:spf-web  → uv run uvicorn server.main:app --port 5001
 │
 Dependency resolution (single venv, no duplication):
-  stargazing-core>=0.1.0  ←  resolved once from PyPI
+  stargazing-core>=0.2.0  ←  resolved once from PyPI
   stargazing-place-finder>=0.9.1
   fastapi, uvicorn, ...   ←  SPF's transitive deps
 ```
@@ -100,6 +100,27 @@ Dependency resolution (single venv, no duplication):
 ## MCP Server Usage
 
 Start the MCP server to expose tools to AI agents or other clients.
+
+### Agent-first direction
+
+`get_best_stargazing_plan` and `get_multiday_stargazing_plan` are the current composite decision
+entry points. The pre-1.0 roadmap is focused on making planning safe for third-party agents:
+intent-oriented inputs, explicit alternatives, score breakdowns, evidence freshness,
+uncertainty, and recoverable long-running work. New independent astronomy lookup tools are
+deferred until that decision contract is stable.
+
+The application layer now contains an unregistered agent-native contract for that future entry
+point. It accepts a place name, center/radius, or exact bounds; resolves Seestar S50,
+HOPE D60 + ASI2600MC Air, or custom optics configurations; keeps provider and database choices on
+the server; and returns a first-class decision, alternatives, exact score components, evidence,
+uncertainties, material missing inputs, ranking-reversal conditions, and next actions. This does
+**not** add a seventeenth MCP tool yet: registration remains gated on golden scenarios and
+multi-client black-box validation.
+
+See [Third-party Agent Contract](docs/agent-contract.md),
+[Workspace Technical Map](docs/workspace-technical-map.md), and
+[Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 16-tool routing and
+parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md).
 
 ### 1. Environment Setup
 
@@ -199,7 +220,7 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
 - **`get_moon_info`**: Detailed moon phase, illumination, and age.
 - **`list_visible_planets`**: List of all planets currently above the horizon with positions.
 - **`get_constellation`**: Find the position (Alt/Az) of a constellation center.
-- **`get_nightly_forecast`**: Smart planner returning curated list of best objects to view tonight (Planets + Deep Sky).
+- **`get_nightly_forecast`**: Smart planner returning curated list of best objects to view tonight (Planets + Deep Sky) plus the local civil-dark `night_window` with dusk, dawn, duration, date, and timezone.
 - **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather with automatic retry on network failures.
 - **`get_local_datetime_info`**: Get current local time information.
 - **`get_tool_catalog`**: Discover available MCP tool metadata and parameters.
@@ -207,6 +228,10 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
   - **Inputs**: `south`, `west`, `north`, `east`, `time`, `time_zone`, `candidate_limit`, `target_limit`, `weather_provider`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `observation_style`, `avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`, `db_config_path`.
   - **Returns**: `query`, `summary`, and `candidates`, where `query.analysis_resource_id` links the plan back to the underlying `analysis_area` search when available. When popularity preferences are enabled, planning also applies a second-stage recommendation adjustment from the returned popularity heuristic fields, surfaces those reasons in `candidates[*].recommendation_reasons`, and summarizes the top recommendation in `summary.popularity_preferences_enabled`, `summary.primary_recommendation_drivers`, and `summary.recommended_location_reason_summary`. The driver values form a stable enum: `dark_sky`, `high_place_score`, `clear_weather`, `good_visibility`, `observation_style_fit`, `low_popularity_risk`, `quiet_at_night`, and `strong_targets`.
   - **Observation style**: `balanced` preserves the default behavior. `deep_sky` emphasizes dark skies and low moonlight, `visual` raises the weather weight, `planetary` reduces moon penalties and prioritizes planets, and `beginner` also favors nearby road access.
+  - **Night window**: each candidate includes `night_window` when civil darkness can be determined, with local date, civil dusk, following civil dawn, duration, and timezone.
+- **`get_multiday_stargazing_plan`**: Compare one to seven consecutive nights and return the best night and location across the region.
+  - **Inputs**: `south`, `west`, `north`, `east`, `start_date`, `time_zone`, `nights`, plus the same candidate, weather, street-network, and observation-style options as `get_best_stargazing_plan`.
+  - **Returns**: `query`, a cross-night `summary` with `best_night_date`, `best_location_name`, and `best_score`, and `nights[]` where each night contains its `night_window`, nightly `plan`, errors, and warnings.
   - **Degradation**: Weather or forecast sub-queries may degrade into `summary.warnings` and per-candidate `notes`, while the overall planning response remains successful.
 - **`get_telescope_targets`**: Match deep-sky objects against telescope optics — find what's best visible with your equipment.
   - **Inputs**: `focal_length_mm`, `lon`, `lat`, `time`, `time_zone`, plus optional optics fields such as `aperture_mm`, sensor dimensions, pixel size, reducer/Barlow factor, mount type, filter, and `limit`.
@@ -264,11 +289,13 @@ All tools return JSON-serializable data and use structured error handling:
 │   ├── functions/            # Tool implementations grouped by domain
 │   │   ├── celestial/        # Celestial calculations (pos, rise/set)
 │   │   ├── metadata/         # Tool discovery surface (`get_tool_catalog`)
-│   │   ├── planning/         # Composite planning tools (`get_best_stargazing_plan`)
+│   │   ├── planning/         # Single-night and multi-night composite planning
 │   │   ├── telescope/        # Telescope target matching + shooting plan
 │   │   ├── weather/          # Weather API integration
 │   │   ├── places/           # Location and area analysis
 │   │   └── time/             # Time utilities
+│   ├── services/             # Transport-independent application services
+│   │   └── planning.py       # Single-night and multi-night planning orchestration
 │   ├── schemas/              # Pydantic v2 data models
 │   ├── analysis_cache.py     # Caching logic for analysis results
 │   ├── response.py           # Standardized response formatting
@@ -310,4 +337,5 @@ candidate wheels, and blocks changes that add downstream failures.
 2.  Ensure all new tools return standard JSON responses using `src.response.format_response`.
 3.  Add tests in `tests/` for any new functionality.
 4.  Follow the repository agent conventions in `AGENTS.md` for all MCP tool and agent-facing changes.
-5.  Refer to `docs/ROADMAP.md` for the planned agent and harness feature roadmap.
+5.  Refer to `docs/agent-contract.md` and `docs/ROADMAP.md` for the public agent direction and
+    implementation roadmap.

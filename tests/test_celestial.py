@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import astropy.units as u
 import numpy as np
@@ -12,6 +12,7 @@ from src.celestial import (
     _find_rise_set_indices,
     _generate_time_grid,
     _get_celestial_object,
+    calculate_civil_night_window,
     celestial_pos,
     celestial_rise_set,
 )
@@ -92,6 +93,54 @@ def test_calculate_rise_set_invalid_event_scope():
             UTC.localize(datetime(2023, 10, 1)),
             event_scope='tomorrow_only',
         )
+
+
+def test_calculate_civil_night_window_contains_late_night_reference():
+    """A late-night reference should stay inside the current dusk-to-dawn window."""
+    reference = UTC.localize(datetime(2024, 10, 1, 23, 0))
+
+    window = calculate_civil_night_window(NYC, reference)
+
+    dusk = datetime.fromisoformat(window.civil_dusk)
+    dawn = datetime.fromisoformat(window.civil_dawn)
+    assert dusk < reference < dawn
+    assert window.local_date == '2024-10-01'
+    assert window.duration_hours > 0
+
+
+def test_calculate_civil_night_window_from_noon_chooses_upcoming_night():
+    """A daytime reference should select the next dusk and following dawn."""
+    reference = UTC.localize(datetime(2024, 10, 1, 12, 0))
+
+    window = calculate_civil_night_window(NYC, reference)
+
+    dusk = datetime.fromisoformat(window.civil_dusk)
+    dawn = datetime.fromisoformat(window.civil_dawn)
+    assert reference < dusk < dawn
+    assert window.local_date == '2024-10-01'
+
+
+def test_calculate_civil_night_window_requires_timezone():
+    with pytest.raises(ValueError, match='timezone-aware'):
+        calculate_civil_night_window(NYC, datetime(2024, 10, 1, 23, 0))
+
+
+def test_calculate_civil_night_window_accepts_fixed_offset_timezone():
+    reference = datetime(2024, 10, 1, 23, 0, tzinfo=timezone(timedelta(hours=8)))
+    observer = EarthLocation(lat=30.0 * u.deg, lon=120.0 * u.deg)
+
+    window = calculate_civil_night_window(observer, reference)
+
+    assert datetime.fromisoformat(window.civil_dusk) < reference
+    assert datetime.fromisoformat(window.civil_dawn) > reference
+    assert window.time_zone == 'UTC+08:00'
+
+
+def test_calculate_civil_night_window_rejects_missing_crossings():
+    reference = UTC.localize(datetime(2024, 10, 1, 12, 0))
+
+    with pytest.raises(ValueError, match='No civil-dark window'):
+        calculate_civil_night_window(NYC, reference, civil_horizon=90.0)
 
 
 def test__get_celestial_object():
