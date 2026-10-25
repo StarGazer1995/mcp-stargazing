@@ -1,0 +1,42 @@
+<evaluation>
+  <qa_pair>
+    <question>Using the frozen evaluation data, compare the available sites around Anji for deep-sky imaging on 2024-10-01 with a Seestar S50. What exact location name is the first choice?</question>
+    <answer>Dark Ridge</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, plan deep-sky imaging around Anji on 2024-10-02 with the HOPE D60 + ASI2600MC Air preset. What is the exact top equipment-matched target name?</question>
+    <answer>M31</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, compare both Anji sites for visual observing on 2024-10-03. One site is darker but heavily clouded. What exact location name wins after weather is included?</question>
+    <answer>Clear Plateau</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, plan planetary observing around Anji on 2024-10-04. What exact target name appears first?</question>
+    <answer>Jupiter</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, make a beginner observing plan around Anji on 2024-10-05. What exact location name is recommended?</question>
+    <answer>Easy Access Hill</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, plan around Anji on 2024-10-06 when place search returns no candidates. What exact next-action code is returned?</question>
+    <answer>expand_search_area</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, plan around Anji on 2024-10-07 while the weather provider is unavailable. The plan must remain actionable. What exact first next-action code is returned?</question>
+    <answer>recheck_weather</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, plan around Anji on 2024-10-08 when no civil-dark window can be determined. What exact uncertainty code is returned?</question>
+    <answer>no_candidates</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, compare two historical nights starting 2023-11-18 around Anji. Return the selected local date in YYYY-MM-DD format.</question>
+    <answer>2023-11-18</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the frozen evaluation data, plan around Anji on 2024-10-10 with a Seestar S50 while equipment-specific target matching fails. What exact uncertainty code records that failure?</question>
+    <answer>equipment_target_matching_failed</answer>
+  </qa_pair>
+</evaluation>

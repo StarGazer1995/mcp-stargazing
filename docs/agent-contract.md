@@ -147,12 +147,13 @@ MCP tool wrapper
 4. 只有在新入口覆盖旧场景、迁移文档发布并至少经历一个有文档的弃用周期后，才考虑
    弃用旧入口；删除或重命名留到后续 major 版本。
 
-第 1 步已经在 application service 内完成：`AgentPlanningRequest` 支持地点文本、中心点加
+第 1、2 步已经完成：`AgentPlanningRequest` 支持地点文本、中心点加
 半径和精确 bbox，`AgentPlanningResult` 提供 decision、alternatives、精确评分分解、证据、
 不确定性、关键缺失输入、排名反转条件和下一步动作。Seestar S50、HOPE D60 +
 ASI2600MC Air 和 custom optics 会先归一化，再对首选 session 做设备目标匹配；provider 和
-数据库路径不进入请求模型。当前仍保持 16 个公开工具，尚未注册
-`plan_stargazing_session`，下一道门槛是 golden scenarios 与多客户端黑盒验收。
+数据库路径不进入请求模型。10 个冻结 golden scenarios 全部通过，Codex CLI 与 Claude Code
+在代表性 HOPE D60 + ASI2600MC Air 场景中均首次选择正确工具、首次实际调用成功并返回正确
+答案。当前仍保持 16 个公开工具；注册 `plan_stargazing_session` 留给下一项独立变更。
 
 ## 版本与弃用策略
 

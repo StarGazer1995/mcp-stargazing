@@ -121,8 +121,8 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   the request section and protected by contract tests.
 - ✅ Seestar S50, HOPE D60 + ASI2600MC Air, and custom optics are normalized with explicit
   overrides and drive target matching for the selected session.
-- Keep `plan_stargazing_session` unregistered until golden scenarios and multi-client black-box
-  validation pass.
+- ✅ Ten frozen planning scenarios and representative Codex/Claude black-box acceptance passed;
+  keep production registration as a separate reviewable change.
 
 ## Priority 4: Decision quality
 
@@ -137,9 +137,11 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 
 ## Priority 5: Evaluation and long-running work
 
-- Build real planning golden scenarios for tool selection, ranking, explanations, partial-provider
-  degradation, and empty-result behavior.
-- Run black-box acceptance with at least two independent agent clients before 1.0.
+- ✅ Ten read-only planning golden scenarios cover tool selection, ranking, explanations,
+  partial-provider degradation, empty results, missing night windows, historical dates, and both
+  stable equipment presets.
+- ✅ Codex CLI and Claude Code each selected the draft primary planner on the first actual tool
+  call and returned the expected HOPE D60 + ASI2600MC Air answer (2/2 representative smoke).
 - Define a real task lifecycle before activating the reserved `task_id` / `progress` fields for
   long-running area analysis.
 - Preserve paging and `resource_id` semantics while adding polling, resumption, expiry, and
