@@ -69,7 +69,12 @@ Clock = Callable[[], datetime]
 
 @dataclass(frozen=True)
 class PlanningDependencies:
-    """External capabilities required by :class:`PlanningService`."""
+    """External capabilities required by :class:`PlanningService`.
+
+    ``search_places`` must honor disabled popularity preference flags: the
+    returned score then excludes those adjustments, while heuristic fields
+    remain available for planning to apply the user's preferences once.
+    """
 
     search_places: PlaceSearch
     fetch_weather: WeatherFetch
@@ -708,6 +713,7 @@ class PlanningService:
         *,
         prefetched_weather: _WeatherScreen | None = None,
     ) -> PlannedLocationCandidate:
+        """Evaluate a place whose score excludes popularity preference adjustments."""
         notes: list[str] = []
         reference = parse_observation_time(time, time_zone)
         try:
@@ -841,6 +847,10 @@ class PlanningService:
                 {'popularity_radius_km': popularity_radius_km},
             )
         parse_observation_time(time, time_zone)
+        # SPF owns the place baseline and heuristic evidence. Planning owns
+        # preference weighting in both screening and final scoring. Request a
+        # neutral baseline so popularity is not hidden in place_contribution
+        # and then counted again in popularity_adjustment.
         places_data = await self._dependencies.search_places(
             south=south,
             west=west,
@@ -850,8 +860,8 @@ class PlanningService:
             min_height_diff=min_height_diff,
             road_radius_km=road_radius_km,
             network_type=network_type,
-            avoid_popular_spots=avoid_popular_spots,
-            prefer_quiet_at_night=prefer_quiet_at_night,
+            avoid_popular_spots=False,
+            prefer_quiet_at_night=False,
             popularity_radius_km=popularity_radius_km,
             db_config_path=db_config_path,
             page=1,

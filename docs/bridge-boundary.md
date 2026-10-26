@@ -19,6 +19,18 @@
 - 仅当 `min_height_diff` 或 `road_radius_km` 变更时才重建底层 analyzer，避免重复打开 GeoTIFF 文件和重建数据库连接池
 - `analyze_area()` 返回 `list[dict[str, Any]]`，每个元素是下层 `StargazingLocation` 对象的字典表示
 
+### 热门度评分归属
+
+- 单独调用 `analysis_area` 时，bridge 原样传递热门度偏好，SPF 负责调整地点分与排序。
+- 单晚、多晚和主规划入口均由 `PlanningService` 请求中性地点分：传入 SPF 的
+  `avoid_popular_spots` 与 `prefer_quiet_at_night` 固定为 `False`，半径照常传递。
+- SPF 在关闭偏好时仍生成热门度启发式字段；MCP 使用这些字段在
+  `score_breakdown.popularity_adjustment` 中应用用户偏好一次。粗排和精排分别从中性分计算。
+- 规划器注入的 `search_places` 依赖也必须遵守这个约定；直接调用
+  `evaluate_candidate` 时，传入的地点分必须不含热门度偏好调整。
+- 规划的 `analysis_resource_id` 对应中性查询，可用相同地点搜索参数、半径和两个
+  `False` 偏好标志重查分页。带偏好的独立地点查询使用不同缓存条目。
+
 ### `get_light_pollution_grid()` 约定
 
 - 每次调用都重新 `importlib.import_module` 加载下层模块

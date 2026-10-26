@@ -127,8 +127,8 @@ get_best_stargazing_plan
 │   └─ 时间解析校验
 │
 ├─ 2. 地点搜索
-│   └─ analysis_area.fn(south, west, north, east, max_locations, ...)
-│       → 获取候选地点，按底层评分排序
+│   └─ analyze_area_capability(south, west, north, east, max_locations, ...)
+│       → 关闭 SPF 热门度偏好计权，获取按中性地点分排序的候选及启发式字段
 │       → 保留有界召回池
 │
 ├─ 3. 天气粗排
@@ -203,8 +203,10 @@ get_best_stargazing_plan
     - 根据 `static_popularity_risk_score` 对推荐得分做有限度加减分
   - `prefer_quiet_at_night=true` 时：
     - 根据 `night_quiet_likelihood_score` 与 `temporal_popularity_confidence` 做有限度加减分
-  - 该调整与 `analysis_area` 的底层排序叠加，不替代下层排序
-  - `popularity_radius_km` 同时影响下层排序语义与规划层调整强度
+  - 规划获取地点时关闭 SPF 偏好计权，基础分不含该调整；MCP 是规划偏好计权的唯一归属
+  - 粗排与精排各自从中性基础分重算，不累加粗排调整
+  - `popularity_radius_km` 保留在地点查询及缓存键中，缩放 MCP 的偏好调整强度
+  - 单独调用 `analysis_area` 仍由 SPF 应用偏好；规划的 resource_id 对应两个偏好关闭的查询
 
 最终得分 clamp 到 [0, 100]
 ```

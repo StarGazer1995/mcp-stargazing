@@ -66,7 +66,7 @@ ASI2600MC Air 和 custom optics 会驱动首选 session 的设备目标匹配。
 - [x] 复用 `stargazing-core` 空间云量网格做区域级比较，并保留模型失败降级；
 - [x] 从最佳单小时升级为连续观测窗口；
 - [x] 同一 factor 同时驱动排名和解释；
-- [ ] 消除或显式约束 SPF 与 MCP 对同一 popularity 信号的重复计权；
+- [x] 消除 SPF 与 MCP 对同一 popularity 信号的重复计权：规划请求中性地点分，MCP 单独应用偏好；
 - [x] 建立第一名与第二名的排名反转测试。
 
 验收：构造“静态第四名但天气最佳”的场景时，该地点能够进入最终候选并在合理条件下成为第一名。
@@ -88,8 +88,8 @@ ASI2600MC Air 代表性场景上均为工具选择 2/2、首次实际调用成�
 `evaluations/reports/2026-10-25-two-client-smoke.md`。
 
 生产注册：`plan_stargazing_session` 已通过独立变更进入生产 MCP surface；README、
-`tools/list`、`get_tool_catalog`、契约测试和 evaluation adapter 已同步。P3 决策质量和 P5
-长任务仍待推进；不在没有状态机的情况下提前暴露形式化 `task_id`。
+`tools/list`、`get_tool_catalog`、契约测试和 evaluation adapter 已同步。P3 决策质量清单
+已完成，下一阶段为 P5 长任务；不在没有状态机的情况下提前暴露形式化 `task_id`。
 
 验收：发布前可以明确判断新变更改善了决策，还是只增加了字段与复杂度。
 

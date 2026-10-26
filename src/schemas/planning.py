@@ -54,7 +54,11 @@ class PlanningQuery(BaseModel):
         default=3.0, gt=0, description='Preference horizon for popularity heuristics in km'
     )
     analysis_resource_id: str | None = Field(
-        default=None, description='Underlying analysis_area resource identifier when available'
+        default=None,
+        description=(
+            'Underlying analysis_area resource identifier with both popularity preference '
+            'flags disabled; planning applies the requested preferences after place recall'
+        ),
     )
 
 
@@ -133,14 +137,16 @@ class RecommendationDriver(StrEnum):
 class ScoreBreakdown(BaseModel):
     """Exact factors used to calculate a candidate's recommendation score."""
 
-    place_base_score: float = Field(description='Underlying place score before weighting')
+    place_base_score: float = Field(
+        description='Underlying place score before weighting, excluding popularity preferences'
+    )
     place_weight: float = Field(description='Weight applied to the place score')
     place_contribution: float = Field(description='Weighted place-score contribution')
     weather_base_score: float = Field(description='Weather score after weather and moon penalties')
     weather_weight: float = Field(description='Weight applied to the weather score')
     weather_contribution: float = Field(description='Weighted weather-score contribution')
     popularity_adjustment: float = Field(
-        description='Signed adjustment from explicit popularity preferences'
+        description='Signed planning-owned popularity preference adjustment, applied once'
     )
     accessibility_adjustment: float = Field(
         description='Signed adjustment from beginner accessibility heuristics'
