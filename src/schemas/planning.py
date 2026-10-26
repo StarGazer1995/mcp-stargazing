@@ -59,7 +59,13 @@ class PlanningQuery(BaseModel):
 
 
 class ObservationWindow(BaseModel):
-    """A simplified best-observation window derived from hourly weather."""
+    """A continuous observation window derived from hourly weather.
+
+    ``start_time`` and the hourly weather fields are kept as the stable
+    compatibility surface.  The range and quality fields are additive so
+    callers can gradually move from a single best hour to a usable session
+    window.
+    """
 
     start_time: str | None = Field(
         default=None, description='Best hourly start time as an ISO string'
@@ -75,6 +81,15 @@ class ObservationWindow(BaseModel):
     )
     weather_text: str | None = Field(
         default=None, description='Human-readable weather summary for the suggested hour'
+    )
+    end_time: str | None = Field(
+        default=None, description='Suggested observation end time as an ISO string'
+    )
+    duration_hours: float | None = Field(
+        default=None, ge=0, description='Continuous observing duration represented by the window'
+    )
+    quality_score: float | None = Field(
+        default=None, ge=0, le=100, description='Weather and observing quality score for the window'
     )
 
 
@@ -97,6 +112,9 @@ class PlanningTarget(BaseModel):
     name: str = Field(description='Target name')
     category: str = Field(description='Target category such as deep_sky or planet')
     score: float | None = Field(default=None, description='Target score when available')
+    transit_alt: float | None = Field(
+        default=None, description='Target culmination altitude in degrees when available'
+    )
 
 
 class RecommendationDriver(StrEnum):
