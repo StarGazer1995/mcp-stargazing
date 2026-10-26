@@ -5,8 +5,19 @@ from datetime import UTC, datetime
 import pytest
 
 from src.response import MCPError
-from src.schemas import NightWindow
-from src.services.planning import PlanningDependencies, PlanningService
+from src.schemas import (
+    NightWindow,
+    ObservationStyle,
+    ObservationWindow,
+    PlanningTarget,
+    StargazingLocation,
+)
+from src.services.planning import (
+    PlanningDependencies,
+    PlanningService,
+    _build_recommendation_reasons,
+    _pick_best_observation_window,
+)
 
 
 def _night_window(local_date: str = '2024-06-15') -> NightWindow:
@@ -68,6 +79,111 @@ def _service(*, weather_failure: bool = False) -> PlanningService:
             now=lambda: datetime(2026, 10, 24, 9, 0, tzinfo=UTC),
         )
     )
+
+
+def test_observation_window_prefers_continuous_dark_run():
+    window = _pick_best_observation_window(
+        [
+            {'time': '2024-06-15T20:00:00+08:00', 'cloud_cover_percent': 1.0},
+            {
+                'time': '2024-06-15T21:00:00+08:00',
+                'cloud_cover_percent': 5.0,
+                'precipitation_probability': 0.0,
+                'wind_speed_kph': 8.0,
+            },
+            {
+                'time': '2024-06-15T22:00:00+08:00',
+                'cloud_cover_percent': 5.0,
+                'precipitation_probability': 0.0,
+                'wind_speed_kph': 8.0,
+            },
+            {
+                'time': '2024-06-15T23:00:00+08:00',
+                'cloud_cover_percent': 90.0,
+                'precipitation_probability': 0.0,
+            },
+            {
+                'time': '2024-06-16T00:00:00+08:00',
+                'cloud_cover_percent': 15.0,
+                'precipitation_probability': 0.0,
+            },
+        ],
+        '2024-06-15 20:00:00',
+        'Asia/Shanghai',
+        night_window=_night_window(),
+        moon_illumination=0.8,
+        top_targets=[PlanningTarget(name='M31', category='galaxy', transit_alt=45.0)],
+    )
+
+    assert window is not None
+    assert window.start_time == '2024-06-15T21:00:00+08:00'
+    assert window.end_time == '2024-06-15T23:00:00+08:00'
+    assert window.duration_hours == 2.0
+    assert window.quality_score is not None
+    assert window.quality_score > 95.0
+
+
+def test_observation_window_falls_back_to_best_single_bad_hour():
+    window = _pick_best_observation_window(
+        [
+            {
+                'time': '2024-06-15T21:00:00+08:00',
+                'cloud_cover_percent': 95.0,
+                'precipitation_probability': 0.8,
+            },
+            {
+                'time': '2024-06-15T22:00:00+08:00',
+                'cloud_cover_percent': 85.0,
+                'precipitation_probability': 0.5,
+            },
+        ],
+        '2024-06-15 20:00:00',
+        'Asia/Shanghai',
+    )
+
+    assert window is not None
+    assert window.start_time == '2024-06-15T22:00:00+08:00'
+    assert window.duration_hours == 1.0
+
+
+def test_observation_window_skips_malformed_and_out_of_range_hours():
+    window = _pick_best_observation_window(
+        [
+            {},
+            {'time': 'not-a-time'},
+            {'time': '2024-06-15T19:00:00+08:00'},
+            {'time': '2024-06-16T09:00:00+08:00'},
+            {'time': '2024-06-15T21:00:00+08:00', 'cloud_cover_percent': 10.0},
+            {'time': '2024-06-15T23:00:00+08:00', 'cloud_cover_percent': 10.0},
+        ],
+        '2024-06-15 20:00:00',
+        'Asia/Shanghai',
+        night_window=NightWindow(
+            local_date='2024-06-15',
+            civil_dusk='not-a-time',
+            civil_dawn='not-a-time',
+            duration_hours=8.0,
+            time_zone='Asia/Shanghai',
+        ),
+    )
+
+    assert window is not None
+    assert window.start_time == '2024-06-15T21:00:00+08:00'
+    assert window.end_time == '2024-06-15T22:00:00+08:00'
+
+
+def test_recommendation_reasons_keep_legacy_single_hour_wording():
+    reasons = _build_recommendation_reasons(
+        StargazingLocation(name='Test Ridge', lat=40.0, lon=116.0, score=80.0),
+        None,
+        ObservationWindow(start_time='2024-06-15T21:00:00+08:00'),
+        None,
+        [],
+        ObservationStyle.BALANCED,
+        [],
+    )
+
+    assert reasons[-1] == '建议优先在 2024-06-15T21:00:00+08:00 附近观测。'
 
 
 @pytest.mark.asyncio

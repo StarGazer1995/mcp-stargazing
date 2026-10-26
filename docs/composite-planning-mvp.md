@@ -28,7 +28,7 @@
 - 调用 `analysis_area` 获取地点候选
 - 先对召回池并发调用 `get_weather_by_position`，必要时复用 `stargazing-core` 空间云量网格做区域粗排
 - 只对内部 Top N 候选调用夜景窗口与 `get_nightly_forecast`
-- 从天气数据中提取最佳观测窗口
+- 从天气数据中提取连续观测窗口（限制在民用暗夜内，并按云量、降水、风、月光和目标高度评分）
 - 从夜间目标数据中提取月相与优先目标
 - 计算综合推荐得分
 - 生成中文推荐理由
@@ -109,7 +109,7 @@
 | `recommendation_reasons` | 中文推荐理由（最多 5 条，开启 popularity 偏好时会优先包含热门度/夜间安静度解释） |
 | `location` | `StargazingLocation` 地点详情 |
 | `weather_summary` | 浓缩版天气摘要（可能为 null） |
-| `best_observation_window` | 最佳观测时段（可能为 null） |
+| `best_observation_window` | 连续观测时段（可能为 null）；保留 `start_time` 等旧字段，并增加 `end_time`、`duration_hours`、`quality_score` |
 | `moon_phase` | 月相名称 |
 | `moon_illumination` | 月面照明比例 |
 | `night_window` | 该地点的民用暗夜窗口；极昼/极夜等无法确定时为 null |

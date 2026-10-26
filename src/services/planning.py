@@ -203,22 +203,33 @@ def _validate_positive_int(name: str, value: int) -> None:
 
 
 def _pick_best_observation_window(
-    hourly_items: list[dict[str, Any]], requested_time: str, time_zone: str
+    hourly_items: list[dict[str, Any]],
+    requested_time: str,
+    time_zone: str,
+    *,
+    night_window: NightWindow | None = None,
+    moon_illumination: float | None = None,
+    top_targets: list[PlanningTarget] | None = None,
 ) -> ObservationWindow | None:
     if not hourly_items:
         return None
 
     requested_dt = parse_observation_time(requested_time, time_zone)
     cutoff_dt = requested_dt + timedelta(hours=12)
-    best_item = None
-    best_score = None
-    for item in hourly_items:
-        time_value = item.get('time')
-        if not time_value:
-            continue
-        forecast_dt = ensure_timezone(parse_time_string(time_value), time_zone)
-        if forecast_dt < requested_dt or forecast_dt > cutoff_dt:
-            continue
+    dark_start = dark_end = None
+    if night_window is not None:
+        try:
+            dark_start = ensure_timezone(parse_time_string(night_window.civil_dusk), time_zone)
+            dark_end = ensure_timezone(parse_time_string(night_window.civil_dawn), time_zone)
+        except (MCPError, TypeError, ValueError):
+            dark_start = dark_end = None
+
+    target_altitudes = [
+        float(target.transit_alt) for target in top_targets or [] if target.transit_alt is not None
+    ]
+    target_altitude_bonus = min(10.0, max(0.0, (max(target_altitudes, default=0.0) - 20.0) * 0.2))
+
+    def score_item(item: dict[str, Any]) -> float:
         score = 100.0
         cloud_cover = item.get('cloud_cover_percent')
         precipitation = item.get('precipitation_probability')
@@ -229,18 +240,87 @@ def _pick_best_observation_window(
             score -= float(precipitation) * 20.0
         if wind_speed is not None and float(wind_speed) > 20.0:
             score -= (float(wind_speed) - 20.0) * 1.5
-        if best_score is None or score > best_score:
-            best_item = item
-            best_score = score
+        if moon_illumination is not None and moon_illumination > 0.7:
+            score -= (moon_illumination - 0.7) * 20.0
+        return max(0.0, min(100.0, score + target_altitude_bonus))
 
-    if best_item is None:
+    records: list[tuple[datetime, dict[str, Any], float]] = []
+    for item in hourly_items:
+        time_value = item.get('time')
+        if not time_value:
+            continue
+        try:
+            forecast_dt = ensure_timezone(parse_time_string(time_value), time_zone)
+        except (MCPError, TypeError, ValueError):
+            continue
+        if forecast_dt < requested_dt or forecast_dt > cutoff_dt:
+            continue
+        if (
+            dark_start is not None
+            and dark_end is not None
+            and not (dark_start <= forecast_dt <= dark_end)
+        ):
+            continue
+        records.append((forecast_dt, item, score_item(item)))
+
+    if not records:
         return None
+    records.sort(key=lambda record: record[0])
+
+    def is_usable(item: dict[str, Any]) -> bool:
+        cloud_cover = item.get('cloud_cover_percent')
+        precipitation = item.get('precipitation_probability')
+        wind_speed = item.get('wind_speed_kph')
+        return (
+            (cloud_cover is None or float(cloud_cover) <= 75.0)
+            and (precipitation is None or float(precipitation) <= 0.35)
+            and (wind_speed is None or float(wind_speed) <= 35.0)
+        )
+
+    runs: list[list[tuple[datetime, dict[str, Any], float]]] = []
+    current_run: list[tuple[datetime, dict[str, Any], float]] = []
+    for record in records:
+        if not is_usable(record[1]):
+            if current_run:
+                runs.append(current_run)
+                current_run = []
+            continue
+        if current_run and record[0] - current_run[-1][0] > timedelta(minutes=90):
+            runs.append(current_run)
+            current_run = []
+        current_run.append(record)
+    if current_run:
+        runs.append(current_run)
+
+    if runs:
+        selected_run = max(
+            runs,
+            key=lambda run: (
+                sum(record[2] for record in run) / len(run),
+                (run[-1][0] - run[0][0]).total_seconds(),
+                -run[0][0].timestamp(),
+            ),
+        )
+    else:
+        selected_run = [max(records, key=lambda record: (record[2], -record[0].timestamp()))]
+
+    first_dt, best_item, _ = selected_run[0]
+    last_dt = selected_run[-1][0]
+    duration_hours = max(1.0, round((last_dt - first_dt).total_seconds() / 3600.0 + 1.0, 2))
+    end_time = (last_dt + timedelta(hours=1)).isoformat()
+    quality_score = round(
+        sum(record[2] for record in selected_run) / len(selected_run),
+        2,
+    )
     return ObservationWindow(
         start_time=best_item.get('time'),
         cloud_cover_percent=best_item.get('cloud_cover_percent'),
         precipitation_probability=best_item.get('precipitation_probability'),
         wind_speed_kph=best_item.get('wind_speed_kph'),
         weather_text=best_item.get('weather_text'),
+        end_time=end_time,
+        duration_hours=duration_hours,
+        quality_score=quality_score,
     )
 
 
@@ -283,6 +363,7 @@ def _build_top_targets(
                         else item.get('type', 'deep_sky')
                     ),
                     score=item.get('score'),
+                    transit_alt=item.get('transit_alt'),
                 )
             )
     return targets
@@ -308,6 +389,8 @@ def _compute_recommendation_score(
             weather_score -= min(20.0, (float(weather_summary.wind_speed_kph) - 20.0) * 1.2)
     if best_window is not None and best_window.precipitation_probability is not None:
         weather_score -= float(best_window.precipitation_probability) * 20.0
+    if best_window is not None and best_window.duration_hours is not None:
+        weather_score += min(12.0, max(0.0, best_window.duration_hours - 1.0) * 2.0)
     if spatial_cloud_cover_percent is not None and math.isfinite(spatial_cloud_cover_percent):
         spatial_cloud_score = 100.0 - max(0.0, min(100.0, spatial_cloud_cover_percent))
         weather_score = (
@@ -399,7 +482,13 @@ def _build_recommendation_reasons(
     if weather_summary is not None and weather_summary.visibility_km is not None:
         reasons.append(f'当前能见度约 {weather_summary.visibility_km:.1f} km。')
     if best_window is not None and best_window.start_time is not None:
-        reasons.append(f'建议优先在 {best_window.start_time} 附近观测。')
+        if best_window.end_time is not None and best_window.duration_hours is not None:
+            reasons.append(
+                f'建议在 {best_window.start_time} 至 {best_window.end_time} '
+                f'连续观测（约 {best_window.duration_hours:.1f} 小时）。'
+            )
+        else:
+            reasons.append(f'建议优先在 {best_window.start_time} 附近观测。')
     if moon_illumination is not None:
         reasons.append(f'月面照明比例约为 {moon_illumination:.0%}。')
     if top_targets:
@@ -609,17 +698,22 @@ class PlanningService:
         if forecast_note:
             notes.append(f'夜间目标降级处理：{forecast_note}')
         weather_summary = _build_weather_summary(weather_data)
-        best_window = None
-        if weather_data is not None:
-            best_window = _pick_best_observation_window(
-                weather_data.get('summary', {}).get('hourly', []), time, time_zone
-            )
         top_targets = _build_top_targets(forecast_data, target_limit, observation_style)
         moon_phase = None
         moon_illumination = None
         if forecast_data is not None:
             moon_phase = forecast_data.get('moon_phase', {}).get('phase_name')
             moon_illumination = forecast_data.get('moon_phase', {}).get('illumination')
+        best_window = None
+        if weather_data is not None:
+            best_window = _pick_best_observation_window(
+                weather_data.get('summary', {}).get('hourly', []),
+                time,
+                time_zone,
+                night_window=night_window,
+                moon_illumination=moon_illumination,
+                top_targets=top_targets,
+            )
         popularity_adjustment, popularity_reasons = _compute_popularity_preference_adjustment(
             location, avoid_popular_spots, prefer_quiet_at_night, popularity_radius_km
         )

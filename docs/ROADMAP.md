@@ -137,8 +137,10 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 - ✅ Use the spatial weather primitives already available in `stargazing-core`: one regional
   cloud-cover grid is sampled at the recall candidates and blended into ranking, with graceful
   fallback to point weather when the spatial model is unavailable.
-- Replace the best-single-hour heuristic with continuous observing windows that account for
-  cloud persistence, precipitation, wind, moon events, target altitude, and equipment needs.
+- ✅ Replace the best-single-hour heuristic with continuous observing windows: hourly forecasts
+  are constrained to civil darkness, grouped by forecast continuity, and scored with cloud,
+  precipitation, wind, moon illumination, and available target-altitude signals. The additive
+  `end_time`, `duration_hours`, and `quality_score` fields keep the old hourly fields compatible.
 - Make SPF and MCP ownership of popularity scoring explicit so that the same heuristic is not
   accidentally counted twice.
 
