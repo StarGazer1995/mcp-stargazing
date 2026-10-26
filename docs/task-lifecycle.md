@@ -5,8 +5,9 @@
 `AnalysisTaskRegistry` 管理元数据，`AreaTaskService` 管理有界后台执行与结果发布。
 四个 MCP 工具提供提交、轮询、取消和分页，响应通过 `_meta.task_id` 关联任务。
 同步 `analysis_area` 继续可用，两条路径复用同一计算、分页与缓存语义。
-目前通过实际 MCP SDK 验证工具调用链；独立进程断线、重启以及第三方 AI 的选工具验收
-仍属于后续工作，不能把状态机单测当成这些验收已完成。
+目前通过实际 MCP SDK 验证工具调用链，并通过真实 HTTP 连接和独立进程验证断线重连、
+正常重启与分析中进程崩溃。第三方 AI 的选工具与恢复决策验收仍属于后续工作，
+不能把协议和进程测试当成 AI 验收已完成。
 
 | 工具 | 输入与行为 |
 |---|---|
@@ -95,3 +96,7 @@ P5.1 测试见 `tests/test_task_lifecycle.py`：覆盖时钟边界、迟到通�
 领取、容量回收、重启行为、失败信息隔离和 JSON 序列化。
 P5.2 测试见 `tests/test_area_tasks.py` 与 `tests/test_area_task_tools.py`，覆盖实际线程预算、
 排队取消、迟到发布、版本绑定、缓存独立过期、SDK 调用链及 shutdown 清理。
+P5.3 测试见 `tests/test_area_task_recovery.py`：新 HTTP 连接继续原任务、跨连接分页、
+断线后取消与配额释放、正常重启后元数据和缓存丢失、分析中进程崩溃后显式重交。
+`evaluations/area_task_server.py` 仅替换地点 provider 为受控测试数据，不新增控制工具；
+测试不依赖真实地理服务，也不声称覆盖真实 provider 的可用性。
