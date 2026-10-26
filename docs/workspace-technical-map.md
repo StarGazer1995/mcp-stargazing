@@ -87,7 +87,8 @@ MCP public contract
 
 ### 4. 观测窗口仍是单小时选择
 
-当前 best window 从近时段预报中选择一个最优小时，尚不能表达连续晴朗时长、窗口稳定性和中途恶化风险。
+当前 best window 已从近时段预报中合并为连续暗夜窗口；`score_breakdown.factor_contributions`
+与推荐理由共享实际排名因子，仍需后续处理 SPF 与 MCP popularity 信号的归属边界。
 
 目标：形成连续窗口模型，并与目标高度、月亮升落和设备需求共同排序。
 

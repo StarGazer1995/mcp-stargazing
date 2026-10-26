@@ -141,6 +141,10 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   are constrained to civil darkness, grouped by forecast continuity, and scored with cloud,
   precipitation, wind, moon illumination, and available target-altitude signals. The additive
   `end_time`, `duration_hours`, and `quality_score` fields keep the old hourly fields compatible.
+- ✅ Align ranking factors and explanations: `score_breakdown.factor_contributions` now exposes
+  the signed place, weather, popularity, and accessibility contributions used by ranking, while
+  recommendation reasons surface the same active weather-window, spatial-cloud, moonlight, and
+  accessibility signals.
 - Make SPF and MCP ownership of popularity scoring explicit so that the same heuristic is not
   accidentally counted twice.
 

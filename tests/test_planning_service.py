@@ -10,12 +10,15 @@ from src.schemas import (
     ObservationStyle,
     ObservationWindow,
     PlanningTarget,
+    ScoreBreakdown,
     StargazingLocation,
+    WeatherPlanningSummary,
 )
 from src.services.planning import (
     PlanningDependencies,
     PlanningService,
     _build_recommendation_reasons,
+    _compute_recommendation_score,
     _pick_best_observation_window,
 )
 
@@ -184,6 +187,75 @@ def test_recommendation_reasons_keep_legacy_single_hour_wording():
     )
 
     assert reasons[-1] == '建议优先在 2024-06-15T21:00:00+08:00 附近观测。'
+
+
+def test_score_breakdown_and_reasons_share_ranking_factor_keys():
+    location = StargazingLocation(
+        name='Factor Ridge',
+        lat=40.0,
+        lon=116.0,
+        score=80.0,
+        bortle_class=3,
+        road_distance_km=3.0,
+    )
+    weather_summary = WeatherPlanningSummary(
+        cloud_cover_percent=20.0,
+        visibility_km=15.0,
+        wind_speed_kph=25.0,
+    )
+    window = ObservationWindow(
+        start_time='2024-06-15T21:00:00+08:00',
+        end_time='2024-06-16T00:00:00+08:00',
+        duration_hours=3.0,
+        precipitation_probability=0.2,
+    )
+    score_breakdown = _compute_recommendation_score(
+        location,
+        weather_summary,
+        window,
+        0.9,
+        ObservationStyle.BEGINNER,
+        2.0,
+        60.0,
+    )
+    reasons = _build_recommendation_reasons(
+        location,
+        weather_summary,
+        window,
+        0.9,
+        [],
+        ObservationStyle.BEGINNER,
+        ['热门风险较低，更符合避开热门点偏好。'],
+        score_breakdown,
+        60.0,
+    )
+
+    assert set(score_breakdown.factor_contributions) == {
+        'place_score',
+        'weather',
+        'popularity_preferences',
+        'accessibility',
+    }
+    assert score_breakdown.factor_contributions['weather'] == score_breakdown.weather_contribution
+    assert any('区域空间云量' in reason for reason in reasons)
+    assert any('连续观测' in reason for reason in reasons)
+    assert any('热门风险' in reason for reason in reasons)
+
+
+def test_score_breakdown_remains_backward_compatible_when_constructed_without_factors():
+    score_breakdown = ScoreBreakdown(
+        place_base_score=80.0,
+        place_weight=0.65,
+        place_contribution=52.0,
+        weather_base_score=55.0,
+        weather_weight=0.35,
+        weather_contribution=19.25,
+        popularity_adjustment=0.0,
+        accessibility_adjustment=0.0,
+        final_score=71.25,
+    )
+
+    assert score_breakdown.factor_contributions == {}
 
 
 @pytest.mark.asyncio

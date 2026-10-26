@@ -122,6 +122,8 @@ preset 的任一光学字段都可通过 `overrides` 显式覆盖。HOPE D60 + A
 - `decision` 给出当前首选，而不是只返回排序列表；
 - `alternatives` 解释备选项与首选项的关键差异；
 - `score_breakdown` 必须能映射回实际排序因子；
+- `score_breakdown.factor_contributions` 返回带符号的地点、天气、热门度和便利性贡献，推荐理由
+  只应解释这些实际参与排序的信号；天气窗口、空间云量和月光等子信号也必须在有影响时可见；
 - `evidence` 包含来源、获取时间、适用时间和必要的资源关联；
 - `uncertainties` 明确区分启发式信号与观测事实；
 - `missing_inputs` 只列出会实质影响决策的缺失条件；
