@@ -421,6 +421,12 @@ def _compute_recommendation_score(
         weather_contribution=round(weather_contribution, 2),
         popularity_adjustment=round(popularity_adjustment, 2),
         accessibility_adjustment=round(accessibility_adjustment, 2),
+        factor_contributions={
+            'place_score': round(place_contribution, 2),
+            'weather': round(weather_contribution, 2),
+            'popularity_preferences': round(popularity_adjustment, 2),
+            'accessibility': round(accessibility_adjustment, 2),
+        },
         final_score=final_score,
     )
 
@@ -468,32 +474,81 @@ def _build_recommendation_reasons(
     top_targets: list[PlanningTarget],
     observation_style: ObservationStyle,
     popularity_reasons: list[str],
+    score_breakdown: ScoreBreakdown | None = None,
+    spatial_cloud_cover_percent: float | None = None,
 ) -> list[str]:
-    reasons: list[str] = []
+    reason_entries: list[tuple[int, str]] = []
     if location.bortle_class is not None:
-        reasons.append(f'波特尔等级约为 {location.bortle_class}，暗空条件较清晰。')
+        reason_entries.append((1000, f'波特尔等级约为 {location.bortle_class}，暗空条件较清晰。'))
     elif location.score is not None:
-        reasons.append(f'地点基础观星评分为 {location.score:.1f}。')
+        reason_entries.append((1000, f'地点基础观星评分为 {location.score:.1f}。'))
     if _STYLE_PROFILES[observation_style].reason:
-        reasons.append(_STYLE_PROFILES[observation_style].reason)
-    reasons.extend(popularity_reasons)
+        reason_entries.append((650, _STYLE_PROFILES[observation_style].reason))
+    reason_entries.extend((900, reason) for reason in popularity_reasons)
     if weather_summary is not None and weather_summary.cloud_cover_percent is not None:
-        reasons.append(f'当前云量约 {weather_summary.cloud_cover_percent:.0f}%。')
+        reason_entries.append((800, f'当前云量约 {weather_summary.cloud_cover_percent:.0f}%。'))
     if weather_summary is not None and weather_summary.visibility_km is not None:
-        reasons.append(f'当前能见度约 {weather_summary.visibility_km:.1f} km。')
+        reason_entries.append((800, f'当前能见度约 {weather_summary.visibility_km:.1f} km。'))
+    if weather_summary is not None and weather_summary.wind_speed_kph is not None:
+        if weather_summary.wind_speed_kph > 20.0:
+            reason_entries.append(
+                (
+                    850,
+                    f'当前风速约 {weather_summary.wind_speed_kph:.1f} km/h，已计入天气扣分。',
+                )
+            )
     if best_window is not None and best_window.start_time is not None:
         if best_window.end_time is not None and best_window.duration_hours is not None:
-            reasons.append(
-                f'建议在 {best_window.start_time} 至 {best_window.end_time} '
-                f'连续观测（约 {best_window.duration_hours:.1f} 小时）。'
+            reason_entries.append(
+                (
+                    860,
+                    f'建议在 {best_window.start_time} 至 {best_window.end_time} '
+                    f'连续观测（约 {best_window.duration_hours:.1f} 小时）。',
+                )
             )
         else:
-            reasons.append(f'建议优先在 {best_window.start_time} 附近观测。')
-    if moon_illumination is not None:
-        reasons.append(f'月面照明比例约为 {moon_illumination:.0%}。')
+            reason_entries.append((860, f'建议优先在 {best_window.start_time} 附近观测。'))
+        if (
+            best_window.precipitation_probability is not None
+            and best_window.precipitation_probability > 0
+        ):
+            reason_entries.append(
+                (
+                    850,
+                    f'窗口降水概率约 {best_window.precipitation_probability:.0%}，已计入天气扣分。',
+                )
+            )
+    if spatial_cloud_cover_percent is not None and math.isfinite(spatial_cloud_cover_percent):
+        reason_entries.append(
+            (
+                880,
+                f'区域空间云量约 {spatial_cloud_cover_percent:.0f}%，已用于区域比较。',
+            )
+        )
+    if moon_illumination is not None and moon_illumination > 0.7:
+        reason_entries.append(
+            (
+                850,
+                f'月面照明比例约为 {moon_illumination:.0%}，已按观测风格计入月光惩罚。',
+            )
+        )
+    if (
+        score_breakdown is not None
+        and score_breakdown.factor_contributions.get('accessibility', 0.0) != 0.0
+        and location.road_distance_km is not None
+    ):
+        reason_entries.append(
+            (
+                840,
+                f'道路距离约 {location.road_distance_km:.1f} km，已计入入门观测便利性调整。',
+            )
+        )
     if top_targets:
-        reasons.append(f'优先目标包括 {", ".join(target.name for target in top_targets[:3])}。')
-    return reasons[:5]
+        reason_entries.append(
+            (100, f'优先目标包括 {", ".join(target.name for target in top_targets[:3])}。')
+        )
+    reason_entries.sort(key=lambda item: item[0], reverse=True)
+    return [reason for _priority, reason in reason_entries[:5]]
 
 
 def _derive_primary_recommendation_drivers(
@@ -734,6 +789,8 @@ class PlanningService:
             top_targets,
             observation_style,
             popularity_reasons,
+            score_breakdown,
+            prefetched_weather.spatial_cloud_cover_percent if prefetched_weather else None,
         )
         return PlannedLocationCandidate(
             rank=1,

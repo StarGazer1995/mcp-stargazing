@@ -145,6 +145,13 @@ class ScoreBreakdown(BaseModel):
     accessibility_adjustment: float = Field(
         description='Signed adjustment from beginner accessibility heuristics'
     )
+    factor_contributions: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            'Signed score contributions keyed by the factors used for ranking; '
+            'the keys are also used to select explanatory reasons'
+        ),
+    )
     final_score: float = Field(description='Final clamped recommendation score on a 0-100 scale')
 
 
