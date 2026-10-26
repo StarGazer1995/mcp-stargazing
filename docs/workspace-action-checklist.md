@@ -88,8 +88,8 @@ ASI2600MC Air 代表性场景上均为工具选择 2/2、首次实际调用成�
 `evaluations/reports/2026-10-25-two-client-smoke.md`。
 
 生产注册：`plan_stargazing_session` 已通过独立变更进入生产 MCP surface；README、
-`tools/list`、`get_tool_catalog`、契约测试和 evaluation adapter 已同步。P3 决策质量和 P5
-长任务仍待推进；不在没有状态机的情况下提前暴露形式化 `task_id`。
+`tools/list`、`get_tool_catalog`、契约测试和 evaluation adapter 已同步。P3 决策质量清单
+已完成，下一阶段为 P5 长任务；不在没有状态机的情况下提前暴露形式化 `task_id`。
 
 验收：发布前可以明确判断新变更改善了决策，还是只增加了字段与复杂度。
 
