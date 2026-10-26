@@ -6,13 +6,18 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
+- **P3.6 popularity ownership** — Composite planners request SPF place scores with both
+  popularity preference flags disabled, then apply the user's preferences once in MCP.
+  Standalone `analysis_area` retains SPF-owned preference scoring; planning resource IDs
+  reference the neutral area query, so preferred area caches cannot contaminate planning.
+
 - Tool discovery is available through the registered `get_tool_catalog` tool.
 - `light_pollution_map` provides per-coordinate light pollution data (Bortle class, brightness, SQM) through a dedicated MCP tool.
 - Tool metadata is exposed programmatically and kept aligned with `tools/list`.
 - Business validation failures are normalized into the standard `{error, _meta}` payload shape.
 - Weather tools already include retry behavior for transient network failures.
 - `analysis_area` now has explicit pagination validation and stable `resource_id` semantics based only on non-pagination query parameters.
-- `analysis_area` and `get_best_stargazing_plan` now expose popularity preference parameters (`avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`), and those parameters participate in `resource_id` / cache-key generation.
+- `analysis_area` and `get_best_stargazing_plan` expose popularity preference parameters (`avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`). Area cache keys reflect the actual search parameters; composite planning always searches with both preference flags disabled.
 - Place results now surface popularity heuristic fields (`static_popularity_risk_score`, `night_quiet_likelihood_score`, `temporal_popularity_confidence`, and related notes/signals) from `stargazing-place-finder`.
 - MCP protocol tests now verify `tools/list` / catalog consistency and SSE JSON-RPC request id preservation.
 - `get_celestial_rise_set` now supports explicit `calendar_day` and `next_events` scopes, making cross-midnight sunrise/sunset semantics unambiguous.
@@ -145,8 +150,10 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   the signed place, weather, popularity, and accessibility contributions used by ranking, while
   recommendation reasons surface the same active weather-window, spatial-cloud, moonlight, and
   accessibility signals.
-- Make SPF and MCP ownership of popularity scoring explicit so that the same heuristic is not
-  accidentally counted twice.
+- ✅ Make SPF and MCP ownership of popularity scoring explicit: SPF provides neutral place
+  scores and heuristic evidence to composite planners; MCP owns the preference adjustment.
+  Screening and final evaluation each compute a score from the neutral baseline, without
+  accumulating the screening adjustment. Standalone area analysis keeps SPF-owned scoring.
 
 ## Priority 5: Evaluation and long-running work
 

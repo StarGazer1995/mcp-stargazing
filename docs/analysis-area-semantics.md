@@ -176,12 +176,13 @@ prefer_quiet_at_night, popularity_radius_km, db_config_path
 
 ### `get_best_stargazing_plan`
 
-复合规划工具内部调用 `analysis_area.fn()` 获取候选地点，并将 `resource_id` 写入响应中的 `query.analysis_resource_id`。这使得：
+复合规划工具内部调用 `analyze_area_capability()` 获取候选地点，并将 `resource_id` 写入响应中的 `query.analysis_resource_id`。主入口通过地点 `evidence.resource_id` 暴露同一关联。这使得：
 
 - Agent 可以从规划结果直接定位到底层搜索
-- Agent 可以在规划后翻阅全部底层搜索结果，无需重复搜索参数
-- 当 `avoid_popular_spots` 或 `prefer_quiet_at_night` 开启时，规划层会继续消费 `analysis_area` 返回的 popularity heuristic 字段（如 `static_popularity_risk_score`、`night_quiet_likelihood_score`），对 `recommendation_score` 做二次调整
-- 这意味着 popularity 偏好对最终规划排序是“底层地点排序 + 上层规划重排”的叠加关系，而不是仅在 `analysis_area` 中生效一次
+- Agent 可以用相同的非分页地点搜索参数翻页复查基础分；规划使用的两个热门度偏好标志固定为 `false`，半径仍为请求值
+- 规划请求回显保留用户偏好，但其地点查询关闭 SPF 偏好计权；MCP 在粗排和精排中分别从中性基础分计算一次 `popularity_adjustment`，不叠加两层调整
+- 同一地点查询仅改变规划偏好时，复用中性 `resource_id`；半径仍参与缓存键。单独调用 `analysis_area` 时，偏好仍传递给 SPF，启用偏好的查询拥有独立缓存条目
+- `resource_id` 标识地点分析结果，不是最终规划结果的缓存键；天气与偏好变化仍可能改变规划排序
 
 ### `light_pollution_map`
 

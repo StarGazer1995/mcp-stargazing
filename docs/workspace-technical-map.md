@@ -75,9 +75,11 @@ MCP public contract
 
 ### 2. 排名与解释没有统一 factor 模型
 
-当前地点基础分、planning 权重、popularity 二次调整和解释阈值分散在不同函数中。
+当前 `score_breakdown` 已暴露地点、天气、热门度与便利性贡献。规划从 SPF 获取
+关闭热门度偏好计权的地点基础分，MCP 独立应用用户偏好，避免两层重复加减分。
+单独调用 `analysis_area` 时仍由 SPF 按偏好排序。
 
-目标：引入结构化 `score_breakdown`，使每个解释可以追溯到真实输入和分数变化。
+后续可继续细化子因子的解释追溯，并校准相关启发式权重。
 
 ### 3. 公共参数包含基础设施细节
 
@@ -88,7 +90,7 @@ MCP public contract
 ### 4. 观测窗口仍是单小时选择
 
 当前 best window 已从近时段预报中合并为连续暗夜窗口；`score_breakdown.factor_contributions`
-与推荐理由共享实际排名因子，仍需后续处理 SPF 与 MCP popularity 信号的归属边界。
+与推荐理由共享实际排名因子；SPF 提供中性地点分与 popularity 信号，MCP 负责规划偏好计权。
 
 目标：形成连续窗口模型，并与目标高度、月亮升落和设备需求共同排序。
 

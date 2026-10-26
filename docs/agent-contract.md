@@ -122,6 +122,11 @@ preset 的任一光学字段都可通过 `overrides` 显式覆盖。HOPE D60 + A
 - `decision` 给出当前首选，而不是只返回排序列表；
 - `alternatives` 解释备选项与首选项的关键差异；
 - `score_breakdown` 必须能映射回实际排序因子；
+- 复合规划向 SPF 请求地点时固定关闭 `avoid_popular_spots` 和 `prefer_quiet_at_night`，
+  `place_base_score` 不含热门度偏好调整；SPF 仍提供热门度启发式字段，MCP 按用户请求
+  在 `popularity_adjustment` 中计权一次。粗排与最终评估分别从同一基础分重算，不累加粗排分；
+- `query.analysis_resource_id`（主入口为地点 `evidence.resource_id`）指向关闭上述偏好的
+  地点查询；重查时保留其余地点搜索参数和半径。请求回显仍保留用户原始偏好；
 - `score_breakdown.factor_contributions` 返回带符号的地点、天气、热门度和便利性贡献，推荐理由
   只应解释这些实际参与排序的信号；天气窗口、空间云量和月光等子信号也必须在有影响时可见；
 - `evidence` 包含来源、获取时间、适用时间和必要的资源关联；
