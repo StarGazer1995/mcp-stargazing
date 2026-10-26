@@ -15,7 +15,7 @@
 - [x] 合并 multi-night / night-window 变更；发版仍由独立发布指令触发；
 - [x] 对原有 16 个工具形成公共参数审计表，并在注册主入口后扩展为 17 个；
 - [ ] 为每个工具补充稳定的 `use when` / `do not use when` 路由说明；
-- [ ] 保存 1.0 前公共 schema baseline。
+- [x] 保存 1.0 前公共 schema baseline，并通过真实 `tools/list` 与详细模型检查保护既有接口。
 
 验收：README、工具目录、依赖下限和 docs 引用由测试保护；第三方目标契约成为新增 agent-facing 能力的评审依据。
 

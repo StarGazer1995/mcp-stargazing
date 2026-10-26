@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 from conftest import (
@@ -223,6 +224,19 @@ def test_tools_list_matches_get_tool_catalog_descriptions_and_parameters(running
 
         assert set(properties) == catalog_parameter_names
         assert required == catalog_required_names
+
+
+def test_tools_list_preserves_pre1_schema_baseline(running_mcp_server):
+    """Compare the saved contract to the schemas a real client receives."""
+    host, port, path, session_id = running_mcp_server
+    listed = {tool['name']: tool for tool in _list_tool_entries(host, port, path, session_id)}
+    baseline = json.loads(
+        Path(__file__).with_name('public_schema_baseline.json').read_text(encoding='utf-8')
+    )['contract']['tool_schemas']
+    assert baseline.keys() <= listed.keys()
+    for name, expected in baseline.items():
+        assert listed[name]['inputSchema'] == expected['inputSchema'], name
+        assert listed[name].get('outputSchema') == expected['outputSchema'], name
 
 
 def test_sse_tools_call_preserves_request_id(running_mcp_sse_server):

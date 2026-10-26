@@ -6,6 +6,11 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
+- **Pre-1.0 schema baseline** — The existing 17 SDK-generated tool schemas, primary/composite
+  planning and area-result models, default response envelopes, and public error codes are saved
+  in `tests/public_schema_baseline.json`. Application and real MCP protocol tests protect the
+  baseline; new tools can be added without silently changing existing contracts.
+
 - **P3.6 popularity ownership** — Composite planners request SPF place scores with both
   popularity preference flags disabled, then apply the user's preferences once in MCP.
   Standalone `analysis_area` retains SPF-owned preference scoring; planning resource IDs
@@ -99,7 +104,8 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   implementation checklist.
 - Audit all 17 public tools for agent routing guidance, infrastructure leakage, and compatibility
   risk.
-- Capture the pre-1.0 schema baseline and define deprecation rules.
+- ✅ Capture the pre-1.0 schema baseline with SDK and real `tools/list` checks.
+- Define deprecation rules and review intentional changes against the saved baseline.
 
 ## Priority 2: Application-service boundary
 
