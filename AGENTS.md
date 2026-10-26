@@ -60,6 +60,12 @@ This is not a runtime requirement, but it is the best place for team-level regul
   - `EXTERNAL_API_ERROR`: External API returned error
   - `NETWORK_ERROR`: Network connectivity issues
   - `CONFIGURATION_ERROR`: Configuration problems
+  - `TASK_NOT_FOUND`: Unknown or evicted task; verify its ID or resubmit
+  - `TASK_RUNTIME_CHANGED`: Task belongs to another server runtime; resubmit its request
+  - `TASK_CAPACITY_EXCEEDED`: Metadata/execution capacity exhausted or prior work still draining
+  - `TASK_NOT_READY`: Task is queued or running; poll status
+  - `TASK_UNAVAILABLE`: Task failed, was cancelled, or timed out; inspect status
+  - `TASK_RESULT_EXPIRED`: Task/result expired or cached publication was replaced; resubmit
 - Avoid raising raw exceptions from tools; catch and translate them into structured MCPError responses.
 - Prefer translating input and validation failures at the boundary helper level so tool functions stay simple; avoid scattering repetitive `try/except` blocks across individual tool implementations.
 - Weather tools include automatic retry logic for network failures (up to 3 attempts with exponential backoff).
@@ -123,7 +129,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 | `docs/ROADMAP.md` | 能力面状态、已完成 / 计划中的工作 | 本 repo 开发者、PM |
 | `docs/agent-contract.md` | 第三方 agent 的目标契约、公共参数边界与黑盒验收 | agent 集成者、本 repo 开发者 |
 | `docs/public-contract-baseline.md` | 1.0 前 schema 快照、兼容检查与变更审查规则 | agent 集成者、本 repo 开发者 |
-| `docs/tool-surface-audit.md` | 17 个公开工具的路由边界、参数风险与迁移关注点 | agent 集成者、本 repo 开发者 |
+| `docs/tool-surface-audit.md` | 21 个公开工具的路由边界、参数风险与迁移关注点 | agent 集成者、本 repo 开发者 |
 | `docs/bridge-boundary.md` | `placefinder` bridge 的接口、职责边界与调用链 | 跨 repo 开发者 |
 | `docs/dependency-chain-ci.md` | 三仓依赖链 CI 的触发、baseline 语义与上线顺序 | 跨 repo 开发者 |
 | `docs/analysis-area-semantics.md` | `analysis_area` 的分页、缓存、`resource_id` 语义 | agent 集成者、本 repo 开发者 |

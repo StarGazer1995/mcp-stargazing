@@ -1,8 +1,8 @@
-"""Thread-safe, bounded lifecycle registry for future background area analysis.
+"""Thread-safe, bounded lifecycle registry for background area analysis.
 
 This module records state only. It does not schedule workers, stop threads,
-publish cached results, or expose MCP tools. A worker must publish its result
-before acknowledging success, and must handle cancellation/deadline rejection.
+publish cached results on its own, or expose MCP tools. A worker supplies a
+publication callback; the registry guards it and success with the same lock.
 """
 
 import math
@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from uuid import uuid4
 
-from src.schemas.tasks import AnalysisTask, TaskFailure, TaskState
+from src.schemas.tasks import AnalysisTask, AreaAnalysisRequest, TaskFailure, TaskState
 
 
 class TaskRegistryCode(StrEnum):
@@ -115,7 +115,11 @@ class AnalysisTaskRegistry:
             raise TaskRegistryError(TaskRegistryCode.UNKNOWN_TASK, 'Task is unknown or evicted.')
         return self._refresh(self._records[task_id], now)
 
-    def submit(self, resource_id: str) -> AnalysisTask:
+    def submit(
+        self,
+        resource_id: str,
+        request: AreaAnalysisRequest | None = None,
+    ) -> AnalysisTask:
         """Atomically reuse active work or allocate one retained task record."""
         if not resource_id or not resource_id.strip():
             raise ValueError('resource_id must be a nonempty area query identity.')
@@ -139,6 +143,7 @@ class AnalysisTaskRegistry:
             record = AnalysisTask(
                 task_id=task_id,
                 resource_id=resource_id,
+                request=request.model_copy(deep=True) if request is not None else None,
                 created_at=now,
                 updated_at=now,
                 deadline_at=now + self._timeout,
@@ -175,6 +180,7 @@ class AnalysisTaskRegistry:
         task_id: str,
         state: TaskState,
         failure: TaskFailure | None = None,
+        publish: Callable[[], str | None] | None = None,
     ) -> AnalysisTask:
         now = self._now()
         record = self._get(task_id, now)
@@ -185,12 +191,16 @@ class AnalysisTaskRegistry:
                 TaskRegistryCode.INVALID_TRANSITION,
                 'Only running tasks can acknowledge completion.',
             )
+        if publish is not None:
+            record = record.model_copy(update={'result_revision': publish()})
         return self._finish(record, state, now, failure).model_copy(deep=True)
 
-    def succeed(self, task_id: str) -> AnalysisTask:
+    def succeed(
+        self, task_id: str, publish: Callable[[], str | None] | None = None
+    ) -> AnalysisTask:
         """Acknowledge successful result publication; late acknowledgements fail."""
         with self._lock:
-            return self._complete(task_id, TaskState.SUCCEEDED)
+            return self._complete(task_id, TaskState.SUCCEEDED, publish=publish)
 
     def fail(self, task_id: str, failure: TaskFailure) -> AnalysisTask:
         with self._lock:

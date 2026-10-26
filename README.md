@@ -115,15 +115,14 @@ Codex/Claude black-box smoke passed before the primary entry point was registere
 astronomy lookup tools remain deferred while long-running task semantics and the 1.0 contract are
 completed.
 
-P5.1 provides an internal, bounded task lifecycle registry for future background area analysis.
-It defines duplicate submission, worker claims, cancellation, deadlines, retention, and runtime
-loss, but does not yet launch workers or expose task tools. Public `task_id` / `progress` fields
-remain reserved. See [Task Lifecycle](docs/task-lifecycle.md) for the current boundary and P5.2
-execution requirements.
+Background area analysis has bounded execution, duplicate submission, cancellation, deadlines,
+retention, and paged result retrieval. The task tools activate optional `task_id` / `progress`
+metadata; running progress is unknown, and runtime loss requires resubmission. See
+[Task Lifecycle](docs/task-lifecycle.md) for the workflow, limits, and recovery semantics.
 
 See [Third-party Agent Contract](docs/agent-contract.md),
 [Workspace Technical Map](docs/workspace-technical-map.md), and
-[Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 17-tool routing and
+[Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 21-tool routing and
 parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md). Evaluation assets
 and the two-client evidence are under [`evaluations/`](evaluations/README.md).
 
@@ -265,17 +264,30 @@ At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned,
   - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters. Each item may also include popularity heuristic fields such as `static_popularity_risk_score`, `night_quiet_likelihood_score`, and `popularity_notes`.
   - **Validation**: `page >= 1`, `page_size >= 1`, and `popularity_radius_km > 0`; invalid arguments return `CONFIGURATION_ERROR`.
 
+Background area tools:
+
+- **`submit_area_analysis`**: accepts a `request` with `bounds` and place-search preferences; returns a task snapshot and normalized request. `max_locations` is 1–100. Deployment paths and execution budgets remain server policy.
+- **`get_area_analysis_task`**: accepts `task_id`; returns state, timestamps, failure details, `execution_pending`, and the successful `result_revision` when present. Polling a failed task succeeds as a status lookup; inspect `data.state` and `data.failure`.
+- **`cancel_area_analysis_task`**: accepts `task_id`; records idempotent cancellation. A running provider call retains its execution slot until it finishes, and its late results are discarded.
+- **`get_area_analysis_result`**: accepts `task_id`, `page`, and `page_size`; returns the existing `AnalysisAreaResult` pagination shape. It never silently recomputes missing data. Expired or replaced publications require resubmission.
+
+Workflow: submit → poll until `succeeded` → fetch pages. Use `plan_stargazing_session` for a complete observing decision; these task tools are for raw place analysis. Existing synchronous `analysis_area` remains available.
+
 ### 5. Error Handling
 
 All tools return JSON-serializable data and use structured error handling:
 
 - **Standard Error Codes**: `INVALID_COORDINATES`, `INVALID_TIMEZONE`, `INVALID_TIME_FORMAT`, `MISSING_API_KEY`, `API_AUTH_FAILURE`, `API_TIMEOUT`, `API_RATE_LIMIT`, `EXTERNAL_API_ERROR`, `NETWORK_ERROR`, `CONFIGURATION_ERROR`
+- **Task Error Codes**: `TASK_NOT_FOUND`, `TASK_RUNTIME_CHANGED`, `TASK_CAPACITY_EXCEEDED`, `TASK_NOT_READY`, `TASK_UNAVAILABLE`, `TASK_RESULT_EXPIRED`; see [task recovery guidance](docs/task-lifecycle.md).
 - **Weather Tools**: Include automatic retry logic for network failures (up to 3 attempts with exponential backoff)
 - **Business Error Responses**: Structured MCPError-derived payloads with actionable messages for calling agents
 - **Protocol Tests**: `tools/list`, `get_tool_catalog`, and SSE request-id behavior are covered by protocol-level tests
 - **Validation**: Input parameters are validated before processing with clear error messages
 
 ## Examples
+
+- **Background Area Analysis**: `python examples/background_area_demo.py`
+  - Submits, polls, and fetches a result page; accepts `--task-id` to resume polling or `--cancel --task-id ...` to cancel explicitly.
 
 - **Nightly Planner**: `python examples/nightly_forecast_demo.py`
   - Shows a curated list of planets and deep-sky objects visible tonight, accounting for moonlight.

@@ -14,7 +14,7 @@ def format_response(
     """
     Format a successful response with standard metadata.
 
-    Reserved fields for future long-task / streaming support:
+    Optional fields used by background area-task tools:
         progress: 0.0–1.0 progress indicator (present only when set).
         task_id:  opaque identifier used to resume or poll a long-running task.
     """
@@ -39,7 +39,7 @@ def format_error(
     This is useful for returning "soft errors" that don't throw an exception,
     allowing the agent to handle the failure gracefully.
 
-    Reserved fields for future long-task / streaming support:
+    Optional background-task correlation:
         task_id: opaque identifier used to correlate errors with a long-running task.
     """
     error_obj = {'code': code, 'message': message}
@@ -72,6 +72,12 @@ class MCPError(Exception):
     EXTERNAL_API_ERROR = ErrorCode.EXTERNAL_API_ERROR.value
     NETWORK_ERROR = ErrorCode.NETWORK_ERROR.value
     CONFIGURATION_ERROR = ErrorCode.CONFIGURATION_ERROR.value
+    TASK_NOT_FOUND = ErrorCode.TASK_NOT_FOUND.value
+    TASK_RUNTIME_CHANGED = ErrorCode.TASK_RUNTIME_CHANGED.value
+    TASK_CAPACITY_EXCEEDED = ErrorCode.TASK_CAPACITY_EXCEEDED.value
+    TASK_NOT_READY = ErrorCode.TASK_NOT_READY.value
+    TASK_UNAVAILABLE = ErrorCode.TASK_UNAVAILABLE.value
+    TASK_RESULT_EXPIRED = ErrorCode.TASK_RESULT_EXPIRED.value
 
     def __init__(
         self,

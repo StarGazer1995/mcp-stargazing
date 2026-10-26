@@ -96,9 +96,10 @@ MCP public contract
 
 ### 5. 长任务只有预留字段
 
-P5.1 已增加 `services/tasks.py` 的进程内任务状态登记、并发去重、领取、超时和保留规则，
-状态快照在 `schemas/tasks.py`。公开 envelope 的 `progress` 和 `task_id` 仍预留，
-后台执行、轮询、取结果和跨进程恢复尚未接入，详见 `task-lifecycle.md`。
+`services/tasks.py` 管理任务状态，`services/area_tasks.py` 管理有界线程执行与实际资源占用，
+`functions/places/tasks_impl.py` 提供四个公共任务工具。取消与超时后的迟到结果在发布前
+被拒绝；缓存发布版本与查询标识分离，分页不能悄悄读到被替换的数据。当前仅进程内恢复，
+断线/重启场景及跨进程策略见 `task-lifecycle.md`。
 
 目标：在真实长任务协议设计完成后再启用，不把普通同步响应伪装成长任务。
 

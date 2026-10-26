@@ -106,9 +106,11 @@ preset 的任一光学字段都可通过 `overrides` 显式覆盖。HOPE D60 + A
 
 ## 目标响应结构
 
-长任务方向：P5.1 已实现应用层状态登记与任务/资源标识约束，详见
-[任务生命周期](task-lifecycle.md)。当前公开工具仍按已有调用方式完成响应，预留的
-`task_id` / `progress` 尚未启用；后台执行、轮询与取结果接口将在 P5.2 接入后验收。
+长任务：`submit_area_analysis`、`get_area_analysis_task`、`cancel_area_analysis_task` 与
+`get_area_analysis_result` 提供应用层区域分析任务，详见 [任务生命周期](task-lifecycle.md)。
+`_meta.task_id` 关联任务；未知运行进度不填 `_meta.progress`，数据中的 `progress` 为 `null`。
+`execution_pending` 独立表达实际工作尚未释放，`result_revision` 绑定一次缓存发布，
+防止旧任务读取被替换的结果。原有工具的默认响应格式与同步调用方式保持兼容。
 
 主规划结果当前稳定表达以下语义；字段将在 1.0 契约冻结阶段正式冻结：
 

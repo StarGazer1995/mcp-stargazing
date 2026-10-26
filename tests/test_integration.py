@@ -1,6 +1,7 @@
 # Import implementation modules to trigger @mcp.tool() registration
 import src.functions.celestial.impl  # noqa: F401
 import src.functions.places.impl  # noqa: F401
+import src.functions.places.tasks_impl  # noqa: F401
 import src.functions.time.impl  # noqa: F401
 import src.functions.weather.impl  # noqa: F401
 from src.server_instance import mcp
@@ -23,6 +24,10 @@ def test_tools_registered():
         registered_tools = list(mcp._tool_manager._tools.keys())
 
     expected_tools = [
+        'submit_area_analysis',
+        'get_area_analysis_task',
+        'cancel_area_analysis_task',
+        'get_area_analysis_result',
         'get_celestial_pos',
         'get_celestial_rise_set',
         'get_weather_by_name',

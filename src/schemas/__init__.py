@@ -63,6 +63,7 @@ from src.schemas.planning import (
     ScoreBreakdown,
     WeatherPlanningSummary,
 )
+from src.schemas.tasks import AnalysisTask, AreaAnalysisRequest, TaskFailure, TaskState
 from src.schemas.weather import (
     AggregatedWeatherResponse,
     CurrentWeather,
@@ -79,6 +80,10 @@ from src.schemas.weather import (
 )
 
 __all__ = [
+    'AnalysisTask',
+    'AreaAnalysisRequest',
+    'TaskFailure',
+    'TaskState',
     'GeoPoint',
     'GeoBounds',
     'TimeInfo',

@@ -5,9 +5,29 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.functions.celestial.impl import build_nightly_forecast_capability
-from src.functions.places.impl import analyze_area_capability
+from src.functions.places.impl import analyze_area_capability, compute_area_locations
 from src.functions.weather.impl import fetch_weather_by_position_capability
+from src.response import MCPError
 from src.schemas import AggregatedWeatherResponse, NightWindow, StargazingLocation
+
+
+@pytest.mark.parametrize('stage', ['construction', 'analysis'])
+@pytest.mark.parametrize(
+    ('failure', 'code'),
+    [
+        (ModuleNotFoundError('unavailable'), MCPError.CONFIGURATION_ERROR),
+        (RuntimeError('provider failed'), MCPError.EXTERNAL_API_ERROR),
+    ],
+)
+def test_shared_place_compute_translates_dependency_and_provider_errors(stage, failure, code):
+    with patch('src.functions.places.impl.StargazingPlaceFinder') as finder:
+        if stage == 'construction':
+            finder.side_effect = failure
+        else:
+            finder.return_value.analyze_area.side_effect = failure
+        with pytest.raises(MCPError) as caught:
+            compute_area_locations({'south': 30, 'west': 119, 'north': 31, 'east': 120})
+    assert caught.value.code == code
 
 
 @pytest.mark.asyncio

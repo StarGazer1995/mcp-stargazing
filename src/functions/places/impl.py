@@ -1,5 +1,6 @@
 import asyncio
 import os
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from src.schemas.places import (
 from src.server_instance import mcp
 
 logger = get_logger(__name__)
+_AREA_COMPUTE_LOCK = threading.RLock()
 
 
 @dataclass(frozen=True)
@@ -155,6 +157,32 @@ async def light_pollution_map(
     return format_response(grid.model_dump())
 
 
+def compute_area_locations(query: dict[str, Any]) -> list[StargazingLocation]:
+    """Compute locations without publishing a cache entry.
+
+    Serialize area calls because SPF reconfigures a process-global analyzer.
+    Background tasks publish only after their terminal-state guard succeeds.
+    """
+    with _AREA_COMPUTE_LOCK:
+        try:
+            resolved_db_path = query.get('db_config_path') or os.environ.get('STARGAZING_DB_CONFIG')
+            finder = StargazingPlaceFinder(
+                db_config_path=Path(resolved_db_path) if resolved_db_path else None
+            )
+            results = finder.analyze_area(
+                **{name: value for name, value in query.items() if name != 'db_config_path'}
+            )
+            return [StargazingLocation.from_spf_location(item) for item in results]
+        except ModuleNotFoundError:
+            raise MCPError(
+                MCPError.CONFIGURATION_ERROR,
+                'stargazing-place-finder is not installed — '
+                'place analysis features are unavailable',
+            ) from None
+        except Exception as exc:
+            raise _translate_spf_error(exc) from exc
+
+
 async def analyze_area_capability(
     south: float,
     west: float,
@@ -209,43 +237,31 @@ async def analyze_area_capability(
     cached = ANALYSIS_CACHE.get(resource_id)
 
     if cached is None:
-
-        def _compute():
-            try:
-                resolved_db_path = db_config_path or os.environ.get('STARGAZING_DB_CONFIG')
-                db_config_p = Path(resolved_db_path) if resolved_db_path else None
-                stargazing_place_finder = StargazingPlaceFinder(db_config_path=db_config_p)
-                results = stargazing_place_finder.analyze_area(
-                    south=south,
-                    west=west,
-                    north=north,
-                    east=east,
-                    min_height_diff=min_height_diff,
-                    road_radius_km=road_radius_km,
-                    max_locations=max_locations,
-                    network_type=network_type,
-                    avoid_popular_spots=avoid_popular_spots,
-                    prefer_quiet_at_night=prefer_quiet_at_night,
-                    popularity_radius_km=popularity_radius_km,
-                )
-                return [StargazingLocation.from_spf_location(item) for item in results]
-            except ModuleNotFoundError:
-                raise MCPError(
-                    MCPError.CONFIGURATION_ERROR,
-                    'stargazing-place-finder is not installed — '
-                    'place analysis features are unavailable',
-                )
-            except Exception as exc:
-                raise _translate_spf_error(exc) from exc
-
         try:
-            cached = await asyncio.to_thread(_compute)
+            cached = await asyncio.to_thread(compute_area_locations, calc_params)
         except MCPError:
             raise
         except Exception as exc:
             raise _translate_spf_error(exc) from exc
         ANALYSIS_CACHE.set(resource_id, cached)
 
+    return build_analysis_page(cached, resource_id, road_radius_km, page, page_size)
+
+
+def build_analysis_page(
+    cached: list[StargazingLocation],
+    resource_id: str,
+    road_radius_km: float,
+    page: int = 1,
+    page_size: int = 10,
+) -> AnalysisAreaCapabilityResult:
+    """Page an existing result without recomputing or changing its cache identity."""
+    if page < 1 or page_size < 1:
+        raise MCPError(
+            MCPError.CONFIGURATION_ERROR,
+            'page and page_size must be greater than or equal to 1.',
+            {'page': page, 'page_size': page_size},
+        )
     total = len(cached)
     start_idx = (page - 1) * page_size
     page_items = cached[start_idx : start_idx + page_size]

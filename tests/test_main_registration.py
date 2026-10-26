@@ -1,6 +1,10 @@
 from conftest import _list_tools
 
 EXPECTED_TOOLS = {
+    'submit_area_analysis',
+    'get_area_analysis_task',
+    'cancel_area_analysis_task',
+    'get_area_analysis_result',
     'analysis_area',
     'get_celestial_pos',
     'get_celestial_rise_set',
