@@ -10,6 +10,7 @@ from src.functions.places.impl import analyze_area_capability
 from src.functions.telescope.impl import build_telescope_targets_capability
 from src.functions.weather.geocoding import resolve_place_name
 from src.functions.weather.impl import fetch_weather_by_position_capability
+from src.functions.weather.spatial import fetch_spatial_weather
 from src.logging_config import set_request_id
 from src.response import MCPError, format_response
 from src.schemas.places import StargazingLocation
@@ -58,6 +59,7 @@ def _build_planning_service() -> PlanningService:
             now=lambda: datetime.now(UTC),
             resolve_place=_resolve_place,
             fetch_equipment_targets=build_telescope_targets_capability,
+            fetch_spatial_weather=fetch_spatial_weather,
         )
     )
 

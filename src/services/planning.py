@@ -59,6 +59,7 @@ from src.utils import (
 
 PlaceSearch = Callable[..., Awaitable[dict[str, Any]]]
 WeatherFetch = Callable[..., Awaitable[dict[str, Any]]]
+SpatialWeatherFetch = Callable[..., Awaitable[dict[str, Any]]]
 ForecastFetch = Callable[..., Awaitable[dict[str, Any]]]
 NightWindowFetch = Callable[[float, float, datetime], Awaitable[NightWindow]]
 PlaceResolver = Callable[[str], Awaitable[Any]]
@@ -77,6 +78,7 @@ class PlanningDependencies:
     now: Clock
     resolve_place: PlaceResolver | None = None
     fetch_equipment_targets: EquipmentTargetFetch | None = None
+    fetch_spatial_weather: SpatialWeatherFetch | None = None
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,7 @@ class _WeatherScreen:
 
     data: dict[str, Any] | None
     note: str | None
+    spatial_cloud_cover_percent: float | None = None
 
 
 _STYLE_PROFILES = {
@@ -136,6 +139,7 @@ _LOCATION_RECALL_MULTIPLIER = 5
 _MIN_LOCATION_RECALL = 10
 _TARGET_EVALUATION_MULTIPLIER = 2
 _MIN_TARGET_EVALUATIONS = 3
+_SPATIAL_CLOUD_BLEND = 0.3
 
 
 def _location_recall_limit(candidate_limit: int, max_locations: int) -> int:
@@ -291,6 +295,7 @@ def _compute_recommendation_score(
     moon_illumination: float | None,
     observation_style: ObservationStyle,
     popularity_adjustment: float,
+    spatial_cloud_cover_percent: float | None = None,
 ) -> ScoreBreakdown:
     profile = _STYLE_PROFILES[observation_style]
     weather_score = 55.0
@@ -303,6 +308,12 @@ def _compute_recommendation_score(
             weather_score -= min(20.0, (float(weather_summary.wind_speed_kph) - 20.0) * 1.2)
     if best_window is not None and best_window.precipitation_probability is not None:
         weather_score -= float(best_window.precipitation_probability) * 20.0
+    if spatial_cloud_cover_percent is not None and math.isfinite(spatial_cloud_cover_percent):
+        spatial_cloud_score = 100.0 - max(0.0, min(100.0, spatial_cloud_cover_percent))
+        weather_score = (
+            weather_score * (1.0 - _SPATIAL_CLOUD_BLEND)
+            + spatial_cloud_score * _SPATIAL_CLOUD_BLEND
+        )
     if moon_illumination is not None and moon_illumination > 0.7:
         weather_score -= (moon_illumination - 0.7) * 25.0 * profile.moon_penalty_multiplier
     place_score = float(location.score or 0.0)
@@ -587,6 +598,14 @@ class PlanningService:
         forecast_data, forecast_note = forecast_result
         if weather_note:
             notes.append(f'天气摘要降级处理：{weather_note}')
+        if (
+            prefetched_weather is not None
+            and prefetched_weather.spatial_cloud_cover_percent is not None
+        ):
+            notes.append(
+                '区域空间天气参考云量约 '
+                f'{prefetched_weather.spatial_cloud_cover_percent:.0f}%，已用于区域比较。'
+            )
         if forecast_note:
             notes.append(f'夜间目标降级处理：{forecast_note}')
         weather_summary = _build_weather_summary(weather_data)
@@ -611,6 +630,7 @@ class PlanningService:
             moon_illumination,
             observation_style,
             popularity_adjustment,
+            prefetched_weather.spatial_cloud_cover_percent if prefetched_weather else None,
         )
         reasons = _build_recommendation_reasons(
             location,
@@ -693,8 +713,37 @@ class PlanningService:
         weather_screens = await asyncio.gather(
             *[self._screen_weather(location, weather_provider) for location in locations]
         )
+        spatial_data: dict[str, Any] | None = None
+        spatial_note: str | None = None
+        if self._dependencies.fetch_spatial_weather is not None and locations:
+            spatial_data, spatial_note = await self._fetch_optional(
+                self._dependencies.fetch_spatial_weather(
+                    south=south,
+                    west=west,
+                    north=north,
+                    east=east,
+                    time=time,
+                    time_zone=time_zone,
+                    locations=[
+                        {'lat': location.lat, 'lon': location.lon} for location in locations
+                    ],
+                )
+            )
+        spatial_samples = (spatial_data or {}).get('samples', [])
         screened_candidates: list[tuple[float, StargazingLocation, _WeatherScreen]] = []
-        for location, weather_screen in zip(locations, weather_screens, strict=True):
+        for index, (location, weather_screen) in enumerate(
+            zip(locations, weather_screens, strict=True)
+        ):
+            spatial_cloud = None
+            if index < len(spatial_samples) and isinstance(spatial_samples[index], dict):
+                raw_cloud = spatial_samples[index].get('cloud_cover_percent')
+                if isinstance(raw_cloud, (int, float)) and math.isfinite(raw_cloud):
+                    spatial_cloud = float(raw_cloud)
+            weather_screen = _WeatherScreen(
+                data=weather_screen.data,
+                note=weather_screen.note,
+                spatial_cloud_cover_percent=spatial_cloud,
+            )
             weather_summary = _build_weather_summary(weather_screen.data)
             best_window = None
             if weather_screen.data is not None:
@@ -711,6 +760,7 @@ class PlanningService:
                 None,
                 style,
                 popularity_adjustment,
+                spatial_cloud,
             ).final_score
             screened_candidates.append((screen_score, location, weather_screen))
         screened_candidates.sort(key=lambda item: item[0], reverse=True)
@@ -746,7 +796,10 @@ class PlanningService:
         drivers = _derive_primary_recommendation_drivers(
             top_candidate, avoid_popular_spots, prefer_quiet_at_night, style
         )
-        warnings = sorted({note for candidate in candidates for note in candidate.notes})
+        warning_notes = {note for candidate in candidates for note in candidate.notes}
+        if spatial_note:
+            warning_notes.add(f'空间天气粗排降级处理：{spatial_note}')
+        warnings = sorted(warning_notes)
         return BestStargazingPlan(
             query=PlanningQuery(
                 south=south,

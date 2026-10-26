@@ -108,6 +108,104 @@ async def test_planning_service_preserves_partial_results_when_weather_fails():
 
 
 @pytest.mark.asyncio
+async def test_spatial_weather_can_reverse_regional_ranking():
+    locations = [
+        {
+            'name': 'Static Leader',
+            'lat': 40.10,
+            'lon': 116.10,
+            'score': 80.0,
+            'bortle_class': 3,
+        },
+        {
+            'name': 'Static Runner',
+            'lat': 40.20,
+            'lon': 116.20,
+            'score': 78.0,
+            'bortle_class': 3,
+        },
+        {
+            'name': 'Static Third',
+            'lat': 40.30,
+            'lon': 116.30,
+            'score': 76.0,
+            'bortle_class': 4,
+        },
+        {
+            'name': 'Regional Clear Ridge',
+            'lat': 40.40,
+            'lon': 116.40,
+            'score': 72.0,
+            'bortle_class': 4,
+        },
+    ]
+    forecast_calls: list[float] = []
+
+    async def search_places(**_kwargs):
+        return {'resource_id': 'spatial-test', 'items': locations}
+
+    async def fetch_weather(**_kwargs):
+        return {
+            'summary': {
+                'current': {
+                    'weather_text': 'Cloudy',
+                    'cloud_cover_percent': 50.0,
+                    'visibility_km': 10.0,
+                    'wind_speed_kph': 5.0,
+                },
+                'hourly': [],
+            }
+        }
+
+    async def fetch_spatial_weather(**_kwargs):
+        return {
+            'samples': [
+                {'cloud_cover_percent': 100.0},
+                {'cloud_cover_percent': 100.0},
+                {'cloud_cover_percent': 100.0},
+                {'cloud_cover_percent': 0.0},
+            ]
+        }
+
+    async def fetch_forecast(**kwargs):
+        forecast_calls.append(float(kwargs['lat']))
+        return {
+            'moon_phase': {'phase_name': 'New Moon', 'illumination': 0.02},
+            'planets': [],
+            'deep_sky': [],
+        }
+
+    async def fetch_night_window(_lat, _lon, _reference):
+        return _night_window()
+
+    service = PlanningService(
+        PlanningDependencies(
+            search_places=search_places,
+            fetch_weather=fetch_weather,
+            fetch_forecast=fetch_forecast,
+            fetch_night_window=fetch_night_window,
+            fetch_spatial_weather=fetch_spatial_weather,
+            now=lambda: datetime(2026, 10, 24, 9, 0, tzinfo=UTC),
+        )
+    )
+
+    plan = await service.build_best_plan(
+        south=40.0,
+        west=116.0,
+        north=40.5,
+        east=116.5,
+        time='2024-06-15 22:00:00',
+        time_zone='Asia/Shanghai',
+        candidate_limit=1,
+        max_locations=4,
+    )
+
+    assert plan.summary.recommended_location_name == 'Regional Clear Ridge'
+    assert len(forecast_calls) == 3
+    assert '区域空间天气参考云量约 0%，已用于区域比较。' in plan.candidates[0].notes
+
+
+@pytest.mark.asyncio
 async def test_planning_service_raises_structured_validation_errors():
     with pytest.raises(MCPError) as error:
         await _service().build_best_plan(

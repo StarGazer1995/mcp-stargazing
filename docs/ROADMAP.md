@@ -134,8 +134,9 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 - ✅ Replaced the bounded downstream evaluation with low-cost dynamic weather screening and
   expensive night-window/target evaluation only for the strongest internal candidates; regression
   coverage verifies the recall pool is screened while downstream calls stay bounded.
-- Use the spatial weather primitives already available in `stargazing-core` where they improve
-  regional comparison.
+- ✅ Use the spatial weather primitives already available in `stargazing-core`: one regional
+  cloud-cover grid is sampled at the recall candidates and blended into ranking, with graceful
+  fallback to point weather when the spatial model is unavailable.
 - Replace the best-single-hour heuristic with continuous observing windows that account for
   cloud persistence, precipitation, wind, moon events, target altitude, and equipment needs.
 - Make SPF and MCP ownership of popularity scoring explicit so that the same heuristic is not
