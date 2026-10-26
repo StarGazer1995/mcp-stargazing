@@ -57,8 +57,8 @@ MCP Transport Layer:   Streamable HTTP (:3001)  |  SSE  |  Local (stdio)
 - **celestial** — 6 async tools: positions, rise/set, moon, planets, constellation, nightly forecast
 - **telescope** — 2 async tools: target matching for telescope optics, shooting plan generation
 - **weather** — 2 sync tools (with retry): weather by name, weather by position. Multi-provider aggregation.
-- **places** — 2 async tools: light pollution map, analysis area (paginated + cached)
-- **planning** — 2 async tools: single-night and multi-night composite planning
+- **places** — 6 async tools: light pollution, synchronous area analysis, and four background task tools
+- **planning** — 3 async tools: agent-native, single-night, and multi-night composite planning
 - **time** — 1 sync tool: local datetime info
 - **metadata** — 1 sync tool: tool catalog discovery
 
@@ -114,7 +114,7 @@ src/
 │           ├── qweather.py
 │           └── wttr.py
 │
-├── tests/                   # Full pytest/pytest-asyncio harness for all 17 tools
+├── tests/                   # Full pytest/pytest-asyncio harness for all 21 tools
 ├── examples/                # Runnable demos, including both telescope tools
 ├── docs/                    # Design docs and ROADMAP.md
 ├── Dockerfile               # Multi-stage build (test + production)
@@ -148,7 +148,7 @@ src/
 ## Testing
 
 - Config in `pyproject.toml`: `pythonpath = ["src"]`, `testpaths = ["tests"]`
-- Full pytest suite covering all 17 MCP tools, error paths, edge cases, protocols, docs contracts, and config
+- Full pytest suite covering all 21 MCP tools, error paths, edge cases, protocols, docs contracts, and config
 - `test_mcp_client.py` — MCP protocol tests (tools/list, tools/call, SSE request-id)
 - `test_mcp_tools.py` — every tool's `.fn` wrapper (success + error + edge cases)
 - `test_supervisord_config.py` — 15 tests: supervisor config ↔ Dockerfile consistency

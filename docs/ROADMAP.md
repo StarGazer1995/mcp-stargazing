@@ -6,6 +6,11 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
+- **P5.2 background area analysis** — Four task tools provide bounded submission, polling,
+  cancellation, and cached pagination. Physical execution stays bounded after logical cancellation
+  or timeout, and guarded publication/revision checks prevent late or replaced results from being
+  read as the task's result. Existing synchronous tools and the pre-1.0 schemas remain compatible.
+
 - **Pre-1.0 schema baseline** — The existing 17 SDK-generated tool schemas, primary/composite
   planning and area-result models, default response envelopes, and public error codes are saved
   in `tests/public_schema_baseline.json`. Application and real MCP protocol tests protect the
@@ -88,7 +93,7 @@ The following baseline capabilities are already implemented and should no longer
 
 ### Test coverage
 
-- The pytest suite covers all 17 MCP tools, including success, structured-error, edge-case, serialization, protocol, documentation-contract, and deployment-config paths.
+- The pytest suite covers all 21 MCP tools, including success, structured-error, edge-case, serialization, protocol, documentation-contract, and deployment-config paths.
 - `test_mcp_tools.py` centralizes tool-wrapper coverage.
 - `test_supervisord_config.py` validates deployment config consistency.
 
@@ -107,7 +112,7 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   establish the current planning baseline.
 - ✅ Define the target third-party-agent contract, three-repository technical map, and staged
   implementation checklist.
-- Audit all 17 public tools for agent routing guidance, infrastructure leakage, and compatibility
+- Audit all 21 public tools for agent routing guidance, infrastructure leakage, and compatibility
   risk.
 - ✅ Capture the pre-1.0 schema baseline with SDK and real `tools/list` checks.
 - Define deprecation rules and review intentional changes against the saved baseline.
@@ -175,8 +180,9 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   call and returned the expected HOPE D60 + ASI2600MC Air answer (2/2 representative smoke).
 - ✅ P5.1 defines the internal lifecycle and task/resource identity boundary, with deterministic
   concurrency, timeout, retention, and runtime-loss tests. See `docs/task-lifecycle.md`.
-- P5.2 must bind bounded background execution, polling, cancellation, and paged result retrieval
-  before activating the reserved `task_id` / `progress` fields for long-running area analysis.
+- ✅ P5.2 binds bounded background execution, status polling, cancellation, and paged result
+  retrieval through four application-level tools, activating optional task metadata only there.
+- Extend long-task acceptance with disconnect/reconnect and actual process-restart scenarios.
 - Preserve paging and `resource_id` semantics while adding polling, resumption, expiry, and
   restart behavior.
 
@@ -191,7 +197,7 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 
 - `AGENTS.md`, `README.md`, `docs/ROADMAP.md`, and the agent-contract documents are checked for
   current paths and dependency floors.
-- ✅ Harness tests exist for all 17 tools: success, error, edge cases, and documentation contracts.
+- ✅ Harness tests exist for all 21 tools: success, error, edge cases, and documentation contracts.
 - ✅ All new features documented in `README.md`, `AGENTS.md`, and `CLAUDE.md`.
 - Cross-repository compatibility is enforced by the wheel-level dependency-chain CI. Per-repository documentation is checked by the owning repository's own contract tests.
 - ✅ Example scripts are available for `get_telescope_targets` and `get_shooting_plan`.

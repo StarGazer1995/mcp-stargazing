@@ -96,8 +96,10 @@ prefer_quiet_at_night, popularity_radius_km, db_config_path
 
 ### 边界情况
 
-P5.1 的内部任务 registry 复用此查询标识；`task_id` 另外标识一次执行，尚未加入
-`analysis_area` 公共响应。任务保留与结果缓存独立，不能从任务成功状态推断缓存仍有效。
+后台区域任务复用此查询标识，`task_id` 另外标识一次执行；同步 `analysis_area` 的响应
+保持兼容。任务保留与结果缓存独立，不能从任务成功状态推断缓存仍有效。缓存每次发布
+另有内部 revision，任务取结果校验 `result_revision`；被同查询的后续发布替换也视为原结果
+不可再读取。revision 不改变 `resource_id` 或既有 `AnalysisAreaResult` 的字段。
 详见 [任务生命周期](task-lifecycle.md)。
 
 - 搜索参数变化（如 `max_locations` 从 30 改为 50）→ 新的 `resource_id` + 新的缓存条目

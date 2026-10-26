@@ -16,6 +16,10 @@ from conftest import (
 )
 
 EXPECTED_TOOLS = {
+    'submit_area_analysis',
+    'get_area_analysis_task',
+    'cancel_area_analysis_task',
+    'get_area_analysis_result',
     'analysis_area',
     'get_celestial_pos',
     'get_celestial_rise_set',
@@ -237,6 +241,68 @@ def test_tools_list_preserves_pre1_schema_baseline(running_mcp_server):
     for name, expected in baseline.items():
         assert listed[name]['inputSchema'] == expected['inputSchema'], name
         assert listed[name].get('outputSchema') == expected['outputSchema'], name
+
+
+@pytest.mark.parametrize(
+    'tool_name',
+    ['get_area_analysis_task', 'cancel_area_analysis_task', 'get_area_analysis_result'],
+)
+def test_background_control_errors_remain_structured_over_http(running_mcp_server, tool_name):
+    host, port, path, session_id = running_mcp_server
+    payload = _call_tool(host, port, path, session_id, tool_name, {'task_id': 'malformed'})
+    assert payload['id'] == f'call-{tool_name}'
+    assert payload['result']['isError'] is False
+    body = payload['result']['structuredContent']
+    assert body['_meta']['status'] == 'error'
+    assert body['error']['code'] == 'CONFIGURATION_ERROR'
+    assert json.loads(payload['result']['content'][0]['text']) == body
+
+
+def test_background_request_schema_exposes_budget_without_server_paths(running_mcp_server):
+    host, port, path, session_id = running_mcp_server
+    listed = {tool['name']: tool for tool in _list_tool_entries(host, port, path, session_id)}
+    submit = listed['submit_area_analysis']
+    schema = submit['inputSchema']
+    request_schema = schema['$defs']['AreaAnalysisRequest']
+    assert schema['required'] == ['request']
+    assert request_schema['required'] == ['bounds']
+    assert request_schema['properties']['max_locations']['maximum'] == 100
+    assert 'db_config_path' not in request_schema['properties']
+    assert submit['annotations']['readOnlyHint'] is False
+    assert listed['cancel_area_analysis_task']['annotations']['idempotentHint'] is True
+    assert listed['get_area_analysis_result']['annotations']['readOnlyHint'] is True
+    payload = _call_tool(
+        host,
+        port,
+        path,
+        session_id,
+        'submit_area_analysis',
+        {
+            'request': {
+                'bounds': {'south': 30, 'west': 119, 'north': 31, 'east': 120},
+                'max_locations': 101,
+            }
+        },
+    )
+    message = _assert_error_tool_payload(payload, 'call-submit_area_analysis')
+    assert 'max_locations' in message
+    # FastMCP compresses additionalProperties out of tools/list; enforce the
+    # infrastructure boundary through actual validation as well as field names.
+    payload = _call_tool(
+        host,
+        port,
+        path,
+        session_id,
+        'submit_area_analysis',
+        {
+            'request': {
+                'bounds': {'south': 30, 'west': 119, 'north': 31, 'east': 120},
+                'db_config_path': '/private/server-data',
+            }
+        },
+    )
+    message = _assert_error_tool_payload(payload, 'call-submit_area_analysis')
+    assert 'db_config_path' in message
 
 
 def test_sse_tools_call_preserves_request_id(running_mcp_sse_server):

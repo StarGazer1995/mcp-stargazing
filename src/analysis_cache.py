@@ -5,12 +5,14 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
+from uuid import uuid4
 
 
 @dataclass
 class AnalysisCacheItem:
-    results: list[dict[str, Any]]
+    results: list[Any]
     created_at: float = field(default_factory=time.time)
+    revision: str = field(default_factory=lambda: uuid4().hex)
 
 
 class AnalysisCache:
@@ -25,26 +27,31 @@ class AnalysisCache:
         self.maxsize = maxsize
         self._lock = threading.Lock()
 
-    def get(self, key: str) -> list[dict[str, Any]] | None:
+    def get(self, key: str) -> list[Any] | None:
+        cached = self.get_versioned(key)
+        return cached[0] if cached is not None else None
+
+    def get_versioned(self, key: str) -> tuple[list[Any], str] | None:
+        """Read the payload and its publication identity under the same lock."""
         with self._lock:
             item = self._cache.get(key)
             if item is None:
                 return None
             if time.time() - item.created_at < self.ttl:
                 self._cache.move_to_end(key)
-                return item.results
+                return item.results, item.revision
             del self._cache[key]
             return None
 
-    def set(self, key: str, results: list[dict[str, Any]]):
+    def set(self, key: str, results: list[Any]) -> str:
         with self._lock:
             if key in self._cache:
                 self._cache.move_to_end(key)
-                self._cache[key] = AnalysisCacheItem(results=results)
-                return
-            if len(self._cache) >= self.maxsize:
+            elif len(self._cache) >= self.maxsize:
                 self._cache.popitem(last=False)
-            self._cache[key] = AnalysisCacheItem(results=results)
+            item = AnalysisCacheItem(results=results)
+            self._cache[key] = item
+            return item.revision
 
 
 # Global cache instance

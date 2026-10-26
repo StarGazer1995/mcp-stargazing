@@ -9,6 +9,7 @@ FastMCP 服务实例。
 
 import copy
 import inspect
+from contextlib import asynccontextmanager
 from typing import Any
 
 try:
@@ -27,8 +28,9 @@ except ModuleNotFoundError:  # pragma: no cover
     class FastMCP:  # type: ignore
         """测试用 FastMCP 替身（仅实现 tool 装饰器）。"""
 
-        def __init__(self, name: str):
+        def __init__(self, name: str, *, lifespan=None):
             self.name = name
+            self.lifespan = lifespan
 
         def tool(self):
             def decorator(fn):
@@ -38,8 +40,8 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 class MCP:
-    def __init__(self, name: str):
-        self._mcp = FastMCP(name)
+    def __init__(self, name: str, *, lifespan=None):
+        self._mcp = FastMCP(name, lifespan=lifespan) if lifespan is not None else FastMCP(name)
         self._tool_metadata: dict[str, dict[str, Any]] = {}
         self._tool_manager = getattr(self._mcp, '_tool_manager', None)
 
@@ -128,5 +130,15 @@ class MCP:
         return getattr(self._mcp, item)
 
 
+@asynccontextmanager
+async def _server_lifespan(_server):
+    try:
+        yield {}
+    finally:
+        from src.functions.places.tasks_impl import shutdown_area_tasks
+
+        shutdown_area_tasks()
+
+
 # Initialize MCP instance
-mcp = MCP('mcp-stargazing')
+mcp = MCP('mcp-stargazing', lifespan=_server_lifespan)

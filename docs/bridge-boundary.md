@@ -98,6 +98,11 @@ MCP Agent
 
 ## 测试覆盖
 
+后台任务与同步区域分析复用 `compute_area_locations` 和 `build_analysis_page`。
+前者只计算而不发布缓存；任务执行器在取消/超时状态检查与成功确认的同一锁范围内发布。
+区域计算会串行进入 SPF 的全局 analyzer，避免后台与同步请求同时重新配置该单例。
+线程执行配额与地点计算锁是不同边界，详见 `task-lifecycle.md`。
+
 | 测试文件 | 覆盖内容 |
 |---------|---------|
 | `tests/test_paths.py` | 仓库路径常量 |

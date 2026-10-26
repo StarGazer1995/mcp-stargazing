@@ -10,6 +10,7 @@ from starlette.responses import JSONResponse
 import src.functions.celestial.impl  # noqa: F401
 import src.functions.metadata.impl  # noqa: F401
 import src.functions.places.impl  # noqa: F401
+import src.functions.places.tasks_impl  # noqa: F401
 import src.functions.planning.agent_impl  # noqa: F401
 import src.functions.planning.impl  # noqa: F401
 import src.functions.telescope.impl  # noqa: F401
