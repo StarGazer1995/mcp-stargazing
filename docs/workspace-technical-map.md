@@ -96,7 +96,9 @@ MCP public contract
 
 ### 5. 长任务只有预留字段
 
-响应 envelope 已预留 `progress` 和 `task_id`，但尚无持久任务生命周期、轮询、恢复或跨进程资源语义。
+P5.1 已增加 `services/tasks.py` 的进程内任务状态登记、并发去重、领取、超时和保留规则，
+状态快照在 `schemas/tasks.py`。公开 envelope 的 `progress` 和 `task_id` 仍预留，
+后台执行、轮询、取结果和跨进程恢复尚未接入，详见 `task-lifecycle.md`。
 
 目标：在真实长任务协议设计完成后再启用，不把普通同步响应伪装成长任务。
 
