@@ -11,6 +11,11 @@ The following baseline capabilities are already implemented and should no longer
   in `tests/public_schema_baseline.json`. Application and real MCP protocol tests protect the
   baseline; new tools can be added without silently changing existing contracts.
 
+- **P5.1 internal task lifecycle** — A bounded, thread-safe area-task registry now defines
+  atomic worker claims, duplicate submission, cancellation, deadline, expiry, immutable status
+  snapshots, and explicit runtime-loss behavior. This foundation does not schedule workers or
+  register task tools; public task metadata remains reserved until the execution adapter lands.
+
 - **P3.6 popularity ownership** — Composite planners request SPF place scores with both
   popularity preference flags disabled, then apply the user's preferences once in MCP.
   Standalone `analysis_area` retains SPF-owned preference scoring; planning resource IDs
@@ -168,8 +173,10 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   stable equipment presets.
 - ✅ Codex CLI and Claude Code each selected the candidate primary planner on the first actual tool
   call and returned the expected HOPE D60 + ASI2600MC Air answer (2/2 representative smoke).
-- Define a real task lifecycle before activating the reserved `task_id` / `progress` fields for
-  long-running area analysis.
+- ✅ P5.1 defines the internal lifecycle and task/resource identity boundary, with deterministic
+  concurrency, timeout, retention, and runtime-loss tests. See `docs/task-lifecycle.md`.
+- P5.2 must bind bounded background execution, polling, cancellation, and paged result retrieval
+  before activating the reserved `task_id` / `progress` fields for long-running area analysis.
 - Preserve paging and `resource_id` semantics while adding polling, resumption, expiry, and
   restart behavior.
 

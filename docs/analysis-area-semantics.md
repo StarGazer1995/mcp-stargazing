@@ -91,10 +91,14 @@ prefer_quiet_at_night, popularity_radius_km, db_config_path
 ### 稳定性
 
 - 同一组搜索参数在同一进程中产生相同的 `resource_id`
-- 跨进程、跨启动时可能不同（缓存是进程内缓存，不持久化）
+- 相同序列化搜索参数跨进程、跨启动仍产生相同标识；进程内缓存内容不持久化，相同标识不代表重启后仍有结果
 - 参数顺序不影响 `resource_id`（内部排序后序列化）
 
 ### 边界情况
+
+P5.1 的内部任务 registry 复用此查询标识；`task_id` 另外标识一次执行，尚未加入
+`analysis_area` 公共响应。任务保留与结果缓存独立，不能从任务成功状态推断缓存仍有效。
+详见 [任务生命周期](task-lifecycle.md)。
 
 - 搜索参数变化（如 `max_locations` 从 30 改为 50）→ 新的 `resource_id` + 新的缓存条目
 - 热门度偏好变化（如 `avoid_popular_spots=false → true` 或 `popularity_radius_km=3 → 5`）→ 新的 `resource_id` + 新的缓存条目

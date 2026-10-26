@@ -115,6 +115,12 @@ Codex/Claude black-box smoke passed before the primary entry point was registere
 astronomy lookup tools remain deferred while long-running task semantics and the 1.0 contract are
 completed.
 
+P5.1 provides an internal, bounded task lifecycle registry for future background area analysis.
+It defines duplicate submission, worker claims, cancellation, deadlines, retention, and runtime
+loss, but does not yet launch workers or expose task tools. Public `task_id` / `progress` fields
+remain reserved. See [Task Lifecycle](docs/task-lifecycle.md) for the current boundary and P5.2
+execution requirements.
+
 See [Third-party Agent Contract](docs/agent-contract.md),
 [Workspace Technical Map](docs/workspace-technical-map.md), and
 [Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 17-tool routing and

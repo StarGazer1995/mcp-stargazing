@@ -127,6 +127,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 | `docs/bridge-boundary.md` | `placefinder` bridge 的接口、职责边界与调用链 | 跨 repo 开发者 |
 | `docs/dependency-chain-ci.md` | 三仓依赖链 CI 的触发、baseline 语义与上线顺序 | 跨 repo 开发者 |
 | `docs/analysis-area-semantics.md` | `analysis_area` 的分页、缓存、`resource_id` 语义 | agent 集成者、本 repo 开发者 |
+| `docs/task-lifecycle.md` | 长任务状态、保留、重启语义和后台执行接入边界 | 本 repo 开发者、agent 集成者 |
 | `docs/workspace-action-checklist.md` | workspace 级任务清单与验收标准 | 本 repo 开发者 |
 | `docs/workspace-technical-map.md` | workspace 级架构总览与技术债热点 | 本 repo 开发者 |
 
