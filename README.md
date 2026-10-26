@@ -127,6 +127,10 @@ See [Third-party Agent Contract](docs/agent-contract.md),
 parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md). Evaluation assets
 and the two-client evidence are under [`evaluations/`](evaluations/README.md).
 
+The [pre-1.0 public schema baseline](docs/public-contract-baseline.md) records the existing tool
+schemas and detailed planning/area models. SDK and real `tools/list` tests detect contract drift
+before new tools are added.
+
 ### 1. Environment Setup
 
 Create a `.env` file or export variables:

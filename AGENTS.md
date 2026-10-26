@@ -122,6 +122,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 | `AGENTS.md` | 开发规范、注册约定、错误处理规则 | 本 repo 开发者 |
 | `docs/ROADMAP.md` | 能力面状态、已完成 / 计划中的工作 | 本 repo 开发者、PM |
 | `docs/agent-contract.md` | 第三方 agent 的目标契约、公共参数边界与黑盒验收 | agent 集成者、本 repo 开发者 |
+| `docs/public-contract-baseline.md` | 1.0 前 schema 快照、兼容检查与变更审查规则 | agent 集成者、本 repo 开发者 |
 | `docs/tool-surface-audit.md` | 17 个公开工具的路由边界、参数风险与迁移关注点 | agent 集成者、本 repo 开发者 |
 | `docs/bridge-boundary.md` | `placefinder` bridge 的接口、职责边界与调用链 | 跨 repo 开发者 |
 | `docs/dependency-chain-ci.md` | 三仓依赖链 CI 的触发、baseline 语义与上线顺序 | 跨 repo 开发者 |
