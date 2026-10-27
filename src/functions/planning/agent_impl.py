@@ -11,10 +11,17 @@ from src.server_instance import mcp
     name='plan_stargazing_session',
     description=(
         'Preferred end-to-end planning entry point for choosing when, where, and what to observe '
-        'across one to seven nights. Use it with a place name, center/radius, or exact bounds and '
-        'optional equipment; it returns a decision, alternatives, evidence, uncertainties, '
-        'ranking-change conditions, and next actions. Do not use it for raw weather or celestial '
-        'lookup requests.'
+        'across one to seven nights.\n\n'
+        'Use when: you need a complete observing decision or comparisons of places and nights.\n'
+        'Do not use when: you only need raw weather, celestial facts, or task status.\n'
+        'Requires: request.location (place name, center/radius, or exact bounds) and start_date; '
+        'timezone, one-to-seven nights, observing goal, equipment preset/overrides, '
+        'and constraints have explicit defaults or are optional.\n'
+        'Returns: normalized request, decision, alternatives, evidence, uncertainties, '
+        'missing inputs, ranking-change conditions, and next actions in the standard envelope.\n'
+        'Follow-up: get_shooting_plan for an imaging schedule at the selected place/night; '
+        'get_weather_by_position for updated weather facts. Inspect missing inputs and '
+        'next actions before treating a degraded decision as final.'
     ),
     annotations={
         'title': 'Plan Stargazing Session',

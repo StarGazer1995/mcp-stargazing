@@ -14,10 +14,13 @@
 - [x] 增加文档引用与运行依赖版本的防漂移测试；
 - [x] 合并 multi-night / night-window 变更；发版仍由独立发布指令触发；
 - [x] 对原有 16 个工具形成公共参数审计表，并在注册主入口后扩展为 17 个；
-- [ ] 为每个工具补充稳定的 `use when` / `do not use when` 路由说明；
+- [x] 为每个工具补充稳定的使用/误用边界、前置输入、返回内容和后续工具说明；
 - [x] 保存 1.0 前公共 schema baseline，并通过真实 `tools/list` 与详细模型检查保护既有接口。
 
 验收：README、工具目录、依赖下限和 docs 引用由测试保护；第三方目标契约成为新增 agent-facing 能力的评审依据。
+
+路由说明已经进入全部 21 个工具的标准 MCP description。SDK 和真实 HTTP 发现测试
+验证说明完整、后续工具确实已注册，并可从既有 catalog 字段读取；历史 schema 基线保持不变。
 
 ## P1：应用服务边界
 
@@ -111,7 +114,7 @@ P5.2 已接入有界后台执行与四个公共工具，通过真实 MCP SDK 工
 底层同步调用无法强制停止，取消或超时后仍保留执行配额直至实际结束。P5.3 已补齐独立
 进程和 HTTP 连接的恢复验收；P5.4 已完成只读查询与恢复判断，P5.5 使用真实 worker 和受控
 provider 补齐主动操作验收。证据和边界见 `evaluations/reports/2026-10-27-task-recovery.md`
-与 `evaluations/reports/2026-10-27-task-actions.md`。下一步补齐 P0 工具路由说明并推进 P6；
+与 `evaluations/reports/2026-10-27-task-actions.md`。P0 工具路由说明已补齐，下一步推进 P6；
 这些抽样验收不代表真实 provider 可用性或全部模型、语言改写均已覆盖。
 
 ## P6：1.0 契约冻结

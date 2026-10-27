@@ -221,6 +221,13 @@ Business validation failures use the same envelope style:
 
 At the MCP protocol layer, `tools/list` and `get_tool_catalog` are kept aligned, and JSON-RPC request ids are preserved in both SHTTP and SSE transport tests.
 
+Every tool's standard MCP description includes **Use when**, **Do not use when**, **Requires**,
+**Returns**, and **Follow-up** guidance. These explain the primary planner versus compatibility
+entries, facts versus observing decisions, synchronous versus background area searches, and
+common scope traps such as server-local time and constellation-center lookup. The wrapped catalog
+keeps its summary `description` and full `docstring`; explicit decorator descriptions are complete
+and take precedence. See the [tool routing audit](docs/tool-surface-audit.md).
+
 ### 4. Available Tools
 
 - **`get_celestial_pos`**: Calculate altitude/azimuth.

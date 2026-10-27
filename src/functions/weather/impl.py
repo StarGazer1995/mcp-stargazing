@@ -120,6 +120,13 @@ def get_weather_by_name(place_name: str, provider: str = 'all'):
     """
     通过地点名称获取综合天气（当前 + 小时预报 + 日预报）。
 
+    Use when: you have a place name and need weather facts for that resolved location.
+    Do not use when: you already have exact coordinates or need a complete observing decision.
+    Requires: an unambiguous place name; use full administrative names for Chinese locations.
+        Provider selection can remain at the server's default aggregation policy.
+    Follow-up: get_weather_by_position for precise coordinates; plan_stargazing_session
+        to combine weather with darkness, targets, and alternative observing sites.
+
     Geocoding uses offline China gazetteer (CJK) → Photon → Nominatim cascade.
     Weather data is aggregated from multiple providers with graceful
     fallback — open-meteo is always available without an API key.
@@ -146,6 +153,12 @@ def get_weather_by_name(place_name: str, provider: str = 'all'):
 def get_weather_by_position(lat: float, lon: float, provider: str = 'all'):
     """
     通过经纬度获取综合天气（当前 + 小时预报 + 日预报）。
+
+    Use when: you have precise coordinates and need current and forecast weather facts.
+    Do not use when: you only have a place name or need ranked observing sites or night targets.
+    Requires: latitude and longitude; provider selection can remain at the default policy.
+    Follow-up: get_weather_by_name for place-name input; plan_stargazing_session
+        to compare observing places and nights using weather and other evidence.
 
     Weather data is aggregated from multiple providers with graceful
     fallback — open-meteo is always available without an API key.

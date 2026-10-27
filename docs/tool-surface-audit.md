@@ -2,7 +2,8 @@
 
 ## 目的
 
-本文记录 1.0 前 21 个已注册工具的用途、路由边界和第三方 agent 风险。它是迁移审计，不替代 `tools/list` 或 README 中的当前契约。
+本文记录 1.0 前 21 个已注册工具的用途、路由边界和第三方 agent 风险。路由说明已进入
+全部工具的标准 MCP description；本文是审计索引，不替代 `tools/list` 或 README 的当前契约。
 
 ## 分层结论
 
@@ -30,7 +31,7 @@
 | `get_weather_by_position` | 已有精确坐标，需要天气事实 | 需要比较多个观星地点 | `provider` 是高级诊断参数；需要统一 forecast freshness |
 | `get_nightly_forecast` | 已有地点和夜晚，需要目标候选 | 已经需要设备适配的拍摄排序 | 输出应增加稳定 summary；目标策略应与 observation goal 对齐 |
 | `get_telescope_targets` | 已知设备与地点，需要目标适配排序 | 只问肉眼或通用当晚目标 | 增加稳定设备 preset，减少 agent 手工填写光学参数 |
-| `get_shooting_plan` | 已知设备、地点和目标集合，需要单晚时间表 | 尚未决定日期或地点 | 与多日 planning 的边界需明确；连续窗口模型应复用 |
+| `get_shooting_plan` | 已知设备、地点和日期，需要自动匹配目标并排单晚拍摄时间表 | 尚未决定日期或地点，或只需目标排名 | 工具自行匹配目标，不接收调用方指定的目标集合；连续窗口模型应复用 |
 | `get_celestial_pos` | 查询单个天体在指定时刻的位置 | 规划整晚目标组合 | 保持原子能力；不扩展成组合规划入口 |
 | `get_celestial_rise_set` | 查询单个天体的升落事件 | 需要完整可执行观测窗口 | `calendar_day` 与 `next_events` 路由说明要进入公开描述 |
 | `get_moon_info` | 只需要月相、照明或月球位置 | 需要判断月光对具体目标的综合影响 | 保持事实工具；规划层负责解释影响 |
@@ -63,14 +64,26 @@
 
 处理原则：精确 bbox 继续受支持；agent-native 入口还应支持地点文本或清晰的解析前置流程，并回显最终采用的坐标、datum 和 provenance。
 
-## 工具路由元数据目标
+## 已交付的工具路由说明
 
-每个工具的公开描述最终应稳定包含：
+每个工具的标准 MCP description 已稳定包含：
 
-- `use_when`：适合解决的问题；
-- `do_not_use_when`：常见误选场景；
-- `requires`：调用前必须掌握的信息；
-- `returns`：agent 可以依赖的主要结构；
-- `follow_up`：典型后续工具或资源。
+- `Use when:`：适合解决的问题；
+- `Do not use when:`：常见误选场景；
+- `Requires:`：调用前必须掌握的信息；
+- `Returns:`：agent 可以依赖的主要结构；
+- `Follow-up:`：典型后续工具或资源。
 
-在为 `get_tool_catalog` 增加这些字段前，必须先确认 FastMCP `tools/list` 能提供等价、可测试的标准描述，避免维护第二套只在自定义 catalog 中可见的路由协议。
+说明直接写在工具 docstring 中；`plan_stargazing_session` 的显式 decorator description
+优先于其 docstring。没有新增 `use_when` 等 catalog 字段，也没有改动输入、输出 schema
+或历史基线。普通 catalog 条目的 `description` 继续保留首行摘要，完整说明由既有
+`docstring` 提供；显式 description 自身已完整。
+
+`tests/test_tool_routing.py` 通过 SDK 和真实 HTTP 发现验证全部工具的说明完整、catalog
+能提供同一份完整描述，以及后续引用只指向已注册工具；另保护星座中心、服务器本地时间、
+升落事件范围、行星地平线、兼容入口和任务工具的易误用边界。schema 兼容性仍由
+`tests/test_public_schema_baseline.py` 与协议基线测试独立验证。
+
+本轮发现快照和双客户端任务路由回归的证据见
+`evaluations/reports/2026-10-27-tool-routing.md`。客户端回归仅代表三个任务工作流，
+不扩展为 AI 已分别验证全部 21 个工具。

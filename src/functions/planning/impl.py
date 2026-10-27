@@ -122,8 +122,14 @@ async def get_best_stargazing_plan(
 ) -> dict[str, Any]:
     """Create a composite stargazing plan for a region and time.
 
-    This is a stable MCP adapter. Validation, orchestration, ranking, and
-    explanation live in :class:`src.services.planning.PlanningService`.
+    Use when: an existing bbox-first integration needs ranked regional places for one night.
+    Do not use when: starting a new intent-based integration, providing a place name,
+        comparing several nights, or only requesting weather facts.
+    Requires: south/west/north/east bounds, observation time, and timezone.
+    Returns: data.query, ranked data.candidates with scores, windows, weather and targets,
+        and data.summary; all within the standard response envelope.
+    Follow-up: plan_stargazing_session is preferred for new integrations;
+        get_multiday_stargazing_plan preserves bbox-first comparison across nights.
     """
     service = _build_planning_service()
     return await _respond_with_mcp_error(
@@ -174,8 +180,14 @@ async def get_multiday_stargazing_plan(
 ) -> dict[str, Any]:
     """Compare one to seven consecutive nights and recommend the best night and place.
 
-    Each night uses its own civil-dark window. The application service reuses
-    single-night planning directly, without chaining through another MCP tool.
+    Use when: an existing bbox-first integration compares one to seven consecutive nights.
+    Do not use when: starting a new intent-based integration, querying nonconsecutive dates,
+        more than seven nights, or checking background task status.
+    Requires: south/west/north/east bounds, local start_date, timezone, and optional night count.
+    Returns: normalized data.query, per-night plans, the best night, and summary;
+        each night uses its own civil-dark window.
+    Follow-up: plan_stargazing_session is preferred for new integrations;
+        get_best_stargazing_plan for the compatible single-night regional detail.
     """
     service = _build_planning_service()
     return await _respond_with_mcp_error(

@@ -45,6 +45,12 @@ This is not a runtime requirement, but it is the best place for team-level regul
 - Dates and times should be returned as ISO strings whenever possible.
 - Keep tool argument names clear and stable; renames should be treated as breaking changes.
 - Add new tools only after verifying the new interface is agent-friendly and documented.
+- Every public tool description must include `Use when:`, `Do not use when:`, `Requires:`,
+  `Returns:`, and `Follow-up:` guidance. Describe actual behavior and route common misuses to
+  registered alternatives. Explicit decorator descriptions override function docstrings.
+- Keep this guidance in the standard MCP description. The catalog retains its existing summary
+  `description` and full `docstring` fields; an explicit description is already complete.
+  Do not introduce a separate routing schema only visible through `get_tool_catalog`.
 
 ## Error handling
 

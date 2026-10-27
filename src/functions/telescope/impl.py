@@ -40,6 +40,13 @@ async def get_telescope_targets(
 ) -> dict[str, Any]:
     """Recommend astrophotography targets for a telescope setup.
 
+    Use when: place, time, and optics are known and you need ranked deep-sky imaging targets.
+    Do not use when: you only need naked-eye targets, a timed schedule, or a choice of sites.
+    Requires: focal length, observer coordinates, time, and timezone; supply known sensor
+        and optical details for matching. For equipment presets use plan_stargazing_session.
+    Follow-up: get_shooting_plan for timed imaging slots; plan_stargazing_session
+        if the observing place or night still needs comparison.
+
     Given a telescope/camera configuration and observing location+time,
     returns a ranked list of deep-sky objects best suited for imaging.
 
@@ -185,6 +192,13 @@ async def get_shooting_plan(
     min_altitude: float = 25.0,
 ) -> dict:
     """Generate a single-night astrophotography shooting plan.
+
+    Use when: optics, place, and night are fixed and you need matched targets in timed slots.
+    Do not use when: you still need to choose a site or compare nights, or only need target ranks.
+    Requires: focal length, observer coordinates, time, and the observing timezone
+        (defaults to UTC); optional sensor, optical, and minimum-altitude settings.
+    Follow-up: get_telescope_targets for target details; plan_stargazing_session
+        to reconsider place, date, equipment preset, or observing constraints.
 
     Runs match_telescope_targets then generate_shooting_schedule,
     returning targets + moon + timed shooting slots in one response.

@@ -113,10 +113,14 @@ def _respond(operation: Callable, task_id: str | None = None) -> dict[str, Any]:
 async def submit_area_analysis(request: AreaAnalysisRequest) -> dict[str, Any]:
     """Submit bounded background place analysis and return its task identifier.
 
-    Use when a geographic area search may outlive one tool call. Poll with
-    get_area_analysis_task, then page get_area_analysis_result after success.
-    Do not use for a complete observing decision; use plan_stargazing_session.
-    Active duplicate queries share a task. Completed retries may use cached data.
+    Use when: a geographic place search may outlive one tool call and needs background control.
+    Do not use when: you need a complete observing decision or only want to poll an existing task.
+    Requires: request.bounds and optional place-search preferences;
+        max_locations must be from 1 to 100.
+    Returns: task snapshot with task_id, resource_id, state, and normalized request.
+        Active duplicate queries share a task. Completed retries may use cached data.
+    Follow-up: get_area_analysis_task to poll; get_area_analysis_result after success;
+        cancel_area_analysis_task if no longer needed; plan_stargazing_session for decisions.
     """
     return _respond(
         lambda: get_area_task_service().submit(AreaAnalysisRequest.model_validate(request))
@@ -134,9 +138,13 @@ async def submit_area_analysis(request: AreaAnalysisRequest) -> dict[str, Any]:
 async def get_area_analysis_task(task_id: str) -> dict[str, Any]:
     """Poll an area task's state, deadline, failure, and normalized request.
 
-    Use when you have a task_id from submit_area_analysis. Running progress is
-    unknown; success does not guarantee the separate result cache still exists.
-    Do not submit another job merely to poll; use get_area_analysis_result for data.
+    Use when: you have a task_id and need execution state, failure, or remaining physical work.
+    Do not use when: you need result pages; do not submit a new job merely to poll.
+    Requires: task_id returned by submit_area_analysis in the same server runtime.
+    Returns: task snapshot with state, failure, request, and execution_pending. Running progress
+        is unknown; success does not guarantee the separate result cache still exists.
+    Follow-up: get_area_analysis_result after success; cancel_area_analysis_task if unwanted.
+        On TASK_RUNTIME_CHANGED, resubmit the original request rather than polling the old ID.
     """
     return _respond(lambda: get_area_task_service().status(task_id), task_id)
 
@@ -152,9 +160,13 @@ async def get_area_analysis_task(task_id: str) -> dict[str, Any]:
 async def cancel_area_analysis_task(task_id: str) -> dict[str, Any]:
     """Logically cancel queued/running area work and discard its late results.
 
-    Use when a submitted task is no longer needed. Cancellation is idempotent;
-    a running provider call keeps its execution slot until it actually finishes.
-    Do not use to delete cached results or to interrupt another domain's tools.
+    Use when: a submitted area task is no longer needed and its late result must not publish.
+    Do not use when: you want to delete cached data or interrupt another domain's operation.
+    Requires: task_id returned by submit_area_analysis in the same server runtime.
+    Returns: idempotent cancellation snapshot; an existing terminal state stays unchanged.
+        A running provider call keeps its execution slot until it actually finishes.
+    Follow-up: get_area_analysis_task to confirm state and execution_pending;
+        wait for physical work to drain before considering resubmission.
     """
     return _respond(lambda: get_area_task_service().cancel(task_id), task_id)
 
@@ -174,10 +186,13 @@ async def get_area_analysis_result(
 ) -> dict[str, Any]:
     """Page a successful area task's existing cached result without recomputing.
 
-    Use after get_area_analysis_task reports succeeded. Pagination follows
-    analysis_area and preserves resource_id. Missing or expired data requires
-    resubmission of the normalized request, not silent recomputation.
-    Do not use to poll queued/running tasks; use get_area_analysis_task instead.
+    Use when: get_area_analysis_task reports succeeded and you need its original result pages.
+    Do not use when: the task is queued/running and you only need to poll its state.
+    Requires: the successful task_id, page >= 1, and page_size >= 1.
+    Returns: cached items, pagination metadata, and resource_id with the task's publication
+        version checked; this call never silently recomputes missing data.
+    Follow-up: get_area_analysis_result with the same task_id for other pages;
+        get_area_analysis_task for state; resubmit the normalized request on TASK_RESULT_EXPIRED.
     """
 
     def operation():

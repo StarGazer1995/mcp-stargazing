@@ -13,6 +13,12 @@ def get_local_datetime_info() -> dict[str, Any]:
     """
     Retrieve the current datetime and timezone.
 
+    Use when: you need the server environment's current time and local timezone.
+    Do not use when: you need time at a remote observing site or already have its timezone.
+    Requires: no inputs; local means the server environment, not the user's observing site.
+    Follow-up: use the observing site's explicit time_zone in celestial and
+        plan_stargazing_session requests; do not infer it from the server timezone.
+
     Returns:
         Dict with keys "data", "_meta". "data" contains "current_time" (ISO string).
     """
