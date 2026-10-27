@@ -1,0 +1,13 @@
+{
+  "policy_version": 1,
+  "target_release": "1.0.0",
+  "schema_baseline": "tests/public_contract_v1.json",
+  "minimum_notice_days": 90,
+  "minimum_subsequent_minor_releases": 2,
+  "removal_requires_next_major": true,
+  "compatibility_tools": [
+    "get_best_stargazing_plan",
+    "get_multiday_stargazing_plan"
+  ],
+  "deprecations": []
+}

@@ -130,6 +130,17 @@ The [pre-1.0 public schema baseline](docs/public-contract-baseline.md) records t
 schemas and detailed planning/area models. SDK and real `tools/list` tests detect contract drift
 before new tools are added.
 
+The independent [1.0 contract and migration guide](docs/v1-migration.md) freezes all 21 tools,
+task models, detailed payloads, annotations, and envelope semantics without replacing that
+historical snapshot. The two bbox-first planners remain supported and have no active deprecation
+notice. Future removal requires at least 90 days, two subsequent minor releases, and a later major.
+The package version and response `_meta.version` are separate; this contract freeze is not a release.
+For a complete primary-planner client, save one of the guide's JSON requests and run:
+
+```bash
+uv run python examples/agent_planning_demo.py --request request.json --url http://localhost:3001/shttp
+```
+
 ### 1. Environment Setup
 
 Create a `.env` file or export variables:

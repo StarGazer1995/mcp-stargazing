@@ -40,6 +40,10 @@ This is not a runtime requirement, but it is the best place for team-level regul
 ## Agent-facing interface rules
 
 - All tools must return JSON-serializable data.
+- Public changes must preserve both the historical pre-1.0 baseline and the full 1.0 baseline
+  (`tests/public_contract_v1.json`), including task annotations/models. Follow `docs/v1-migration.md`
+  and `docs/contract-policy.json` for compatibility review and finite deprecation requirements;
+  snapshot refreshes must not conceal drift. A contract freeze does not authorize a release.
 - Use `src.response.format_response(...)` for standard response wrapping.
 - Business validation failures that remain inside normal tool execution should return the structured `{error, _meta}` payload shape instead of ad hoc dicts.
 - Dates and times should be returned as ISO strings whenever possible.
@@ -135,6 +139,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 | `docs/ROADMAP.md` | 能力面状态、已完成 / 计划中的工作 | 本 repo 开发者、PM |
 | `docs/agent-contract.md` | 第三方 agent 的目标契约、公共参数边界与黑盒验收 | agent 集成者、本 repo 开发者 |
 | `docs/public-contract-baseline.md` | 1.0 前 schema 快照、兼容检查与变更审查规则 | agent 集成者、本 repo 开发者 |
+| `docs/v1-migration.md` | 1.0 冻结范围、弃用期限、旧入口映射与可运行示例 | agent 集成者、本 repo 开发者 |
 | `docs/tool-surface-audit.md` | 21 个公开工具的路由边界、参数风险与迁移关注点 | agent 集成者、本 repo 开发者 |
 | `docs/bridge-boundary.md` | `placefinder` bridge 的接口、职责边界与调用链 | 跨 repo 开发者 |
 | `docs/dependency-chain-ci.md` | 三仓依赖链 CI 的触发、baseline 语义与上线顺序 | 跨 repo 开发者 |

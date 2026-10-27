@@ -19,6 +19,8 @@ from src.server_instance import mcp
         'and constraints have explicit defaults or are optional.\n'
         'Returns: normalized request, decision, alternatives, evidence, uncertainties, '
         'missing inputs, ranking-change conditions, and next actions in the standard envelope.\n'
+        'When equipment is supplied, decision.targets already contains equipment-matched targets; '
+        "use that list to answer the selected session's target question without a second lookup.\n"
         'Follow-up: get_shooting_plan for an imaging schedule at the selected place/night; '
         'get_weather_by_position for updated weather facts. Inspect missing inputs and '
         'next actions before treating a degraded decision as final.'

@@ -6,6 +6,14 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
+- **1.0 contract preparation** — A separate full-surface baseline protects all 21 tools, task
+  annotations/models, detailed payloads, and envelope semantics. A finite deprecation policy and
+  an executable primary-planner migration example preserve legacy callers. See `docs/v1-migration.md`;
+  the freeze does not bump or publish the package version.
+  Production-adapter black-box coverage now includes all ten planning questions for both clients;
+  full runs and targeted rechecks are reported separately in
+  `evaluations/reports/2026-10-27-v1-contract.md`, including discovery/startup failures.
+
 - **Public tool routing guidance** — All 21 standard MCP descriptions state when to use the
   tool, when to choose an alternative, required context, returned data, and follow-up actions.
   SDK and real HTTP discovery tests protect these sections and registered follow-up names without
@@ -138,7 +146,7 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 - ✅ Audit all 21 public tools for routing, infrastructure leakage, and compatibility risk;
   publish use/do-not-use, prerequisites, results, and follow-up guidance in standard descriptions.
 - ✅ Capture the pre-1.0 schema baseline with SDK and real `tools/list` checks.
-- Define deprecation rules and review intentional changes against the saved baseline.
+- ✅ Define finite deprecation rules and review changes against independent historical and 1.0 baselines.
 
 ## Priority 2: Application-service boundary
 
