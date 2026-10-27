@@ -1,6 +1,6 @@
 # 区域分析任务生命周期
 
-## 当前交付边界：P5.4 只读恢复判断
+## 当前交付边界：P5.5 主动任务工作流
 
 `AnalysisTaskRegistry` 管理元数据，`AreaTaskService` 管理有界后台执行与结果发布。
 四个 MCP 工具提供提交、轮询、取消和分页，响应通过 `_meta.task_id` 关联任务。
@@ -8,7 +8,9 @@
 目前通过实际 MCP SDK 验证工具调用链，并通过真实 HTTP 连接和独立进程验证断线重连、
 正常重启与分析中进程崩溃。Codex CLI 和 Claude Code 已各通过十个独立的只读任务状态、
 分页及恢复判断问题，见 `evaluations/reports/2026-10-27-task-recovery.md`。
-AI 主动提交、取消任务的选择能力尚未验收；不能把只读结果扩展为所有任务工作流通过。
+P5.5 进一步完成主动提交、状态确认后分页、取消和活动任务复用，两个客户端各通过三个
+独立问题，见 `evaluations/reports/2026-10-27-task-actions.md`。主动验收保留生产任务服务和
+真实 worker，只替换地理 provider；抽样范围不扩展为真实 provider 或全部模型可用。
 
 | 工具 | 输入与行为 |
 |---|---|
@@ -101,3 +103,5 @@ P5.3 测试见 `tests/test_area_task_recovery.py`：新 HTTP 连接继续原任�
 断线后取消与配额释放、正常重启后元数据和缓存丢失、分析中进程崩溃后显式重交。
 `evaluations/area_task_server.py` 仅替换地点 provider 为受控测试数据，不新增控制工具；
 测试不依赖真实地理服务，也不声称覆盖真实 provider 的可用性。
+P5.5 测试见 `tests/test_task_action_golden.py`：真实 stdio SDK 工作流、任务编号与请求绑定、
+取消后的迟到发布保护、重复提交的实际执行计数、越界操作拦截及错误轨迹拒绝。

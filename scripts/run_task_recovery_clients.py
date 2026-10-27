@@ -139,9 +139,11 @@ def codex_model_settings():
     return settings
 
 
-def command(client, directory, prompt):
+def command(client, directory, prompt, *, suite='recovery', case=None):
     python = str(PROJECT_ROOT / '.venv/bin/python')
     args = ['-m', 'evaluations.task_recovery_server', '--out-dir', str(directory)]
+    if suite == 'actions':
+        args = ['-m', 'evaluations.task_action_server', '--out-dir', str(directory), '--case', case]
     if client == 'codex':
         return [
             'codex',
@@ -194,20 +196,28 @@ def command(client, directory, prompt):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', choices=['codex', 'claude'], required=True)
-    parser.add_argument(
-        '--cases', nargs='+', choices=list(SCENARIOS_BY_KEY), default=list(SCENARIOS_BY_KEY)
-    )
+    parser.add_argument('--suite', choices=['recovery', 'actions'], default='recovery')
+    parser.add_argument('--cases', nargs='+')
     parser.add_argument('--out-dir', type=Path, required=True)
     parser.add_argument('--timeout-seconds', type=float, default=180)
     args = parser.parse_args()
+    scenarios, scorer = SCENARIOS_BY_KEY, score
+    if args.suite == 'actions':
+        from evaluations.task_action_golden import SCENARIOS_BY_KEY as ACTION_SCENARIOS
+        from evaluations.task_action_golden import score as action_score
+
+        scenarios, scorer = ACTION_SCENARIOS, action_score
+    cases = list(scenarios) if args.cases is None else args.cases
+    if not cases or len(set(cases)) != len(cases) or any(key not in scenarios for key in cases):
+        parser.error('--cases must contain distinct cases from the selected suite')
     args.out_dir.mkdir(parents=True, exist_ok=True)
     results = []
-    for key in args.cases:
+    for key in cases:
         directory = args.out_dir.resolve() / key
         directory.mkdir()  # Refuse to mix retries with an existing case's evidence.
-        scenario = SCENARIOS_BY_KEY[key]
+        scenario = scenarios[key]
         (directory / 'question.txt').write_text(scenario.prompt)
-        invocation = command(args.client, directory, scenario.prompt)
+        invocation = command(args.client, directory, scenario.prompt, suite=args.suite, case=key)
         (directory / 'command.json').write_text(
             json.dumps(invocation, ensure_ascii=False, indent=2)
         )
@@ -245,7 +255,7 @@ def main():
                 timed_out, exit_code = True, None
         client_events = read_events(directory / 'client.jsonl')
         answer = extract_answer(args.client, client_events)
-        result = score(scenario, answer, read_events(directory / 'calls.jsonl'))
+        result = scorer(scenario, answer, read_events(directory / 'calls.jsonl'))
         result.update(case=key, client=args.client, exit_code=exit_code, timed_out=timed_out)
         result['client_tools_ok'] = used_only_evaluation_tools(args.client, client_events)
         result['passed'] = (
