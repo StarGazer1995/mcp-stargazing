@@ -4672,5 +4672,30 @@
       "cases": 10,
       "covered_by_successful_trace": 10
     }
+  },
+  "discovery_diagnostics": {
+    "codex": {
+      "stderr_excerpt": "Reading additional input from stdin...\n2026-10-27T08:09:42.643528Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest(\"http/request failed: error sending request for url (https://chatgpt.com/backend-api/ps/mcp)\")))\n",
+      "initial_servers": [],
+      "control_calls": []
+    },
+    "claude": {
+      "stderr_excerpt": "",
+      "initial_servers": [
+        {
+          "name": "stargazing",
+          "status": "pending"
+        }
+      ],
+      "control_calls": [
+        {
+          "name": "WaitForMcpServers",
+          "input": {}
+        }
+      ],
+      "initial_tool_names": [
+        "WaitForMcpServers"
+      ]
+    }
   }
 }
