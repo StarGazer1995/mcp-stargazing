@@ -56,6 +56,7 @@ async def test_ambiguous_tools_explain_their_actual_scope():
     async with Client(mcp._mcp) as client:
         descriptions = {tool.name: tool.description for tool in await client.list_tools()}
     required = {
+        'plan_stargazing_session': ('decision.targets', 'without a second lookup'),
         'get_constellation': ('center', 'arbitrary coordinates'),
         'get_local_datetime_info': ('server environment', 'remote observing site'),
         'get_celestial_rise_set': ('calendar_day', 'next_events'),

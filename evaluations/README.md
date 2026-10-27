@@ -76,3 +76,17 @@ Run `uv run pytest tests/test_task_action_golden.py -q`. Use the existing client
 summarizer with `--suite actions` to run the active gate; their default read-only suite is
 unchanged. Both installed clients completed all three questions. Reproduction, trace grading,
 and limits are recorded in the [active-workflow report](reports/2026-10-27-task-actions.md).
+
+## 1.0 primary-planner gate
+
+`v1_planning_server.py` imports all production registrations and preserves their descriptions,
+schemas, annotations, and primary adapter. Only its application dependency builder is dispatched
+to the existing ten frozen planning scenarios; non-planning execution is blocked before providers.
+`v1_planning_golden.py` grades exact requests, one actual primary call, the answer observed in
+the returned model, and the client's final answer. Local command/file access cannot qualify.
+
+Run `uv run pytest tests/test_v1_planning_clients.py -q`. The existing runner and summarizer accept
+`--suite planning`; earlier recovery/actions suites keep their defaults and behavior. This gate
+does not claim live provider availability or coverage of all natural-language paraphrases.
+The [P6 report](reports/2026-10-27-v1-contract.md) preserves the initial unnecessary lookup,
+the description fix, the full-run discovery failures, and separate successful rechecks.

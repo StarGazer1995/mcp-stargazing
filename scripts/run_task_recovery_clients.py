@@ -144,6 +144,8 @@ def command(client, directory, prompt, *, suite='recovery', case=None):
     args = ['-m', 'evaluations.task_recovery_server', '--out-dir', str(directory)]
     if suite == 'actions':
         args = ['-m', 'evaluations.task_action_server', '--out-dir', str(directory), '--case', case]
+    elif suite == 'planning':
+        args = ['-m', 'evaluations.v1_planning_server', '--out-dir', str(directory)]
     if client == 'codex':
         return [
             'codex',
@@ -196,7 +198,7 @@ def command(client, directory, prompt, *, suite='recovery', case=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', choices=['codex', 'claude'], required=True)
-    parser.add_argument('--suite', choices=['recovery', 'actions'], default='recovery')
+    parser.add_argument('--suite', choices=['recovery', 'actions', 'planning'], default='recovery')
     parser.add_argument('--cases', nargs='+')
     parser.add_argument('--out-dir', type=Path, required=True)
     parser.add_argument('--timeout-seconds', type=float, default=180)
@@ -207,6 +209,11 @@ def main():
         from evaluations.task_action_golden import score as action_score
 
         scenarios, scorer = ACTION_SCENARIOS, action_score
+    elif args.suite == 'planning':
+        from evaluations.v1_planning_golden import SCENARIOS_BY_KEY as PLANNING_SCENARIOS
+        from evaluations.v1_planning_golden import score as planning_score
+
+        scenarios, scorer = PLANNING_SCENARIOS, planning_score
     cases = list(scenarios) if args.cases is None else args.cases
     if not cases or len(set(cases)) != len(cases) or any(key not in scenarios for key in cases):
         parser.error('--cases must contain distinct cases from the selected suite')

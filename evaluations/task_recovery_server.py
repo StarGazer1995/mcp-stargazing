@@ -18,15 +18,18 @@ ALLOWED_TOOLS = {'get_tool_catalog', 'get_area_analysis_task', 'get_area_analysi
 class RecoveryAudit(Middleware):
     """Keep all production tools discoverable but prevent any non-query execution."""
 
+    allowed_tools = ALLOWED_TOOLS
+    denied_message = 'This frozen evaluation permits task/status reads only.'
+
     def __init__(self, path: Path):
         self.path = path
 
     async def on_call_tool(self, context, call_next):
         event = {'tool': context.message.name, 'arguments': context.message.arguments}
-        if event['tool'] not in ALLOWED_TOOLS:
+        if event['tool'] not in self.allowed_tools:
             event['blocked'] = True
             self.write(event)
-            raise ToolError('This frozen evaluation permits task/status reads only.')
+            raise ToolError(self.denied_message)
         try:
             result = await call_next(context)
         except Exception:

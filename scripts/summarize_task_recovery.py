@@ -69,7 +69,7 @@ def main():
     parser.add_argument('--claude-dir', type=Path, required=True)
     parser.add_argument('--out-dir', type=Path, required=True)
     parser.add_argument('--date', required=True, help='Report date, YYYY-MM-DD')
-    parser.add_argument('--suite', choices=['recovery', 'actions'], default='recovery')
+    parser.add_argument('--suite', choices=['recovery', 'actions', 'planning'], default='recovery')
     args = parser.parse_args()
     scenarios, scorer = SCENARIOS, score
     if args.suite == 'actions':
@@ -77,6 +77,11 @@ def main():
         from evaluations.task_action_golden import score as action_score
 
         scenarios, scorer = ACTION_SCENARIOS, action_score
+    elif args.suite == 'planning':
+        from evaluations.v1_planning_golden import SCENARIOS as PLANNING_SCENARIOS
+        from evaluations.v1_planning_golden import score as planning_score
+
+        scenarios, scorer = PLANNING_SCENARIOS, planning_score
     results = {
         'codex': summarize('codex', args.codex_dir, scenarios=scenarios, scorer=scorer),
         'claude': summarize('claude', args.claude_dir, scenarios=scenarios, scorer=scorer),
@@ -112,6 +117,18 @@ def main():
                 'src/services/area_tasks.py',
                 'src/services/tasks.py',
                 'src/analysis_cache.py',
+            ]
+        )
+    elif args.suite == 'planning':
+        sources.extend(
+            [
+                'evaluations/v1_planning_golden.py',
+                'evaluations/v1_planning_server.py',
+                'evaluations/planning_golden.py',
+                'evaluations/task_recovery_server.py',
+                'src/functions/planning/agent_impl.py',
+                'src/services/planning.py',
+                'src/schemas/agent_planning.py',
             ]
         )
     report = {

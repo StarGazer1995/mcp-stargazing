@@ -13,8 +13,8 @@
 - 采集时的 SDK 版本与源提交，作为审查上下文；版本号本身不参与 schema 比较。
 
 部分工具当前对外公布的是通用字典 `outputSchema`。这里保存其真实声明，不虚构更严格的
-字段保证；上述详细模型以外的业务输出仍由既有工具与序列化测试保护。完整输出类型化和
-1.0 冻结需要后续单独验收。
+字段保证；上述详细模型以外的业务输出仍由既有工具与序列化测试保护。完整输出类型化
+仍是独立工作；后续 1.0 冻结基线保存真实声明，范围见下文与迁移说明。
 
 ## 如何检查
 
@@ -38,6 +38,11 @@ uv run pytest tests/test_public_schema_baseline.py tests/test_mcp_client.py
    独立审查中决定如何建立下一份基线。进入 1.0 时再保存完整的新契约。
 
 ## 重新采集用于比较
+
+另有独立的 1.0 冻结基线 `tests/public_contract_v1.json`，补齐全部工具、公开注解、任务、
+天气/天体模型和任务 envelope；它不替换历史快照，两份门禁同时运行。范围与兼容规则见
+[1.0 迁移说明](v1-migration.md)。采集器 `scripts.capture_v1_contract` 使用同样参数，独占
+创建 `public_contract_v1.json`；注解按真实 wire 形式省略 null 字段，测试不更新快照。
 
 ```bash
 uv run python -m scripts.capture_public_contract \
