@@ -15,15 +15,15 @@ from scripts.run_task_recovery_clients import (
 from src.paths import PROJECT_ROOT
 
 
-def summarize(client, directory):
+def summarize(client, directory, *, scenarios=SCENARIOS, scorer=score):
     results = []
-    for scenario in SCENARIOS:
+    for scenario in scenarios:
         case_dir = directory / scenario.key
         raw = read_events(case_dir / 'client.jsonl')
         calls = read_events(case_dir / 'calls.jsonl')
         original = json.loads((case_dir / 'result.json').read_text())
         answer = extract_answer(client, raw)
-        result = score(scenario, answer, calls)
+        result = scorer(scenario, answer, calls)
         result['client_tools_ok'] = used_only_evaluation_tools(client, raw)
         result['case'] = scenario.key
         result['passed'] = (
@@ -69,10 +69,17 @@ def main():
     parser.add_argument('--claude-dir', type=Path, required=True)
     parser.add_argument('--out-dir', type=Path, required=True)
     parser.add_argument('--date', required=True, help='Report date, YYYY-MM-DD')
+    parser.add_argument('--suite', choices=['recovery', 'actions'], default='recovery')
     args = parser.parse_args()
+    scenarios, scorer = SCENARIOS, score
+    if args.suite == 'actions':
+        from evaluations.task_action_golden import SCENARIOS as ACTION_SCENARIOS
+        from evaluations.task_action_golden import score as action_score
+
+        scenarios, scorer = ACTION_SCENARIOS, action_score
     results = {
-        'codex': summarize('codex', args.codex_dir),
-        'claude': summarize('claude', args.claude_dir),
+        'codex': summarize('codex', args.codex_dir, scenarios=scenarios, scorer=scorer),
+        'claude': summarize('claude', args.claude_dir, scenarios=scenarios, scorer=scorer),
     }
     metrics = {
         client: {
@@ -93,9 +100,23 @@ def main():
         'evaluations/task_recovery_golden.xml',
         'evaluations/task_recovery_server.py',
         'scripts/run_task_recovery_clients.py',
+        'scripts/summarize_task_recovery.py',
     ]
+    if args.suite == 'actions':
+        sources.extend(
+            [
+                'evaluations/task_action_golden.py',
+                'evaluations/task_action_server.py',
+                'evaluations/area_task_server.py',
+                'src/functions/places/tasks_impl.py',
+                'src/services/area_tasks.py',
+                'src/services/tasks.py',
+                'src/analysis_cache.py',
+            ]
+        )
     report = {
         'date': args.date,
+        'suite': args.suite,
         'metrics': metrics,
         'results': results,
         'source_sha256': {
@@ -103,7 +124,7 @@ def main():
         },
     }
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    target = args.out_dir / f'{args.date}-task-recovery-results.json'
+    target = args.out_dir / f'{args.date}-task-{args.suite}-results.json'
     with target.open('x') as output:
         json.dump(report, output, ensure_ascii=False, indent=2)
     print(json.dumps(metrics, ensure_ascii=False))

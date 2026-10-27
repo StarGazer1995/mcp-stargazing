@@ -63,3 +63,16 @@ The client runner and evidence summarizer are documented in the
 [2026-10-27 report](reports/2026-10-27-task-recovery.md). Both Codex CLI and Claude Code completed
 all ten questions; the report records model identity, grading corrections, setup probes, and limits.
 AI submission/cancellation workflows remain separate from this read-only gate.
+
+## Third-party AI active task workflows
+
+`task_action_golden.py` defines three independent submission/paging, cancellation, and duplicate
+submission/cancellation questions. `task_action_server.py` retains the production task service,
+actual worker execution, cache, and tool definitions. It reuses the P5.3 controlled provider,
+permits only task operations on the specified query, and audits each tool response and provider
+call count. Other tools remain discoverable but cannot execute.
+
+Run `uv run pytest tests/test_task_action_golden.py -q`. Use the existing client runner and
+summarizer with `--suite actions` to run the active gate; their default read-only suite is
+unchanged. Both installed clients completed all three questions. Reproduction, trace grading,
+and limits are recorded in the [active-workflow report](reports/2026-10-27-task-actions.md).

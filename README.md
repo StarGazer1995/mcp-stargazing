@@ -276,6 +276,10 @@ Workflow: submit → poll until `succeeded` → fetch pages. Use `plan_stargazin
 The [AI recovery acceptance report](evaluations/reports/2026-10-27-task-recovery.md) records
 ten read-only state/result questions completed by each of two clients, with auditable calls and
 explicit limits. It does not qualify AI submission/cancellation workflows or real provider uptime.
+The separate [active-workflow report](evaluations/reports/2026-10-27-task-actions.md) qualifies
+submission, status-confirmed pagination, cancellation, and active-query reuse in three isolated
+workflows per client. It uses real workers with a controlled provider; real provider uptime
+remains outside this acceptance gate.
 
 ### 5. Error Handling
 

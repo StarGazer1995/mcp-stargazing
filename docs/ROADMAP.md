@@ -6,6 +6,12 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
+- **P5.5 active AI task workflows** — Codex CLI and Claude Code each completed three isolated
+  submission/paging, cancellation, and active-query reuse workflows with production task adapters
+  and actual background workers. Strict trace grading verifies returned identities, exact
+  queries/pages, cancellation confirmation, and one provider execution per case. See
+  `evaluations/reports/2026-10-27-task-actions.md` for evidence and scope.
+
 - **P5.4 read-only AI recovery gate** — Codex CLI and Claude Code each completed ten frozen
   status/result questions with verified tool traces and exact answers. The 20/20 gate distinguishes
   execution failure, timeout, physical draining, paging, cache/version loss, and runtime loss.
@@ -195,8 +201,9 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 - ✅ P5.3 verifies disconnect/reconnect, cross-connection pagination, cancellation, actual process
   restart, and in-flight process loss through the real HTTP transport.
 - ✅ P5.4 verifies third-party AI read-only task-tool selection and recovery decisions.
-- Extend AI acceptance to initiating and cancelling tasks before claiming all four task-tool
-  workflows are qualified; the read-only gate does not demonstrate those actions.
+- ✅ P5.5 verifies third-party AI submission, status-confirmed pagination, cancellation, and active
+  duplicate reuse through three isolated workflows per client. Real provider availability and
+  broader natural-language/model coverage remain outside this gate.
 - Preserve paging and `resource_id` semantics while adding polling, resumption, expiry, and
   restart behavior.
 
