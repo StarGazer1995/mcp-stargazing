@@ -273,6 +273,10 @@ Background area tools:
 
 Workflow: submit → poll until `succeeded` → fetch pages. Use `plan_stargazing_session` for a complete observing decision; these task tools are for raw place analysis. Existing synchronous `analysis_area` remains available.
 
+The [AI recovery acceptance report](evaluations/reports/2026-10-27-task-recovery.md) records
+ten read-only state/result questions completed by each of two clients, with auditable calls and
+explicit limits. It does not qualify AI submission/cancellation workflows or real provider uptime.
+
 ### 5. Error Handling
 
 All tools return JSON-serializable data and use structured error handling:

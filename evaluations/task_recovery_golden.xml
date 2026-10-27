@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='utf-8'?>
+<evaluation>
+  <qa_pair>
+    <question>我保存了一个区域分析任务。只查一次，现在应继续等还是重交？仅回复 WAIT 或 RESUBMIT。
+任务编号：40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>WAIT</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>区域分析还没给地点。只查一次，现在应继续等还是重交？仅回复 WAIT 或 RESUBMIT。
+任务编号：40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>WAIT</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>请核实任务为什么没有地点结果。状态查询成功不等于分析成功；仅返回分析失败的 error code。
+任务编号：40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>NETWORK_ERROR</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>我不确定是仍在分析还是已超时。请查询并只返回任务 state 的原始字符串。
+任务编号：40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>timed_out</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>任务已经取消，我想知道后台执行占用是否释放。仅回复 WAIT_FOR_EXECUTION 或 READY_TO_RETRY。
+任务编号：40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>WAIT_FOR_EXECUTION</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>请先确认任务成功，再读取每页 1 个地点的第 2 页。只返回该页地点名称。
+任务编号：40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>Recovery Valley</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>这个任务之前已成功。请直接尝试读取结果，核实缓存是否还在。若结果失效仅回复 RESUBMIT；若可读仅回复 READABLE。
+任务编号：40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>RESUBMIT</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>请直接读取这个已成功任务的原结果，不能用同查询的新版本冒充。若原结果已失效仅回复 RESUBMIT；若可读仅回复 READABLE。
+任务编号：40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>RESUBMIT</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>我重连后保留了旧任务编号。请核实编号能否继续查询。应重交原请求回复 RESUBMIT；仍可等待回复 WAIT。
+任务编号：00000000000000000000000000000000:013c9aeb8991519084e3b75c0a67c840
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>RESUBMIT</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>我很久没看这个任务了。请核实元数据状态，只返回任务 state 的原始字符串。
+任务编号：40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b
+只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。</question>
+    <answer>expired</answer>
+  </qa_pair>
+</evaluation>

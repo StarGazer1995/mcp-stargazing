@@ -1,0 +1,1361 @@
+{
+  "date": "2026-10-27",
+  "metrics": {
+    "codex": {
+      "tool_selection": 10,
+      "first_call_contract": 10,
+      "trace_ok": 10,
+      "exact_answer": 10,
+      "passed": 10,
+      "cases": 10
+    },
+    "claude": {
+      "tool_selection": 10,
+      "first_call_contract": 10,
+      "trace_ok": 10,
+      "exact_answer": 10,
+      "passed": 10,
+      "cases": 10
+    }
+  },
+  "results": {
+    "codex": [
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "WAIT",
+        "expected_answer": "WAIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "queued",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "我保存了一个区域分析任务。只查一次，现在应继续等还是重交？仅回复 WAIT 或 RESUBMIT。\n任务编号：40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f",
+                "resource_id": "7842a2a46c0370b17dd8928919e65c1b",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "queued",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": null,
+                "finished_at": null,
+                "expires_at": null,
+                "progress": 0.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 0.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "5519dae58c3261b68febdf3ccbf7fdf39645295d7c67c7d8c0e43f5a953558ff"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "WAIT",
+        "expected_answer": "WAIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "running",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "区域分析还没给地点。只查一次，现在应继续等还是重交？仅回复 WAIT 或 RESUBMIT。\n任务编号：40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9",
+                "resource_id": "e049d3baedd97f31273cdd49833c0c3d",
+                "request": {
+                  "bounds": {
+                    "south": 30.1,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "52993db9c215bd38806f0bf5937c8400c2f87c10b2f838b04b3fc6f4b3f9abb7"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "NETWORK_ERROR",
+        "expected_answer": "NETWORK_ERROR",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "failed",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请核实任务为什么没有地点结果。状态查询成功不等于分析成功；仅返回分析失败的 error code。\n任务编号：40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13",
+                "resource_id": "4e2b5049ed00c907400ddf43e618bc35",
+                "request": {
+                  "bounds": {
+                    "south": 30.2,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "failed",
+                "execution_pending": false,
+                "result_revision": null,
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": "2026-10-27T12:00:00Z",
+                "expires_at": "2026-10-27T13:00:00Z",
+                "progress": null,
+                "failure": {
+                  "code": "NETWORK_ERROR",
+                  "message": "Offline"
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "f1c57241f08beb38e69c04091fdf15629c76c7fc30ec12b7bac7a3439ccfa63c"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "timed_out",
+        "expected_answer": "timed_out",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "timed-out",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "我不确定是仍在分析还是已超时。请查询并只返回任务 state 的原始字符串。\n任务编号：40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744",
+                "resource_id": "ffb36d34caeaa7c43f098076f0919680",
+                "request": {
+                  "bounds": {
+                    "south": 30.3,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "timed_out",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T11:49:59Z",
+                "updated_at": "2026-10-27T11:59:59Z",
+                "deadline_at": "2026-10-27T11:59:59Z",
+                "started_at": "2026-10-27T11:49:59Z",
+                "finished_at": "2026-10-27T11:59:59Z",
+                "expires_at": "2026-10-27T12:59:59Z",
+                "progress": null,
+                "failure": {
+                  "code": "task_timeout",
+                  "message": "The task deadline elapsed."
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "43a7390a4a11ecad4ff4b0c5555daee1ba56584eb958874d1334333bdfee9835"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "WAIT_FOR_EXECUTION",
+        "expected_answer": "WAIT_FOR_EXECUTION",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "cancelled-draining",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "任务已经取消，我想知道后台执行占用是否释放。仅回复 WAIT_FOR_EXECUTION 或 READY_TO_RETRY。\n任务编号：40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb",
+                "resource_id": "82c7836335087be1cec1be66d5505908",
+                "request": {
+                  "bounds": {
+                    "south": 30.4,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": "2026-10-27T12:00:00Z",
+                "expires_at": "2026-10-27T13:00:00Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "71fd55e1e5dba10bcf7a2df27459837af70727320b5bc1e051bb57934a1de666"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "Recovery Valley",
+        "expected_answer": "Recovery Valley",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "paged-result",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请先确认任务成功，再读取每页 1 个地点的第 2 页。只返回该页地点名称。\n任务编号：40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d",
+                "resource_id": "18f5922fd5995932e5e1d14b5ce16fd7",
+                "request": {
+                  "bounds": {
+                    "south": 30.5,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "succeeded",
+                "execution_pending": false,
+                "result_revision": "f9814017345a4b7da5855f0a5f20ed32",
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": "2026-10-27T12:00:00Z",
+                "expires_at": "2026-10-27T13:00:00Z",
+                "progress": 1.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d"
+              }
+            }
+          },
+          {
+            "tool": "get_area_analysis_result",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d",
+              "page": 2,
+              "page_size": 1
+            },
+            "response": {
+              "data": {
+                "items": [
+                  {
+                    "name": "Recovery Valley",
+                    "lat": 30.2,
+                    "lon": 119.2,
+                    "elevation_m": null,
+                    "light_pollution_level": null,
+                    "bortle_class": null,
+                    "road_distance_km": null,
+                    "score": null,
+                    "static_popularity_risk_score": null,
+                    "night_quiet_likelihood_score": null,
+                    "temporal_popularity_confidence": null,
+                    "nearby_popular_poi_count": 0,
+                    "nearby_night_active_poi_count": 0,
+                    "nearby_day_only_poi_count": 0,
+                    "popularity_signals": null,
+                    "temporal_popularity_signals": null,
+                    "popularity_notes": null
+                  }
+                ],
+                "total": 2,
+                "page": 2,
+                "page_size": 1,
+                "total_pages": 2,
+                "resource_id": "18f5922fd5995932e5e1d14b5ce16fd7"
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d",
+                "warnings": [
+                  "All locations have no Bortle class — light pollution GeoTIFF may be unavailable or the coordinates are outside data coverage."
+                ]
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "a5bf4bc118ed7ae8e1db36e265ef62be1ddabcb98e2990a98c548b5b99f15ad0"
+      },
+      {
+        "first_tool": "get_area_analysis_result",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "RESUBMIT",
+        "expected_answer": "RESUBMIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "missing-cache",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "这个任务之前已成功。请直接尝试读取结果，核实缓存是否还在。若结果失效仅回复 RESUBMIT；若可读仅回复 READABLE。\n任务编号：40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_result",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221"
+            },
+            "response": {
+              "error": {
+                "code": "TASK_RESULT_EXPIRED",
+                "message": "The area result cache expired or was replaced; resubmit the query.",
+                "details": {
+                  "resource_id": "3d234fcc078234053dceb6fe1989dcf9",
+                  "next_action": "resubmit"
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "error",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "c4ecb323d05146cd7949575f153ce6346f1b1893296641ffb7b2fc64f612a7bb"
+      },
+      {
+        "first_tool": "get_area_analysis_result",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "RESUBMIT",
+        "expected_answer": "RESUBMIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "replaced-cache",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请直接读取这个已成功任务的原结果，不能用同查询的新版本冒充。若原结果已失效仅回复 RESUBMIT；若可读仅回复 READABLE。\n任务编号：40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_result",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461"
+            },
+            "response": {
+              "error": {
+                "code": "TASK_RESULT_EXPIRED",
+                "message": "The area result cache expired or was replaced; resubmit the query.",
+                "details": {
+                  "resource_id": "5fd863d795c8518df95359caa2e15139",
+                  "next_action": "resubmit"
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "error",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "64cd7dfdde5ccac37b7bfafe2dff13e1f8e4ac5084a607019cdb6b0b9e87c385"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "RESUBMIT",
+        "expected_answer": "RESUBMIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "runtime-changed",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "我重连后保留了旧任务编号。请核实编号能否继续查询。应重交原请求回复 RESUBMIT；仍可等待回复 WAIT。\n任务编号：00000000000000000000000000000000:013c9aeb8991519084e3b75c0a67c840\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "00000000000000000000000000000000:013c9aeb8991519084e3b75c0a67c840"
+            },
+            "response": {
+              "error": {
+                "code": "TASK_RUNTIME_CHANGED",
+                "message": "This task belongs to another runtime; resubmit the original query.",
+                "details": {
+                  "reason": "runtime_changed",
+                  "next_action": "resubmit_or_verify_task_id"
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "error",
+                "task_id": "00000000000000000000000000000000:013c9aeb8991519084e3b75c0a67c840"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "4ba27aa396ce3008e04d8ce3ecf60dc1a7437d325ce17432ae4a40bdf1b01a4e"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "expired",
+        "expected_answer": "expired",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "expired-record",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "我很久没看这个任务了。请核实元数据状态，只返回任务 state 的原始字符串。\n任务编号：40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b",
+                "resource_id": "5b890bf90db1cfbd248733a16c2859f4",
+                "request": {
+                  "bounds": {
+                    "south": 30.9,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "expired",
+                "execution_pending": false,
+                "result_revision": "b6d3ea91ff6d44939ba4913439490fdb",
+                "created_at": "2026-10-27T10:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T10:10:00Z",
+                "started_at": "2026-10-27T10:00:00Z",
+                "finished_at": "2026-10-27T10:00:00Z",
+                "expires_at": "2026-10-27T11:00:00Z",
+                "progress": 1.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b"
+              }
+            }
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "862bd13be2d97515583d5a0ae4d6fceb0026a4f7781aa4507d77c5411454230b"
+      }
+    ],
+    "claude": [
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "WAIT",
+        "expected_answer": "WAIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "queued",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "我保存了一个区域分析任务。只查一次，现在应继续等还是重交？仅回复 WAIT 或 RESUBMIT。\n任务编号：40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f",
+                "resource_id": "7842a2a46c0370b17dd8928919e65c1b",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "queued",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": null,
+                "finished_at": null,
+                "expires_at": null,
+                "progress": 0.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 0.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:65a26586728953cebc2e6f151c4ccb8f"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "196ec4132e8dd38a6212f38f52a926db9d1f2b7bf107866e0643d846aa6a94ee"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "WAIT",
+        "expected_answer": "WAIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "running",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "区域分析还没给地点。只查一次，现在应继续等还是重交？仅回复 WAIT 或 RESUBMIT。\n任务编号：40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9",
+                "resource_id": "e049d3baedd97f31273cdd49833c0c3d",
+                "request": {
+                  "bounds": {
+                    "south": 30.1,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:58824c790103572b949be8d4463594c9"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "1b45d7a868a188bedc22521eaa887a98c16c5209f2c9ee9bc383bc87ce4c52f3"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "NETWORK_ERROR",
+        "expected_answer": "NETWORK_ERROR",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "failed",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请核实任务为什么没有地点结果。状态查询成功不等于分析成功；仅返回分析失败的 error code。\n任务编号：40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13",
+                "resource_id": "4e2b5049ed00c907400ddf43e618bc35",
+                "request": {
+                  "bounds": {
+                    "south": 30.2,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "failed",
+                "execution_pending": false,
+                "result_revision": null,
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": "2026-10-27T12:00:00Z",
+                "expires_at": "2026-10-27T13:00:00Z",
+                "progress": null,
+                "failure": {
+                  "code": "NETWORK_ERROR",
+                  "message": "Offline"
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:10f7e334d7555b9191266d3e91f9ae13"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "b58250340c278f57255124321fd018b0a1e77a20f944f11ae399a4bb943633d1"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "timed_out",
+        "expected_answer": "timed_out",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "timed-out",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "我不确定是仍在分析还是已超时。请查询并只返回任务 state 的原始字符串。\n任务编号：40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744",
+                "resource_id": "ffb36d34caeaa7c43f098076f0919680",
+                "request": {
+                  "bounds": {
+                    "south": 30.3,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "timed_out",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T11:49:59Z",
+                "updated_at": "2026-10-27T11:59:59Z",
+                "deadline_at": "2026-10-27T11:59:59Z",
+                "started_at": "2026-10-27T11:49:59Z",
+                "finished_at": "2026-10-27T11:59:59Z",
+                "expires_at": "2026-10-27T12:59:59Z",
+                "progress": null,
+                "failure": {
+                  "code": "task_timeout",
+                  "message": "The task deadline elapsed."
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:df7c7ad00247563f9916d03720887744"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "eedc99cd32bee05adceff2ce991c3495dbfd62b2e1ea9ba11480fe3b9e2dcd15"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "WAIT_FOR_EXECUTION",
+        "expected_answer": "WAIT_FOR_EXECUTION",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "cancelled-draining",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "任务已经取消，我想知道后台执行占用是否释放。仅回复 WAIT_FOR_EXECUTION 或 READY_TO_RETRY。\n任务编号：40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb",
+                "resource_id": "82c7836335087be1cec1be66d5505908",
+                "request": {
+                  "bounds": {
+                    "south": 30.4,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": "2026-10-27T12:00:00Z",
+                "expires_at": "2026-10-27T13:00:00Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:6e90d753a05a5a4f818d61aeab74dbbb"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "39af87d427edd205474f24bfdd87b1e93d5d4d38e39729588ca80bfa3e09ccf8"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "Recovery Valley",
+        "expected_answer": "Recovery Valley",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "paged-result",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请先确认任务成功，再读取每页 1 个地点的第 2 页。只返回该页地点名称。\n任务编号：40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d",
+                "resource_id": "18f5922fd5995932e5e1d14b5ce16fd7",
+                "request": {
+                  "bounds": {
+                    "south": 30.5,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "succeeded",
+                "execution_pending": false,
+                "result_revision": "c46ce1f7fcf74ede97116e3dff155d70",
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": "2026-10-27T12:00:00Z",
+                "expires_at": "2026-10-27T13:00:00Z",
+                "progress": 1.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d"
+              }
+            }
+          },
+          {
+            "tool": "get_area_analysis_result",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d",
+              "page": 2,
+              "page_size": 1
+            },
+            "response": {
+              "data": {
+                "items": [
+                  {
+                    "name": "Recovery Valley",
+                    "lat": 30.2,
+                    "lon": 119.2,
+                    "elevation_m": null,
+                    "light_pollution_level": null,
+                    "bortle_class": null,
+                    "road_distance_km": null,
+                    "score": null,
+                    "static_popularity_risk_score": null,
+                    "night_quiet_likelihood_score": null,
+                    "temporal_popularity_confidence": null,
+                    "nearby_popular_poi_count": 0,
+                    "nearby_night_active_poi_count": 0,
+                    "nearby_day_only_poi_count": 0,
+                    "popularity_signals": null,
+                    "temporal_popularity_signals": null,
+                    "popularity_notes": null
+                  }
+                ],
+                "total": 2,
+                "page": 2,
+                "page_size": 1,
+                "total_pages": 2,
+                "resource_id": "18f5922fd5995932e5e1d14b5ce16fd7"
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:e1352a4dc35354ba92ff4583db92688d",
+                "warnings": [
+                  "All locations have no Bortle class — light pollution GeoTIFF may be unavailable or the coordinates are outside data coverage."
+                ]
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "860981930177ce74b8af8b187a3bd3ae55bb97566d38180a9b61d8bc7bb809ca"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "RESUBMIT",
+        "expected_answer": "RESUBMIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "missing-cache",
+        "passed": true,
+        "original_scoring_passed": false,
+        "question": "这个任务之前已成功。请直接尝试读取结果，核实缓存是否还在。若结果失效仅回复 RESUBMIT；若可读仅回复 READABLE。\n任务编号：40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221",
+                "resource_id": "3d234fcc078234053dceb6fe1989dcf9",
+                "request": {
+                  "bounds": {
+                    "south": 30.6,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "succeeded",
+                "execution_pending": false,
+                "result_revision": "370f931784eb4b51b232499d3ae790e4",
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": "2026-10-27T12:00:00Z",
+                "expires_at": "2026-10-27T13:00:00Z",
+                "progress": 1.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221"
+              }
+            }
+          },
+          {
+            "tool": "get_area_analysis_result",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221"
+            },
+            "response": {
+              "error": {
+                "code": "TASK_RESULT_EXPIRED",
+                "message": "The area result cache expired or was replaced; resubmit the query.",
+                "details": {
+                  "resource_id": "3d234fcc078234053dceb6fe1989dcf9",
+                  "next_action": "resubmit"
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "error",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:a5688855ac14577f84c99bd5f3fdd221"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "8ee2140db90ca543b04572ba38cb6269be5f8c3057b638d113f0db93c2ef2d1c"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "RESUBMIT",
+        "expected_answer": "RESUBMIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "replaced-cache",
+        "passed": true,
+        "original_scoring_passed": false,
+        "question": "请直接读取这个已成功任务的原结果，不能用同查询的新版本冒充。若原结果已失效仅回复 RESUBMIT；若可读仅回复 READABLE。\n任务编号：40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461",
+                "resource_id": "5fd863d795c8518df95359caa2e15139",
+                "request": {
+                  "bounds": {
+                    "south": 30.7,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "succeeded",
+                "execution_pending": false,
+                "result_revision": "4eeb9d4b7ab44f24804b2edf2009482d",
+                "created_at": "2026-10-27T12:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T12:10:00Z",
+                "started_at": "2026-10-27T12:00:00Z",
+                "finished_at": "2026-10-27T12:00:00Z",
+                "expires_at": "2026-10-27T13:00:00Z",
+                "progress": 1.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461"
+              }
+            }
+          },
+          {
+            "tool": "get_area_analysis_result",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461"
+            },
+            "response": {
+              "error": {
+                "code": "TASK_RESULT_EXPIRED",
+                "message": "The area result cache expired or was replaced; resubmit the query.",
+                "details": {
+                  "resource_id": "5fd863d795c8518df95359caa2e15139",
+                  "next_action": "resubmit"
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "error",
+                "task_id": "40349625919c5f5db351c1f154b16ba0:dd0c4c6436165bbdaea7b3160e6ae461"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "c0bb72cfc0e79f152b49fde27c3be5f07dee2b2890f469b3967e591c0d3e6fe9"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "RESUBMIT",
+        "expected_answer": "RESUBMIT",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "runtime-changed",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "我重连后保留了旧任务编号。请核实编号能否继续查询。应重交原请求回复 RESUBMIT；仍可等待回复 WAIT。\n任务编号：00000000000000000000000000000000:013c9aeb8991519084e3b75c0a67c840\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "00000000000000000000000000000000:013c9aeb8991519084e3b75c0a67c840"
+            },
+            "response": {
+              "error": {
+                "code": "TASK_RUNTIME_CHANGED",
+                "message": "This task belongs to another runtime; resubmit the original query.",
+                "details": {
+                  "reason": "runtime_changed",
+                  "next_action": "resubmit_or_verify_task_id"
+                }
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "error",
+                "task_id": "00000000000000000000000000000000:013c9aeb8991519084e3b75c0a67c840"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "7a57e57a7932c29f7e785c1f640d1771f8fe7f5f9f053c54452388c91d01d16e"
+      },
+      {
+        "first_tool": "get_area_analysis_task",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "expired",
+        "expected_answer": "expired",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "expired-record",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "我很久没看这个任务了。请核实元数据状态，只返回任务 state 的原始字符串。\n任务编号：40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b\n只使用观星 MCP 查询工具核实，不提交、不取消、不重算，不读取本地文件。只输出要求的单个答案，不加解释。",
+        "calls": [
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b"
+            },
+            "response": {
+              "data": {
+                "task_id": "40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b",
+                "resource_id": "5b890bf90db1cfbd248733a16c2859f4",
+                "request": {
+                  "bounds": {
+                    "south": 30.9,
+                    "west": 119.0,
+                    "north": 32.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 30,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "expired",
+                "execution_pending": false,
+                "result_revision": "342efe4a83f245e1acdfadc54e59e797",
+                "created_at": "2026-10-27T10:00:00Z",
+                "updated_at": "2026-10-27T12:00:00Z",
+                "deadline_at": "2026-10-27T10:10:00Z",
+                "started_at": "2026-10-27T10:00:00Z",
+                "finished_at": "2026-10-27T10:00:00Z",
+                "expires_at": "2026-10-27T11:00:00Z",
+                "progress": 1.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "40349625919c5f5db351c1f154b16ba0:ded23dfce48458628f54207fc65f8f8b"
+              }
+            }
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "0d605c668309cf34444270e23aec62a48b9885bfab64868c4b0615dc2b85431c"
+      }
+    ]
+  },
+  "source_sha256": {
+    "evaluations/task_recovery_golden.py": "f6d124bade74bf03ddb77932aaf00b1556ce4ff2661b325da49b9c5c813515a5",
+    "evaluations/task_recovery_golden.xml": "a1a7e8c90aff4ba89596c226d3086c00f19d4507e5c118e699488dbe1018711c",
+    "evaluations/task_recovery_server.py": "4938c46a12f7b99939f661302761a845fc28811d70690fe2fec1593f1c54ff14",
+    "scripts/run_task_recovery_clients.py": "c8d582c1e9fc84aa0282e4813aa93842babba15c495ffa39857f9a06fb5fdb8c"
+  }
+}

@@ -6,6 +6,11 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
+- **P5.4 read-only AI recovery gate** — Codex CLI and Claude Code each completed ten frozen
+  status/result questions with verified tool traces and exact answers. The 20/20 gate distinguishes
+  execution failure, timeout, physical draining, paging, cache/version loss, and runtime loss.
+  See `evaluations/reports/2026-10-27-task-recovery.md` for models, scoring correction, and limits.
+
 - **P5.3 process recovery acceptance** — Real HTTP clients reconnect to running tasks and page
   their results; fresh server processes reject old task IDs after graceful restart or an in-flight
   crash. Explicit resubmission recomputes, while cancelled work cannot publish late results.
@@ -189,7 +194,9 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   retrieval through four application-level tools, activating optional task metadata only there.
 - ✅ P5.3 verifies disconnect/reconnect, cross-connection pagination, cancellation, actual process
   restart, and in-flight process loss through the real HTTP transport.
-- Extend third-party AI acceptance to task-tool selection and recovery decisions.
+- ✅ P5.4 verifies third-party AI read-only task-tool selection and recovery decisions.
+- Extend AI acceptance to initiating and cancelling tasks before claiming all four task-tool
+  workflows are qualified; the read-only gate does not demonstrate those actions.
 - Preserve paging and `resource_id` semantics while adding polling, resumption, expiry, and
   restart behavior.
 
