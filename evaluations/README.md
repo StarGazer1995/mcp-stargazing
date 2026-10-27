@@ -50,3 +50,16 @@ rejects its old task ID and recomputes only after explicit resubmission.
 This is protocol/process recovery acceptance. It does not claim a third-party AI selected the
 new task tools correctly; the historical two-client planner report remains scoped to its original
 frozen planner scenario.
+
+## Third-party AI recovery decisions
+
+`task_recovery_golden.py` and its matching XML define ten independent read-only questions.
+`task_recovery_server.py` exposes all 21 production tool definitions, seeds frozen task/cache
+states, and blocks non-query execution before it reaches providers. The production task adapters
+remain in use. This fixture does not run real geographic work or reproduce process failure.
+
+Run `uv run pytest tests/test_task_recovery_golden.py tests/test_task_recovery_client_scoring.py`.
+The client runner and evidence summarizer are documented in the
+[2026-10-27 report](reports/2026-10-27-task-recovery.md). Both Codex CLI and Claude Code completed
+all ten questions; the report records model identity, grading corrections, setup probes, and limits.
+AI submission/cancellation workflows remain separate from this read-only gate.
