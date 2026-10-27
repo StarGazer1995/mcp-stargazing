@@ -121,6 +121,13 @@ async def light_pollution_map(
 ) -> dict[str, Any]:
     """Get light pollution data for a specific area.
 
+    Use when: you need a bounding-box grid of light pollution measurements for a map or analysis.
+    Do not use when: you need ranked places or a complete observing decision.
+    Requires: south/west/north/east bounds and optional grid zoom.
+    Returns: data.grid points with brightness, Bortle class, and SQM, plus bounds and zoom.
+    Follow-up: analysis_area for synchronous place candidates; submit_area_analysis
+        for background place analysis; plan_stargazing_session for an observing decision.
+
     Returns a grid of light pollution data points including brightness, Bortle class, and SQM.
 
     Args:
@@ -331,6 +338,12 @@ async def analysis_area(
     page_size: int = 10,
 ) -> dict[str, Any]:
     """Analyze a geographic area for suitable stargazing locations.
+
+    Use when: you need synchronous place candidates or cached pages for a fixed regional query.
+    Do not use when: the search needs background polling/cancellation or a complete night plan.
+    Requires: south/west/north/east bounds; keep search parameters fixed while changing pages.
+    Follow-up: analysis_area with the same query for other pages; submit_area_analysis
+        for background work; plan_stargazing_session for dates, weather, and target decisions.
 
     This tool searches for dark, accessible locations with good viewing conditions.
     Results are cached based on search parameters.

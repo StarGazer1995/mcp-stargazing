@@ -1,0 +1,1203 @@
+{
+  "date": "2026-10-27",
+  "suite": "actions",
+  "metrics": {
+    "codex": {
+      "tool_selection": 3,
+      "first_call_contract": 3,
+      "trace_ok": 3,
+      "exact_answer": 3,
+      "passed": 3,
+      "cases": 3
+    },
+    "claude": {
+      "tool_selection": 3,
+      "first_call_contract": 3,
+      "trace_ok": 3,
+      "exact_answer": 3,
+      "passed": 3,
+      "cases": 3
+    }
+  },
+  "results": {
+    "codex": [
+      {
+        "first_tool": "submit_area_analysis",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "Recovery Valley",
+        "expected_answer": "Recovery Valley",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "submit-page",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请新建这个区域的后台地点分析，查询状态直到成功，然后读取每页 1 条的第 2 页。只返回该页地点名称。\n区域分析请求：{\"bounds\": {\"south\": 30, \"west\": 119, \"north\": 31, \"east\": 120}, \"road_radius_km\": 0, \"max_locations\": 2}\n只使用观星 MCP 工具，不读取本地文件、不执行命令。这是隔离验收服务，允许按要求提交和取消；不请求完整观测规划。任务编号必须使用实际返回值。只输出要求的单个答案。",
+        "calls": [
+          {
+            "tool": "submit_area_analysis",
+            "arguments": {
+              "request": {
+                "bounds": {
+                  "south": 30,
+                  "west": 119,
+                  "north": 31,
+                  "east": 120
+                },
+                "road_radius_km": 0,
+                "max_locations": 2
+              }
+            },
+            "response": {
+              "data": {
+                "task_id": "a4d9cd84ef384394908f8291249d33b6:3b1551179ec84762889aa689fa38dcc0",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:35:24.769839Z",
+                "updated_at": "2026-10-27T02:35:24.770116Z",
+                "deadline_at": "2026-10-27T02:45:24.769839Z",
+                "started_at": "2026-10-27T02:35:24.770116Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "a4d9cd84ef384394908f8291249d33b6:3b1551179ec84762889aa689fa38dcc0"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "a4d9cd84ef384394908f8291249d33b6:3b1551179ec84762889aa689fa38dcc0"
+            },
+            "response": {
+              "data": {
+                "task_id": "a4d9cd84ef384394908f8291249d33b6:3b1551179ec84762889aa689fa38dcc0",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "succeeded",
+                "execution_pending": false,
+                "result_revision": "4866a262837241979aa11dc3c52ec596",
+                "created_at": "2026-10-27T02:35:24.769839Z",
+                "updated_at": "2026-10-27T02:35:24.772675Z",
+                "deadline_at": "2026-10-27T02:45:24.769839Z",
+                "started_at": "2026-10-27T02:35:24.770116Z",
+                "finished_at": "2026-10-27T02:35:24.772675Z",
+                "expires_at": "2026-10-27T03:35:24.772675Z",
+                "progress": 1.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "a4d9cd84ef384394908f8291249d33b6:3b1551179ec84762889aa689fa38dcc0"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "get_area_analysis_result",
+            "arguments": {
+              "task_id": "a4d9cd84ef384394908f8291249d33b6:3b1551179ec84762889aa689fa38dcc0",
+              "page": 2,
+              "page_size": 1
+            },
+            "response": {
+              "data": {
+                "items": [
+                  {
+                    "name": "Recovery Valley",
+                    "lat": 30.2,
+                    "lon": 119.2,
+                    "elevation_m": null,
+                    "light_pollution_level": null,
+                    "bortle_class": null,
+                    "road_distance_km": null,
+                    "score": 75.0,
+                    "static_popularity_risk_score": null,
+                    "night_quiet_likelihood_score": null,
+                    "temporal_popularity_confidence": null,
+                    "nearby_popular_poi_count": 0,
+                    "nearby_night_active_poi_count": 0,
+                    "nearby_day_only_poi_count": 0,
+                    "popularity_signals": null,
+                    "temporal_popularity_signals": null,
+                    "popularity_notes": null
+                  }
+                ],
+                "total": 2,
+                "page": 2,
+                "page_size": 1,
+                "total_pages": 2,
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f"
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "a4d9cd84ef384394908f8291249d33b6:3b1551179ec84762889aa689fa38dcc0",
+                "warnings": [
+                  "All locations have no Bortle class — light pollution GeoTIFF may be unavailable or the coordinates are outside data coverage."
+                ]
+              }
+            },
+            "provider_calls": 1
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "1af2d5c047be9c9bbfe2fe5a70d3edeaa0309f0d719e5f8c5c8daacf4d5ac3df"
+      },
+      {
+        "first_tool": "submit_area_analysis",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "cancelled",
+        "expected_answer": "cancelled",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "cancel-running",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请提交这个区域的后台地点分析，然后取消刚返回的任务，查询确认取消状态。不要取结果或重交。仅返回最后查询的 state。\n区域分析请求：{\"bounds\": {\"south\": 30, \"west\": 119, \"north\": 31, \"east\": 120}, \"road_radius_km\": 0, \"max_locations\": 2}\n只使用观星 MCP 工具，不读取本地文件、不执行命令。这是隔离验收服务，允许按要求提交和取消；不请求完整观测规划。任务编号必须使用实际返回值。只输出要求的单个答案。",
+        "calls": [
+          {
+            "tool": "submit_area_analysis",
+            "arguments": {
+              "request": {
+                "bounds": {
+                  "south": 30,
+                  "west": 119,
+                  "north": 31,
+                  "east": 120
+                },
+                "road_radius_km": 0,
+                "max_locations": 2
+              }
+            },
+            "response": {
+              "data": {
+                "task_id": "21d892ff064a4d0d8539ff6195ed15ca:b634c3ae1bee4f5fb449f35d910cf80c",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:36:13.781250Z",
+                "updated_at": "2026-10-27T02:36:13.781403Z",
+                "deadline_at": "2026-10-27T02:46:13.781250Z",
+                "started_at": "2026-10-27T02:36:13.781403Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "21d892ff064a4d0d8539ff6195ed15ca:b634c3ae1bee4f5fb449f35d910cf80c"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "cancel_area_analysis_task",
+            "arguments": {
+              "task_id": "21d892ff064a4d0d8539ff6195ed15ca:b634c3ae1bee4f5fb449f35d910cf80c"
+            },
+            "response": {
+              "data": {
+                "task_id": "21d892ff064a4d0d8539ff6195ed15ca:b634c3ae1bee4f5fb449f35d910cf80c",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:36:13.781250Z",
+                "updated_at": "2026-10-27T02:36:20.537179Z",
+                "deadline_at": "2026-10-27T02:46:13.781250Z",
+                "started_at": "2026-10-27T02:36:13.781403Z",
+                "finished_at": "2026-10-27T02:36:20.537179Z",
+                "expires_at": "2026-10-27T03:36:20.537179Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "21d892ff064a4d0d8539ff6195ed15ca:b634c3ae1bee4f5fb449f35d910cf80c"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "21d892ff064a4d0d8539ff6195ed15ca:b634c3ae1bee4f5fb449f35d910cf80c"
+            },
+            "response": {
+              "data": {
+                "task_id": "21d892ff064a4d0d8539ff6195ed15ca:b634c3ae1bee4f5fb449f35d910cf80c",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": false,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:36:13.781250Z",
+                "updated_at": "2026-10-27T02:36:20.537179Z",
+                "deadline_at": "2026-10-27T02:46:13.781250Z",
+                "started_at": "2026-10-27T02:36:13.781403Z",
+                "finished_at": "2026-10-27T02:36:20.537179Z",
+                "expires_at": "2026-10-27T03:36:20.537179Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "21d892ff064a4d0d8539ff6195ed15ca:b634c3ae1bee4f5fb449f35d910cf80c"
+              }
+            },
+            "provider_calls": 1
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "071d883dbe8ebdf92dcf1600faf423694aa7652462798cc5df284b330d435e4b"
+      },
+      {
+        "first_tool": "submit_area_analysis",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "REUSED_AND_CANCELLED",
+        "expected_answer": "REUSED_AND_CANCELLED",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "duplicate-cancel",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请连续提交两次完全相同的区域分析请求，核对活动任务是否复用同一个编号，然后取消该任务并查询确认。不要取结果或再次重交。编号相同且确认取消只回复 REUSED_AND_CANCELLED，否则回复 DIFFERENT。\n区域分析请求：{\"bounds\": {\"south\": 30, \"west\": 119, \"north\": 31, \"east\": 120}, \"road_radius_km\": 0, \"max_locations\": 2}\n只使用观星 MCP 工具，不读取本地文件、不执行命令。这是隔离验收服务，允许按要求提交和取消；不请求完整观测规划。任务编号必须使用实际返回值。只输出要求的单个答案。",
+        "calls": [
+          {
+            "tool": "submit_area_analysis",
+            "arguments": {
+              "request": {
+                "bounds": {
+                  "south": 30,
+                  "west": 119,
+                  "north": 31,
+                  "east": 120
+                },
+                "road_radius_km": 0,
+                "max_locations": 2
+              }
+            },
+            "response": {
+              "data": {
+                "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:36:59.914380Z",
+                "updated_at": "2026-10-27T02:36:59.914833Z",
+                "deadline_at": "2026-10-27T02:46:59.914380Z",
+                "started_at": "2026-10-27T02:36:59.914833Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "submit_area_analysis",
+            "arguments": {
+              "request": {
+                "bounds": {
+                  "south": 30,
+                  "west": 119,
+                  "north": 31,
+                  "east": 120
+                },
+                "road_radius_km": 0,
+                "max_locations": 2
+              }
+            },
+            "response": {
+              "data": {
+                "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:36:59.914380Z",
+                "updated_at": "2026-10-27T02:36:59.914833Z",
+                "deadline_at": "2026-10-27T02:46:59.914380Z",
+                "started_at": "2026-10-27T02:36:59.914833Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "cancel_area_analysis_task",
+            "arguments": {
+              "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3"
+            },
+            "response": {
+              "data": {
+                "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:36:59.914380Z",
+                "updated_at": "2026-10-27T02:37:07.146979Z",
+                "deadline_at": "2026-10-27T02:46:59.914380Z",
+                "started_at": "2026-10-27T02:36:59.914833Z",
+                "finished_at": "2026-10-27T02:37:07.146979Z",
+                "expires_at": "2026-10-27T03:37:07.146979Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3"
+            },
+            "response": {
+              "data": {
+                "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": false,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:36:59.914380Z",
+                "updated_at": "2026-10-27T02:37:07.146979Z",
+                "deadline_at": "2026-10-27T02:46:59.914380Z",
+                "started_at": "2026-10-27T02:36:59.914833Z",
+                "finished_at": "2026-10-27T02:37:07.146979Z",
+                "expires_at": "2026-10-27T03:37:07.146979Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "108291c33dc644638afabdfd18fc5844:90d493f93ccf4f4e83482867492536d3"
+              }
+            },
+            "provider_calls": 1
+          }
+        ],
+        "response_models": [],
+        "configured_model": "gpt-6.1-sol",
+        "client_log_sha256": "968491db965e3061767573ddbf6b77f236028b16694269538569e2ab90508053"
+      }
+    ],
+    "claude": [
+      {
+        "first_tool": "submit_area_analysis",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "Recovery Valley",
+        "expected_answer": "Recovery Valley",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "submit-page",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请新建这个区域的后台地点分析，查询状态直到成功，然后读取每页 1 条的第 2 页。只返回该页地点名称。\n区域分析请求：{\"bounds\": {\"south\": 30, \"west\": 119, \"north\": 31, \"east\": 120}, \"road_radius_km\": 0, \"max_locations\": 2}\n只使用观星 MCP 工具，不读取本地文件、不执行命令。这是隔离验收服务，允许按要求提交和取消；不请求完整观测规划。任务编号必须使用实际返回值。只输出要求的单个答案。",
+        "calls": [
+          {
+            "tool": "submit_area_analysis",
+            "arguments": {
+              "request": {
+                "bounds": {
+                  "south": 30,
+                  "west": 119,
+                  "north": 31,
+                  "east": 120
+                },
+                "road_radius_km": 0,
+                "max_locations": 2
+              }
+            },
+            "response": {
+              "data": {
+                "task_id": "a4c11dab6fb9449faacab17cb5249386:32499ebc55214ff4834e94cadc1d0d4e",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:34:35.963220Z",
+                "updated_at": "2026-10-27T02:34:35.963509Z",
+                "deadline_at": "2026-10-27T02:44:35.963220Z",
+                "started_at": "2026-10-27T02:34:35.963509Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "a4c11dab6fb9449faacab17cb5249386:32499ebc55214ff4834e94cadc1d0d4e"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "a4c11dab6fb9449faacab17cb5249386:32499ebc55214ff4834e94cadc1d0d4e"
+            },
+            "response": {
+              "data": {
+                "task_id": "a4c11dab6fb9449faacab17cb5249386:32499ebc55214ff4834e94cadc1d0d4e",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "succeeded",
+                "execution_pending": false,
+                "result_revision": "f3a48969cd294522b6c2c16bc9ed47e7",
+                "created_at": "2026-10-27T02:34:35.963220Z",
+                "updated_at": "2026-10-27T02:34:35.965366Z",
+                "deadline_at": "2026-10-27T02:44:35.963220Z",
+                "started_at": "2026-10-27T02:34:35.963509Z",
+                "finished_at": "2026-10-27T02:34:35.965366Z",
+                "expires_at": "2026-10-27T03:34:35.965366Z",
+                "progress": 1.0,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "a4c11dab6fb9449faacab17cb5249386:32499ebc55214ff4834e94cadc1d0d4e"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "get_area_analysis_result",
+            "arguments": {
+              "task_id": "a4c11dab6fb9449faacab17cb5249386:32499ebc55214ff4834e94cadc1d0d4e",
+              "page": 2,
+              "page_size": 1
+            },
+            "response": {
+              "data": {
+                "items": [
+                  {
+                    "name": "Recovery Valley",
+                    "lat": 30.2,
+                    "lon": 119.2,
+                    "elevation_m": null,
+                    "light_pollution_level": null,
+                    "bortle_class": null,
+                    "road_distance_km": null,
+                    "score": 75.0,
+                    "static_popularity_risk_score": null,
+                    "night_quiet_likelihood_score": null,
+                    "temporal_popularity_confidence": null,
+                    "nearby_popular_poi_count": 0,
+                    "nearby_night_active_poi_count": 0,
+                    "nearby_day_only_poi_count": 0,
+                    "popularity_signals": null,
+                    "temporal_popularity_signals": null,
+                    "popularity_notes": null
+                  }
+                ],
+                "total": 2,
+                "page": 2,
+                "page_size": 1,
+                "total_pages": 2,
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f"
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "progress": 1.0,
+                "task_id": "a4c11dab6fb9449faacab17cb5249386:32499ebc55214ff4834e94cadc1d0d4e",
+                "warnings": [
+                  "All locations have no Bortle class — light pollution GeoTIFF may be unavailable or the coordinates are outside data coverage."
+                ]
+              }
+            },
+            "provider_calls": 1
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "2b2253188874d237854a8a005a568831b7d5f1776f7999f02c9bf62465774ba7"
+      },
+      {
+        "first_tool": "submit_area_analysis",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "cancelled",
+        "expected_answer": "cancelled",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "cancel-running",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请提交这个区域的后台地点分析，然后取消刚返回的任务，查询确认取消状态。不要取结果或重交。仅返回最后查询的 state。\n区域分析请求：{\"bounds\": {\"south\": 30, \"west\": 119, \"north\": 31, \"east\": 120}, \"road_radius_km\": 0, \"max_locations\": 2}\n只使用观星 MCP 工具，不读取本地文件、不执行命令。这是隔离验收服务，允许按要求提交和取消；不请求完整观测规划。任务编号必须使用实际返回值。只输出要求的单个答案。",
+        "calls": [
+          {
+            "tool": "submit_area_analysis",
+            "arguments": {
+              "request": {
+                "bounds": {
+                  "south": 30,
+                  "west": 119,
+                  "north": 31,
+                  "east": 120
+                },
+                "road_radius_km": 0,
+                "max_locations": 2
+              }
+            },
+            "response": {
+              "data": {
+                "task_id": "9e2e6969b791404d9ea1d800e86d6d5f:e1350fc0c1f6430b9012ae4673c16a84",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:34:52.508581Z",
+                "updated_at": "2026-10-27T02:34:52.508879Z",
+                "deadline_at": "2026-10-27T02:44:52.508581Z",
+                "started_at": "2026-10-27T02:34:52.508879Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "9e2e6969b791404d9ea1d800e86d6d5f:e1350fc0c1f6430b9012ae4673c16a84"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "cancel_area_analysis_task",
+            "arguments": {
+              "task_id": "9e2e6969b791404d9ea1d800e86d6d5f:e1350fc0c1f6430b9012ae4673c16a84"
+            },
+            "response": {
+              "data": {
+                "task_id": "9e2e6969b791404d9ea1d800e86d6d5f:e1350fc0c1f6430b9012ae4673c16a84",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:34:52.508581Z",
+                "updated_at": "2026-10-27T02:34:55.485376Z",
+                "deadline_at": "2026-10-27T02:44:52.508581Z",
+                "started_at": "2026-10-27T02:34:52.508879Z",
+                "finished_at": "2026-10-27T02:34:55.485376Z",
+                "expires_at": "2026-10-27T03:34:55.485376Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "9e2e6969b791404d9ea1d800e86d6d5f:e1350fc0c1f6430b9012ae4673c16a84"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "9e2e6969b791404d9ea1d800e86d6d5f:e1350fc0c1f6430b9012ae4673c16a84"
+            },
+            "response": {
+              "data": {
+                "task_id": "9e2e6969b791404d9ea1d800e86d6d5f:e1350fc0c1f6430b9012ae4673c16a84",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": false,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:34:52.508581Z",
+                "updated_at": "2026-10-27T02:34:55.485376Z",
+                "deadline_at": "2026-10-27T02:44:52.508581Z",
+                "started_at": "2026-10-27T02:34:52.508879Z",
+                "finished_at": "2026-10-27T02:34:55.485376Z",
+                "expires_at": "2026-10-27T03:34:55.485376Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "9e2e6969b791404d9ea1d800e86d6d5f:e1350fc0c1f6430b9012ae4673c16a84"
+              }
+            },
+            "provider_calls": 1
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "af5f293b6b081e7484aa621ddaf2585a9df6d3ce46de95fef2e02a074fda4d65"
+      },
+      {
+        "first_tool": "submit_area_analysis",
+        "tool_selection": true,
+        "first_call_contract": true,
+        "trace_ok": true,
+        "answer": "REUSED_AND_CANCELLED",
+        "expected_answer": "REUSED_AND_CANCELLED",
+        "exact_answer": true,
+        "client_tools_ok": true,
+        "case": "duplicate-cancel",
+        "passed": true,
+        "original_scoring_passed": true,
+        "question": "请连续提交两次完全相同的区域分析请求，核对活动任务是否复用同一个编号，然后取消该任务并查询确认。不要取结果或再次重交。编号相同且确认取消只回复 REUSED_AND_CANCELLED，否则回复 DIFFERENT。\n区域分析请求：{\"bounds\": {\"south\": 30, \"west\": 119, \"north\": 31, \"east\": 120}, \"road_radius_km\": 0, \"max_locations\": 2}\n只使用观星 MCP 工具，不读取本地文件、不执行命令。这是隔离验收服务，允许按要求提交和取消；不请求完整观测规划。任务编号必须使用实际返回值。只输出要求的单个答案。",
+        "calls": [
+          {
+            "tool": "submit_area_analysis",
+            "arguments": {
+              "request": {
+                "bounds": {
+                  "south": 30,
+                  "west": 119,
+                  "north": 31,
+                  "east": 120
+                },
+                "road_radius_km": 0,
+                "max_locations": 2
+              }
+            },
+            "response": {
+              "data": {
+                "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:35:08.539166Z",
+                "updated_at": "2026-10-27T02:35:08.539554Z",
+                "deadline_at": "2026-10-27T02:45:08.539166Z",
+                "started_at": "2026-10-27T02:35:08.539554Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "submit_area_analysis",
+            "arguments": {
+              "request": {
+                "bounds": {
+                  "east": 120,
+                  "north": 31,
+                  "south": 30,
+                  "west": 119
+                },
+                "max_locations": 2,
+                "road_radius_km": 0
+              }
+            },
+            "response": {
+              "data": {
+                "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "running",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:35:08.539166Z",
+                "updated_at": "2026-10-27T02:35:08.539554Z",
+                "deadline_at": "2026-10-27T02:45:08.539166Z",
+                "started_at": "2026-10-27T02:35:08.539554Z",
+                "finished_at": null,
+                "expires_at": null,
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "cancel_area_analysis_task",
+            "arguments": {
+              "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda"
+            },
+            "response": {
+              "data": {
+                "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": true,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:35:08.539166Z",
+                "updated_at": "2026-10-27T02:35:14.468435Z",
+                "deadline_at": "2026-10-27T02:45:08.539166Z",
+                "started_at": "2026-10-27T02:35:08.539554Z",
+                "finished_at": "2026-10-27T02:35:14.468435Z",
+                "expires_at": "2026-10-27T03:35:14.468435Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda"
+              }
+            },
+            "provider_calls": 1
+          },
+          {
+            "tool": "get_area_analysis_task",
+            "arguments": {
+              "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda"
+            },
+            "response": {
+              "data": {
+                "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda",
+                "resource_id": "50ed23e4de7578f20e7bbb4507cc4f5f",
+                "request": {
+                  "bounds": {
+                    "south": 30.0,
+                    "west": 119.0,
+                    "north": 31.0,
+                    "east": 120.0
+                  },
+                  "max_locations": 2,
+                  "min_height_diff": 100.0,
+                  "road_radius_km": 0.0,
+                  "network_type": "drive",
+                  "avoid_popular_spots": false,
+                  "prefer_quiet_at_night": false,
+                  "popularity_radius_km": 3.0
+                },
+                "state": "cancelled",
+                "execution_pending": false,
+                "result_revision": null,
+                "created_at": "2026-10-27T02:35:08.539166Z",
+                "updated_at": "2026-10-27T02:35:14.468435Z",
+                "deadline_at": "2026-10-27T02:45:08.539166Z",
+                "started_at": "2026-10-27T02:35:08.539554Z",
+                "finished_at": "2026-10-27T02:35:14.468435Z",
+                "expires_at": "2026-10-27T03:35:14.468435Z",
+                "progress": null,
+                "failure": null
+              },
+              "_meta": {
+                "version": "1.0.0",
+                "status": "success",
+                "task_id": "ac3a41c054044f37b629e76af448bec7:3518da2301184798b8a788293f841eda"
+              }
+            },
+            "provider_calls": 1
+          }
+        ],
+        "response_models": [
+          "deepseek-v4-pro"
+        ],
+        "configured_model": null,
+        "client_log_sha256": "818c6a70f1cdb3c1da6c33ce4b9fe835954e02d9567223b94477d2705527899b"
+      }
+    ]
+  },
+  "source_sha256": {
+    "evaluations/task_recovery_golden.py": "f6d124bade74bf03ddb77932aaf00b1556ce4ff2661b325da49b9c5c813515a5",
+    "evaluations/task_recovery_golden.xml": "a1a7e8c90aff4ba89596c226d3086c00f19d4507e5c118e699488dbe1018711c",
+    "evaluations/task_recovery_server.py": "4938c46a12f7b99939f661302761a845fc28811d70690fe2fec1593f1c54ff14",
+    "scripts/run_task_recovery_clients.py": "2e337f6191a62e8def097f2ca15482367e1d479e783405befeaa3550938996fb",
+    "scripts/summarize_task_recovery.py": "99debfe148cb1e85a507a73659a7b083959d9b48236252b9c4abf3d801993562",
+    "evaluations/task_action_golden.py": "eb1fa7631b067974cd0afeb375098d897298a7171534afee30285a96febf3f06",
+    "evaluations/task_action_server.py": "e383988e03880a0aea3f71ad96365dacdf1a6bd794dd3ce67d4ae7dace4b63bf",
+    "evaluations/area_task_server.py": "4613edbff6d6e7a854a7fe09fd322cd36824d752f67bcd423f35048d817cbbc2",
+    "src/functions/places/tasks_impl.py": "2555b73591940f2edde847626064a516eaae160676ad571329dba39107646e8d",
+    "src/services/area_tasks.py": "dfeef0cf5c57e9c628158704e05cf5a1f33c995f01ec5337deea2bec8ffadbe1",
+    "src/services/tasks.py": "dc2e837801f4d687c60a5669405c448bf8f7878dae23f827b6033a1f1de73dc8",
+    "src/analysis_cache.py": "5d3f6bafbf308cc27b063f376e5a8c3ebf598e2499f07a14ffd5b8bc978b050f",
+    "src/functions/telescope/impl.py": "f5bf646bc159ff70f8df6ca764fcf8bd7e0c6f10451006f980f8a5aab805d2b0",
+    "src/functions/places/impl.py": "c2544778ada09a1a89052665fd78d50d742e673b8ef387943c751226c2b0c73f",
+    "src/functions/planning/agent_impl.py": "98d1dd86ea841e9b799980b02b2b7c0794b94ee495c291b29c2e19cecf4ed5fa",
+    "src/functions/planning/impl.py": "cfc07a99b496a830abfabfc983eda88be0642800ffbf6a17e0c929db3eca9c11",
+    "src/functions/time/impl.py": "bed5a6459873cb533565820bc4fe341d899d077ac122b614aeb48eba331f7cda",
+    "src/functions/weather/impl.py": "2c004a512a0d237a2c272df1a0e5f794369b7a51da3b434bfedddbab9270c5fa",
+    "src/functions/metadata/impl.py": "cea4434c75a635b154e1e0eec8fbd04cee58e92a185ac0d299fcd43f82dc34bf",
+    "src/functions/celestial/impl.py": "0999eec05db07569aff5aff4a5b15284b1fbbae2126fd72a9361bcfdecf3009a",
+    "tests/test_tool_routing.py": "6bfcf55f2e33a0e27ea3464dca1d651d8f05185d0ae39d3996eda83fcfa32fbe"
+  },
+  "acceptance_scope": "Task workflow regression after public routing description changes; not AI coverage of every tool.",
+  "discovery": {
+    "get_celestial_pos": {
+      "description": "Calculate the altitude and azimuth angles of a celestial object.\n\nUse when: you need one named object's position at a specified place and instant.\nDo not use when: you need an all-night target list or a complete observing decision.\nRequires: object name, observer coordinates, observation time, and its IANA timezone.\nFollow-up: get_celestial_rise_set for events; get_nightly_forecast for night targets;\n    plan_stargazing_session for a complete observing decision.\n\nArgs:\n    celestial_object: Name of object (e.g. \"sun\", \"moon\", \"andromeda\")\n    lon: Observer longitude in degrees\n    lat: Observer latitude in degrees\n    time: Observation time string \"YYYY-MM-DD HH:MM:SS\"\n    time_zone: IANA timezone string\n\nReturns:\n    Dict with keys \"data\", \"_meta\". \"data\" contains \"altitude\" and \"azimuth\" (degrees)."
+    },
+    "get_celestial_rise_set": {
+      "description": "Calculate the rise and set times of a celestial object.\n\nUse when: you need one object's rise/set events. Choose calendar_day for the local\n    date containing time, or next_events for the next rise and next set after time.\nDo not use when: you need a continuous observing window or a complete night plan.\nRequires: object name, observer coordinates, time, timezone, and the intended event scope.\nFollow-up: get_celestial_pos for position; plan_stargazing_session for observing windows.\n\nArgs:\n    celestial_object: Name of object (e.g. \"sun\", \"moon\", \"andromeda\")\n    lon: Observer longitude in degrees\n    lat: Observer latitude in degrees\n    time: Date string \"YYYY-MM-DD HH:MM:SS\"\n    time_zone: IANA timezone string\n    event_scope: \"calendar_day\" (default) finds the events in the local calendar\n        day containing ``time``. \"next_events\" finds the next rise and next set\n        independently, rolling into following days when needed.\n\nReturns:\n    Dict with keys \"data\", \"_meta\". \"data\" contains \"rise_time\" and \"set_time\"."
+    },
+    "get_moon_info": {
+      "description": "Get detailed information about the Moon's phase and position.\n\nUse when: you need lunar phase or illumination facts, with optional observer-local events.\nDo not use when: you need to rank observing sites or assess a target's overall suitability.\nRequires: time and timezone; supply both lat and lon for local position and rise/set.\nFollow-up: get_telescope_targets for equipment-aware targets; plan_stargazing_session\n    for the combined effect of moonlight, weather, place, and observing goals.\n\nWhen ``lat`` and ``lon`` are provided, also returns the Moon's local\naltitude, azimuth, moonrise, and moonset relative to the observer.\n\nArgs:\n    time: Date string \"YYYY-MM-DD HH:MM:SS\"\n    time_zone: IANA timezone string\n    lat: Observer latitude in degrees (optional, for local position)\n    lon: Observer longitude in degrees (optional, for local position)\n\nReturns:\n    Dict with keys \"data\", \"_meta\". \"data\" contains illumination, phase_name,\n    age_days, elongation, earth_distance, and optionally altitude/azimuth\n    plus moonrise/moonset (UTC unix timestamps)."
+    },
+    "list_visible_planets": {
+      "description": "Get a list of solar system planets currently visible (above horizon).\n\nUse when: you need planets above the observer's horizon at a specified instant.\nDo not use when: you need all-night visibility, darkness guarantees, or equipment ranking.\nRequires: observer coordinates, time, and timezone; above-horizon visibility alone\n    does not establish dark-sky or telescope observing conditions.\nFollow-up: get_celestial_pos or get_celestial_rise_set for a selected planet;\n    plan_stargazing_session for a planetary observing decision.\n\nArgs:\n    lon: Observer longitude in degrees\n    lat: Observer latitude in degrees\n    time: Observation time string \"YYYY-MM-DD HH:MM:SS\"\n    time_zone: IANA timezone string\n\nReturns:\n    Dict with keys \"data\", \"_meta\". \"data\" is a list of planet dicts (name, altitude, azimuth)."
+    },
+    "get_constellation": {
+      "description": "Get the position (altitude/azimuth) of the center of a constellation.\n\nUse when: you need a named constellation's center position at a place and instant.\nDo not use when: you need to identify which constellation contains arbitrary coordinates,\n    or to choose individual observing targets.\nRequires: constellation name, observer coordinates, time, and timezone.\nFollow-up: get_nightly_forecast for individual night targets; plan_stargazing_session\n    for a complete observing decision.\n\nArgs:\n    constellation_name: Name of constellation (e.g. \"Orion\", \"Ursa Major\")\n    lon: Observer longitude in degrees\n    lat: Observer latitude in degrees\n    time: Observation time string \"YYYY-MM-DD HH:MM:SS\"\n    time_zone: IANA timezone string\n\nReturns:\n    Dict with keys \"data\", \"_meta\". \"data\" contains name, altitude, azimuth."
+    },
+    "get_nightly_forecast": {
+      "description": "Get a curated list of best objects to view for the night.\n\nUse when: place and night are known and you need general night targets and a night window.\nDo not use when: you need telescope-specific target matching or regional site selection.\nRequires: observer coordinates, time within the intended night, timezone, and optional limit.\nFollow-up: get_telescope_targets for known optics; get_shooting_plan for an imaging schedule;\n    plan_stargazing_session when place or night still needs comparison.\n\nArgs:\n    lon: Observer longitude in degrees\n    lat: Observer latitude in degrees\n    time: Date string \"YYYY-MM-DD HH:MM:SS\" (Time of observation, or just date)\n    time_zone: IANA timezone string\n    limit: Max number of deep-sky objects to return (default 20)\n\nReturns:\n    Standard envelope; data contains:\n    - moon_phase: Moon details\n    - planets: List of visible planets\n    - deep_sky: Sorted list of deep sky objects (Messier/NGC)\n    - night_window: Civil-dark window for the requested night"
+    },
+    "get_tool_catalog": {
+      "description": "Get metadata for all registered MCP tools.\n\nUse when: you need the wrapped catalog with full documentation and parameter summaries.\nDo not use when: your client only needs standard MCP tools/list discovery or a business result.\nRequires: no inputs; this call discovers tools and does not perform observing analysis.\nFollow-up: choose a tool from its use/do-not-use guidance; plan_stargazing_session\n    is the primary entry for complete observing decisions.\n\nReturns:\n    Dict with keys \"data\", \"_meta\". \"data.tools\" contains tool metadata objects."
+    },
+    "light_pollution_map": {
+      "description": "Get light pollution data for a specific area.\n\nUse when: you need a bounding-box grid of light pollution measurements for a map or analysis.\nDo not use when: you need ranked places or a complete observing decision.\nRequires: south/west/north/east bounds and optional grid zoom.\nReturns: data.grid points with brightness, Bortle class, and SQM, plus bounds and zoom.\nFollow-up: analysis_area for synchronous place candidates; submit_area_analysis\n    for background place analysis; plan_stargazing_session for an observing decision.\n\nReturns a grid of light pollution data points including brightness, Bortle class, and SQM.\n\nArgs:\n    south, west, north, east: Bounding box coordinates.\n    zoom: Grid resolution zoom level (default: 10). Higher = more detailed."
+    },
+    "analysis_area": {
+      "description": "Analyze a geographic area for suitable stargazing locations.\n\nUse when: you need synchronous place candidates or cached pages for a fixed regional query.\nDo not use when: the search needs background polling/cancellation or a complete night plan.\nRequires: south/west/north/east bounds; keep search parameters fixed while changing pages.\nFollow-up: analysis_area with the same query for other pages; submit_area_analysis\n    for background work; plan_stargazing_session for dates, weather, and target decisions.\n\nThis tool searches for dark, accessible locations with good viewing conditions.\nResults are cached based on search parameters.\n\n**Fast mode**: Set ``road_radius_km=0`` to skip road connectivity checks.\nThis avoids OSMnx network downloads from Overpass API and is much faster —\nuse it when you only need candidate locations with light pollution and\nelevation data, without road distance analysis.\n\nArgs:\n    south, west, north, east: Bounding box coordinates.\n    max_locations: Maximum number of candidate locations to find (before pagination).\n    min_height_diff: Minimum elevation difference for prominence.\n    road_radius_km: Search radius for road access. Set to 0 to skip road checks.\n    network_type: Type of road network ('drive', 'walk', etc.).\n    avoid_popular_spots: Penalize heuristically popular locations when ranking results.\n    prefer_quiet_at_night: Favor locations that are likelier to quiet down at night.\n    popularity_radius_km: Preference horizon for the popularity heuristics.\n    db_config_path: Optional path to database config.\n    page: Page number (1-based).\n    page_size: Number of results per page.\n\nReturns:\n    Dict with keys \"data\", \"_meta\". \"data\" contains:\n    - items: List of location results for the current page.\n    - total: Total number of locations found.\n    - page: Current page number.\n    - page_size: Current page size.\n    - resource_id: Cache key for the non-pagination search parameters."
+    },
+    "submit_area_analysis": {
+      "description": "Submit bounded background place analysis and return its task identifier.\n\nUse when: a geographic place search may outlive one tool call and needs background control.\nDo not use when: you need a complete observing decision or only want to poll an existing task.\nRequires: request.bounds and optional place-search preferences;\n    max_locations must be from 1 to 100.\nReturns: task snapshot with task_id, resource_id, state, and normalized request.\n    Active duplicate queries share a task. Completed retries may use cached data.\nFollow-up: get_area_analysis_task to poll; get_area_analysis_result after success;\n    cancel_area_analysis_task if no longer needed; plan_stargazing_session for decisions."
+    },
+    "get_area_analysis_task": {
+      "description": "Poll an area task's state, deadline, failure, and normalized request.\n\nUse when: you have a task_id and need execution state, failure, or remaining physical work.\nDo not use when: you need result pages; do not submit a new job merely to poll.\nRequires: task_id returned by submit_area_analysis in the same server runtime.\nReturns: task snapshot with state, failure, request, and execution_pending. Running progress\n    is unknown; success does not guarantee the separate result cache still exists.\nFollow-up: get_area_analysis_result after success; cancel_area_analysis_task if unwanted.\n    On TASK_RUNTIME_CHANGED, resubmit the original request rather than polling the old ID."
+    },
+    "cancel_area_analysis_task": {
+      "description": "Logically cancel queued/running area work and discard its late results.\n\nUse when: a submitted area task is no longer needed and its late result must not publish.\nDo not use when: you want to delete cached data or interrupt another domain's operation.\nRequires: task_id returned by submit_area_analysis in the same server runtime.\nReturns: idempotent cancellation snapshot; an existing terminal state stays unchanged.\n    A running provider call keeps its execution slot until it actually finishes.\nFollow-up: get_area_analysis_task to confirm state and execution_pending;\n    wait for physical work to drain before considering resubmission."
+    },
+    "get_area_analysis_result": {
+      "description": "Page a successful area task's existing cached result without recomputing.\n\nUse when: get_area_analysis_task reports succeeded and you need its original result pages.\nDo not use when: the task is queued/running and you only need to poll its state.\nRequires: the successful task_id, page >= 1, and page_size >= 1.\nReturns: cached items, pagination metadata, and resource_id with the task's publication\n    version checked; this call never silently recomputes missing data.\nFollow-up: get_area_analysis_result with the same task_id for other pages;\n    get_area_analysis_task for state; resubmit the normalized request on TASK_RESULT_EXPIRED."
+    },
+    "get_telescope_targets": {
+      "description": "Recommend astrophotography targets for a telescope setup.\n\nUse when: place, time, and optics are known and you need ranked deep-sky imaging targets.\nDo not use when: you only need naked-eye targets, a timed schedule, or a choice of sites.\nRequires: focal length, observer coordinates, time, and timezone; supply known sensor\n    and optical details for matching. For equipment presets use plan_stargazing_session.\nFollow-up: get_shooting_plan for timed imaging slots; plan_stargazing_session\n    if the observing place or night still needs comparison.\n\nGiven a telescope/camera configuration and observing location+time,\nreturns a ranked list of deep-sky objects best suited for imaging.\n\nArgs:\n    focal_length_mm: Telescope focal length in mm (e.g. 250 for RedCat51)\n    lon: Observer longitude in degrees\n    lat: Observer latitude in degrees\n    time: Observation time string \"YYYY-MM-DD HH:MM:SS\"\n    time_zone: IANA timezone string (e.g. \"Asia/Shanghai\", \"UTC\")\n    aperture_mm: Telescope aperture in mm (optional, for limiting magnitude)\n    sensor_width_mm: Camera sensor width in mm (optional)\n    sensor_height_mm: Camera sensor height in mm (optional)\n    sensor_pixel_size_um: Camera pixel size in microns (optional)\n    central_obstruction_pct: Central obstruction percentage (0-50)\n    reducer_factor: Focal reducer factor (default 1.0)\n    barlow_factor: Barlow/extender factor (default 1.0)\n    mount_type: \"equatorial\" or \"altaz\" (default \"equatorial\")\n    filter_type: Filter type — \"Hα\", \"OIII\", \"SII\", or None for LRGB\n    limit: Maximum number of targets to return (default 20)\n\nReturns:\n    data.targets[] — ranked list, best first.  Each target has:\n        name, type, magnitude, catalog\n        altitude, azimuth, dawn_altitude\n        angular_size_arcmin, angular_size_min_arcmin, angular_size_pa_deg\n        surface_brightness (mag/arcmin²), fov_fit_score, fov_fill_ratio\n        suitability_score (0-100), mosaic_recommended, optimal_rotation_deg\n        rise_time, set_time, transit_time, transit_alt (UTC unix timestamps)\n        altitude_curve[{time, alt}]\n        civil_dusk, civil_dawn, observation_time\n    data.moon — {illumination, phase, altitude_curve, always_down,\n        always_up, dark_fraction, moonrise, moonset}\n    data.config — the TelescopeConfig used\n    data.total — number of targets returned"
+    },
+    "get_shooting_plan": {
+      "description": "Generate a single-night astrophotography shooting plan.\n\nUse when: optics, place, and night are fixed and you need matched targets in timed slots.\nDo not use when: you still need to choose a site or compare nights, or only need target ranks.\nRequires: focal length, observer coordinates, time, and the observing timezone\n    (defaults to UTC); optional sensor, optical, and minimum-altitude settings.\nFollow-up: get_telescope_targets for target details; plan_stargazing_session\n    to reconsider place, date, equipment preset, or observing constraints.\n\nRuns match_telescope_targets then generate_shooting_schedule,\nreturning targets + moon + timed shooting slots in one response.\n\nReturns:\n    data.targets[] — same structure as get_telescope_targets\n    data.moon — {illumination, phase, moonrise, moonset,\n        always_down, always_up, dark_fraction, altitude_curve}\n    data.plan — {date, slots[{start_time, end_time, target_name}],\n        total_exposure_min, moon_phase, moon_illumination, moon_delay_min}\n    data.config — the TelescopeConfig used\n    data.total — number of matched targets"
+    },
+    "get_weather_by_name": {
+      "description": "通过地点名称获取综合天气（当前 + 小时预报 + 日预报）。\n\nUse when: you have a place name and need weather facts for that resolved location.\nDo not use when: you already have exact coordinates or need a complete observing decision.\nRequires: an unambiguous place name; use full administrative names for Chinese locations.\n    Provider selection can remain at the server's default aggregation policy.\nFollow-up: get_weather_by_position for precise coordinates; plan_stargazing_session\n    to combine weather with darkness, targets, and alternative observing sites.\n\nGeocoding uses offline China gazetteer (CJK) → Photon → Nominatim cascade.\nWeather data is aggregated from multiple providers with graceful\nfallback — open-meteo is always available without an API key.\n\n**中文地名提示**：建议使用完整行政区划名称，如 \"浙江安吉\"、\"杭州西湖区\"。\n内置离线行政区划数据会正确解析到对应的行政区（如安吉县），而非 POI 商铺。\n需要精确定位时优先使用 ``get_weather_by_position(lat, lon)``。\n\nArgs:\n    place_name: 地点名称。中文请使用完整行政区划（如 \"浙江省安吉县\"），避免仅用2-3字短名。\n    provider: provider 模式，可选 all/qweather/open-meteo/wttr。\n\nReturns:\n    Dict，包含 keys: \"data\", \"_meta\"（成功时）或 \"error\", \"_meta\"（失败时）。"
+    },
+    "get_weather_by_position": {
+      "description": "通过经纬度获取综合天气（当前 + 小时预报 + 日预报）。\n\nUse when: you have precise coordinates and need current and forecast weather facts.\nDo not use when: you only have a place name or need ranked observing sites or night targets.\nRequires: latitude and longitude; provider selection can remain at the default policy.\nFollow-up: get_weather_by_name for place-name input; plan_stargazing_session\n    to compare observing places and nights using weather and other evidence.\n\nWeather data is aggregated from multiple providers with graceful\nfallback — open-meteo is always available without an API key.\n\nArgs:\n    lat: 纬度\n    lon: 经度\n    provider: provider 模式，可选 all/qweather/open-meteo/wttr。\n\nReturns:\n    Dict，包含 keys: \"data\", \"_meta\"（成功时）或 \"error\", \"_meta\"（失败时）。"
+    },
+    "get_best_stargazing_plan": {
+      "description": "Create a composite stargazing plan for a region and time.\n\nUse when: an existing bbox-first integration needs ranked regional places for one night.\nDo not use when: starting a new intent-based integration, providing a place name,\n    comparing several nights, or only requesting weather facts.\nRequires: south/west/north/east bounds, observation time, and timezone.\nReturns: data.query, ranked data.candidates with scores, windows, weather and targets,\n    and data.summary; all within the standard response envelope.\nFollow-up: plan_stargazing_session is preferred for new integrations;\n    get_multiday_stargazing_plan preserves bbox-first comparison across nights."
+    },
+    "get_multiday_stargazing_plan": {
+      "description": "Compare one to seven consecutive nights and recommend the best night and place.\n\nUse when: an existing bbox-first integration compares one to seven consecutive nights.\nDo not use when: starting a new intent-based integration, querying nonconsecutive dates,\n    more than seven nights, or checking background task status.\nRequires: south/west/north/east bounds, local start_date, timezone, and optional night count.\nReturns: normalized data.query, per-night plans, the best night, and summary;\n    each night uses its own civil-dark window.\nFollow-up: plan_stargazing_session is preferred for new integrations;\n    get_best_stargazing_plan for the compatible single-night regional detail."
+    },
+    "plan_stargazing_session": {
+      "description": "Preferred end-to-end planning entry point for choosing when, where, and what to observe across one to seven nights.\n\nUse when: you need a complete observing decision or comparisons of places and nights.\nDo not use when: you only need raw weather, celestial facts, or task status.\nRequires: request.location (place name, center/radius, or exact bounds) and start_date; timezone, one-to-seven nights, observing goal, equipment preset/overrides, and constraints have explicit defaults or are optional.\nReturns: normalized request, decision, alternatives, evidence, uncertainties, missing inputs, ranking-change conditions, and next actions in the standard envelope.\nFollow-up: get_shooting_plan for an imaging schedule at the selected place/night; get_weather_by_position for updated weather facts. Inspect missing inputs and next actions before treating a degraded decision as final."
+    },
+    "get_local_datetime_info": {
+      "description": "Retrieve the current datetime and timezone.\n\nUse when: you need the server environment's current time and local timezone.\nDo not use when: you need time at a remote observing site or already have its timezone.\nRequires: no inputs; local means the server environment, not the user's observing site.\nFollow-up: use the observing site's explicit time_zone in celestial and\n    plan_stargazing_session requests; do not infer it from the server timezone.\n\nReturns:\n    Dict with keys \"data\", \"_meta\". \"data\" contains \"current_time\" (ISO string)."
+    }
+  },
+  "client_versions": {
+    "codex": "0.164.0-alpha.11.1",
+    "claude": "2.1.179"
+  }
+}

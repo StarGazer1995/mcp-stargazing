@@ -6,6 +6,13 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
+- **Public tool routing guidance** — All 21 standard MCP descriptions state when to use the
+  tool, when to choose an alternative, required context, returned data, and follow-up actions.
+  SDK and real HTTP discovery tests protect these sections and registered follow-up names without
+  changing tool schemas or adding a separate catalog routing format. Both installed clients
+  passed the three-workflow task regression; scope and evidence are recorded in
+  `evaluations/reports/2026-10-27-tool-routing.md`.
+
 - **P5.5 active AI task workflows** — Codex CLI and Claude Code each completed three isolated
   submission/paging, cancellation, and active-query reuse workflows with production task adapters
   and actual background workers. Strict trace grading verifies returned identities, exact
@@ -128,8 +135,8 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
   establish the current planning baseline.
 - ✅ Define the target third-party-agent contract, three-repository technical map, and staged
   implementation checklist.
-- Audit all 21 public tools for agent routing guidance, infrastructure leakage, and compatibility
-  risk.
+- ✅ Audit all 21 public tools for routing, infrastructure leakage, and compatibility risk;
+  publish use/do-not-use, prerequisites, results, and follow-up guidance in standard descriptions.
 - ✅ Capture the pre-1.0 schema baseline with SDK and real `tools/list` checks.
 - Define deprecation rules and review intentional changes against the saved baseline.
 

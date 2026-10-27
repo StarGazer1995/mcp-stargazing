@@ -39,6 +39,12 @@ async def get_celestial_pos(
 ) -> dict[str, Any]:
     """Calculate the altitude and azimuth angles of a celestial object.
 
+    Use when: you need one named object's position at a specified place and instant.
+    Do not use when: you need an all-night target list or a complete observing decision.
+    Requires: object name, observer coordinates, observation time, and its IANA timezone.
+    Follow-up: get_celestial_rise_set for events; get_nightly_forecast for night targets;
+        plan_stargazing_session for a complete observing decision.
+
     Args:
         celestial_object: Name of object (e.g. "sun", "moon", "andromeda")
         lon: Observer longitude in degrees
@@ -70,6 +76,12 @@ async def get_celestial_rise_set(
     event_scope: str = 'calendar_day',
 ) -> dict[str, Any]:
     """Calculate the rise and set times of a celestial object.
+
+    Use when: you need one object's rise/set events. Choose calendar_day for the local
+        date containing time, or next_events for the next rise and next set after time.
+    Do not use when: you need a continuous observing window or a complete night plan.
+    Requires: object name, observer coordinates, time, timezone, and the intended event scope.
+    Follow-up: get_celestial_pos for position; plan_stargazing_session for observing windows.
 
     Args:
         celestial_object: Name of object (e.g. "sun", "moon", "andromeda")
@@ -119,6 +131,12 @@ async def get_moon_info(
 ) -> dict[str, Any]:
     """Get detailed information about the Moon's phase and position.
 
+    Use when: you need lunar phase or illumination facts, with optional observer-local events.
+    Do not use when: you need to rank observing sites or assess a target's overall suitability.
+    Requires: time and timezone; supply both lat and lon for local position and rise/set.
+    Follow-up: get_telescope_targets for equipment-aware targets; plan_stargazing_session
+        for the combined effect of moonlight, weather, place, and observing goals.
+
     When ``lat`` and ``lon`` are provided, also returns the Moon's local
     altitude, azimuth, moonrise, and moonset relative to the observer.
 
@@ -164,6 +182,13 @@ async def get_moon_info(
 async def list_visible_planets(lon: float, lat: float, time: str, time_zone: str) -> dict[str, Any]:
     """Get a list of solar system planets currently visible (above horizon).
 
+    Use when: you need planets above the observer's horizon at a specified instant.
+    Do not use when: you need all-night visibility, darkness guarantees, or equipment ranking.
+    Requires: observer coordinates, time, and timezone; above-horizon visibility alone
+        does not establish dark-sky or telescope observing conditions.
+    Follow-up: get_celestial_pos or get_celestial_rise_set for a selected planet;
+        plan_stargazing_session for a planetary observing decision.
+
     Args:
         lon: Observer longitude in degrees
         lat: Observer latitude in degrees
@@ -196,6 +221,13 @@ async def get_constellation(
     constellation_name: str, lon: float, lat: float, time: str, time_zone: str
 ) -> dict[str, Any]:
     """Get the position (altitude/azimuth) of the center of a constellation.
+
+    Use when: you need a named constellation's center position at a place and instant.
+    Do not use when: you need to identify which constellation contains arbitrary coordinates,
+        or to choose individual observing targets.
+    Requires: constellation name, observer coordinates, time, and timezone.
+    Follow-up: get_nightly_forecast for individual night targets; plan_stargazing_session
+        for a complete observing decision.
 
     Args:
         constellation_name: Name of constellation (e.g. "Orion", "Ursa Major")
@@ -256,6 +288,12 @@ async def get_nightly_forecast(
 ) -> dict[str, Any]:
     """Get a curated list of best objects to view for the night.
 
+    Use when: place and night are known and you need general night targets and a night window.
+    Do not use when: you need telescope-specific target matching or regional site selection.
+    Requires: observer coordinates, time within the intended night, timezone, and optional limit.
+    Follow-up: get_telescope_targets for known optics; get_shooting_plan for an imaging schedule;
+        plan_stargazing_session when place or night still needs comparison.
+
     Args:
         lon: Observer longitude in degrees
         lat: Observer latitude in degrees
@@ -264,10 +302,11 @@ async def get_nightly_forecast(
         limit: Max number of deep-sky objects to return (default 20)
 
     Returns:
-        Dict with keys:
+        Standard envelope; data contains:
         - moon_phase: Moon details
         - planets: List of visible planets
         - deep_sky: Sorted list of deep sky objects (Messier/NGC)
+        - night_window: Civil-dark window for the requested night
     """
 
     async def operation() -> dict[str, Any]:

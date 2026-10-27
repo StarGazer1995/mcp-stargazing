@@ -61,6 +61,16 @@ agent 客户端代表性黑盒验收通过后注册。旧入口至少保留一�
 - `get_tool_catalog` 用于程序化检查工具元数据。
 - 低层工具不能依赖调用方理解仓库内部模块、provider 实现或服务器文件系统。
 
+### 已交付的路由说明
+
+全部公开工具的标准 MCP description 已包含 `Use when:`、`Do not use when:`、`Requires:`、
+`Returns:` 和 `Follow-up:`。它们说明适用问题、误用边界、必要上下文、可依赖的返回内容和
+后续工具。显式 decorator description 优先；否则使用函数完整 docstring。
+
+`get_tool_catalog` 沿用现有字段：普通工具的 `description` 是首行摘要，完整说明在
+`docstring`；显式 description 已经包含完整说明。SDK 与真实 HTTP 测试保护发现面的说明及
+后续工具名称。这里不新增第二套路由字段，也不改变参数或响应 schema。
+
 ## 公共参数边界
 
 第三方 agent 应表达用户意图，而不是服务器部署方式。
