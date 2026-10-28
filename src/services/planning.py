@@ -365,6 +365,20 @@ def _build_top_targets(
     return targets
 
 
+def _candidate_weather_status(candidate: PlannedLocationCandidate) -> str:
+    """Separate forecast availability from suitability, without imputing weather."""
+    if candidate.weather_summary is None:
+        return 'weather_unknown'
+    if candidate.best_observation_window is None:
+        return 'no_usable_window'
+    return 'recommendable'
+
+
+def _candidate_ranking_key(candidate: PlannedLocationCandidate) -> tuple[bool, float]:
+    # Reference candidates never compete with actionable observing sessions.
+    return (_candidate_weather_status(candidate) == 'recommendable', candidate.recommendation_score)
+
+
 def _compute_recommendation_score(
     location: StargazingLocation,
     weather_summary: WeatherPlanningSummary | None,
@@ -375,7 +389,7 @@ def _compute_recommendation_score(
     spatial_cloud_cover_percent: float | None = None,
 ) -> ScoreBreakdown:
     profile = _STYLE_PROFILES[observation_style]
-    weather_score = 55.0
+    weather_score = 0.0
     if weather_summary is not None:
         if weather_summary.cloud_cover_percent is not None:
             weather_score = max(0.0, 100.0 - float(weather_summary.cloud_cover_percent))
@@ -383,6 +397,12 @@ def _compute_recommendation_score(
             weather_score += min(20.0, float(weather_summary.visibility_km) * 1.5)
         if weather_summary.wind_speed_kph is not None and weather_summary.wind_speed_kph > 20.0:
             weather_score -= min(20.0, (float(weather_summary.wind_speed_kph) - 20.0) * 1.2)
+    if weather_summary is None:
+        # Unknown weather earns no contribution; zero is a compatibility placeholder,
+        # not a forecast of bad weather. Eligibility is checked separately.
+        best_window = None
+        spatial_cloud_cover_percent = None
+        moon_illumination = None
     if best_window is not None and best_window.precipitation_probability is not None:
         weather_score -= float(best_window.precipitation_probability) * 20.0
     if best_window is not None and best_window.duration_hours is not None:
@@ -402,7 +422,8 @@ def _compute_recommendation_score(
     place_score = float(location.score or 0.0)
     normalized_weather_score = max(0.0, min(100.0, weather_score))
     place_contribution = place_score * profile.place_weight
-    weather_contribution = normalized_weather_score * profile.weather_weight
+    weather_weight = profile.weather_weight if weather_summary is not None else 0.0
+    weather_contribution = normalized_weather_score * weather_weight
     accessibility_adjustment = 0.0
     combined = place_contribution + weather_contribution + popularity_adjustment
     if observation_style == ObservationStyle.BEGINNER and location.road_distance_km is not None:
@@ -417,7 +438,7 @@ def _compute_recommendation_score(
         place_weight=profile.place_weight,
         place_contribution=round(place_contribution, 2),
         weather_base_score=round(normalized_weather_score, 2),
-        weather_weight=profile.weather_weight,
+        weather_weight=weather_weight,
         weather_contribution=round(weather_contribution, 2),
         popularity_adjustment=round(popularity_adjustment, 2),
         accessibility_adjustment=round(accessibility_adjustment, 2),
@@ -755,7 +776,7 @@ class PlanningService:
         ):
             notes.append(
                 '区域空间天气参考云量约 '
-                f'{prefetched_weather.spatial_cloud_cover_percent:.0f}%，已用于区域比较。'
+                f'{prefetched_weather.spatial_cloud_cover_percent:.0f}%，仅在该夜天气可用时参与比较。'
             )
         if forecast_note:
             notes.append(f'夜间目标降级处理：{forecast_note}')
@@ -764,6 +785,10 @@ class PlanningService:
         )
         weather_summary = nightly_weather.summary
         notes.extend(nightly_weather.notes)
+        if weather_summary is None and not any(
+            note.startswith('nightly_weather_unavailable:') for note in notes
+        ):
+            notes.append('nightly_weather_unavailable: 该夜天气未知，仅保留地点和天象参考。')
         top_targets = _build_top_targets(forecast_data, target_limit, observation_style)
         moon_phase = None
         moon_illumination = None
@@ -805,7 +830,9 @@ class PlanningService:
             observation_style,
             popularity_reasons,
             score_breakdown,
-            prefetched_weather.spatial_cloud_cover_percent if prefetched_weather else None,
+            prefetched_weather.spatial_cloud_cover_percent
+            if prefetched_weather and weather_summary is not None
+            else None,
         )
         candidate = PlannedLocationCandidate(
             rank=1,
@@ -903,7 +930,9 @@ class PlanningService:
                 )
             )
         spatial_samples = (spatial_data or {}).get('samples', [])
-        screened_candidates: list[tuple[float, StargazingLocation, _WeatherScreen]] = []
+        screened_candidates: list[
+            tuple[tuple[bool, float], StargazingLocation, _WeatherScreen]
+        ] = []
         for index, (location, weather_screen) in enumerate(
             zip(locations, weather_screens, strict=True)
         ):
@@ -945,7 +974,13 @@ class PlanningService:
                 popularity_adjustment,
                 spatial_cloud,
             ).final_score
-            screened_candidates.append((screen_score, location, weather_screen))
+            screened_candidates.append(
+                (
+                    (best_window is not None and weather_summary is not None, screen_score),
+                    location,
+                    weather_screen,
+                )
+            )
         screened_candidates.sort(key=lambda item: item[0], reverse=True)
         target_evaluation_limit = _target_evaluation_limit(
             candidate_limit, len(screened_candidates)
@@ -970,13 +1005,14 @@ class PlanningService:
                 ]
             ]
         )
-        ranked_candidates = sorted(
-            evaluated_candidates, key=lambda item: item.recommendation_score, reverse=True
-        )
+        ranked_candidates = sorted(evaluated_candidates, key=_candidate_ranking_key, reverse=True)
         candidates = ranked_candidates[:candidate_limit]
         for rank, candidate in enumerate(candidates, start=1):
             candidate.rank = rank
-        top_candidate = candidates[0] if candidates else None
+        top_candidate = next(
+            (item for item in candidates if _candidate_weather_status(item) == 'recommendable'),
+            None,
+        )
         drivers = _derive_primary_recommendation_drivers(
             top_candidate, avoid_popular_spots, prefer_quiet_at_night, style
         )
@@ -1149,9 +1185,14 @@ class PlanningService:
                 )
             )
         successful = [night for night in night_results if night.plan and night.plan.candidates]
+        recommendable = [
+            night
+            for night in successful
+            if _candidate_weather_status(night.plan.candidates[0]) == 'recommendable'
+        ]
         best_night = (
-            max(successful, key=lambda night: night.plan.candidates[0].recommendation_score)
-            if successful
+            max(recommendable, key=lambda night: night.plan.candidates[0].recommendation_score)
+            if recommendable
             else None
         )
         best_candidate = best_night.plan.candidates[0] if best_night and best_night.plan else None
@@ -1264,6 +1305,12 @@ class PlanningService:
             choices.extend(
                 (night.date, candidate, night.plan) for candidate in night.plan.candidates
             )
+        reference_choices = [
+            item for item in choices if _candidate_weather_status(item[1]) != 'recommendable'
+        ]
+        choices = [
+            item for item in choices if _candidate_weather_status(item[1]) == 'recommendable'
+        ]
         choices.sort(key=lambda item: item[1].recommendation_score, reverse=True)
 
         uncertainties: list[PlanningUncertainty] = []
@@ -1273,23 +1320,98 @@ class PlanningService:
         evidence: list[PlanningEvidence] = []
         retrieved_at = self._dependencies.now().isoformat()
 
-        if not choices:
+        for reference_date, candidate, reference_plan in reference_choices:
+            status = _candidate_weather_status(candidate)
             uncertainties.append(
                 PlanningUncertainty(
-                    code='no_candidates',
+                    code='nightly_weather_unavailable'
+                    if status == 'weather_unknown'
+                    else 'no_usable_observation_window',
+                    level=UncertaintyLevel.HIGH,
+                    message=f'{reference_date}: {candidate.location.name}: {status}',
+                    impact='Reference only; excluded from session ranking.',
+                )
+            )
+            evidence.append(
+                PlanningEvidence(
+                    kind=EvidenceKind.PLACE,
+                    source='unranked_planning_reference',
+                    retrieved_at=retrieved_at,
+                    applies_to=reference_date,
+                    resource_id=reference_plan.query.analysis_resource_id,
+                    facts={
+                        'status': status,
+                        'location': candidate.location.model_dump(),
+                        'night_window': candidate.night_window.model_dump()
+                        if candidate.night_window
+                        else None,
+                        'targets': [target.model_dump() for target in candidate.top_targets],
+                        'moon_phase': candidate.moon_phase,
+                        'moon_illumination': candidate.moon_illumination,
+                        'weather_evidence': candidate._weather_evidence,
+                        'weather_summary': candidate.weather_summary.model_dump()
+                        if candidate.weather_summary
+                        else None,
+                        'notes': candidate.notes,
+                    },
+                )
+            )
+        if reference_choices:
+            uncertainties.append(
+                PlanningUncertainty(
+                    code='unranked_candidates',
+                    level=UncertaintyLevel.HIGH,
+                    message='Insufficient-weather candidates are unranked references.',
+                    impact='These candidates cannot be selected as the decision or alternatives.',
+                )
+            )
+        if not choices:
+            if equipment is not None:
+                evidence.append(
+                    PlanningEvidence(
+                        kind=EvidenceKind.EQUIPMENT,
+                        source='equipment_preset_and_overrides',
+                        retrieved_at=retrieved_at,
+                        facts=equipment.model_dump(),
+                    )
+                )
+            if request.equipment is None and request.observation_style == ObservationStyle.DEEP_SKY:
+                missing_inputs.append(
+                    PlanningMissingInput(
+                        field='equipment',
+                        reason='Optics affect which deep-sky targets fit the field of view.',
+                    )
+                )
+                next_actions.append(
+                    PlanningNextAction(
+                        action='provide_equipment',
+                        reason='Provide optics to refine target suitability.',
+                    )
+                )
+            if reference_choices:
+                next_actions.append(
+                    PlanningNextAction(
+                        action='recheck_weather',
+                        reason='No supported session is available; refresh dated forecasts.',
+                    )
+                )
+            uncertainties.append(
+                PlanningUncertainty(
+                    code='no_recommendable_session' if reference_choices else 'no_candidates',
                     level=UncertaintyLevel.HIGH,
                     message=(
-                        'No usable observing candidates were returned for the requested period.'
+                        'No weather-supported session can be recommended for the requested period.'
                     ),
                     impact='A first-choice session cannot be selected.',
                 )
             )
-            next_actions.append(
-                PlanningNextAction(
-                    action='expand_search_area',
-                    reason='A wider radius or exact bounds may produce viable candidates.',
+            if not reference_choices:
+                next_actions.append(
+                    PlanningNextAction(
+                        action='expand_search_area',
+                        reason='A wider radius or exact bounds may produce viable candidates.',
+                    )
                 )
-            )
             return AgentPlanningResult(
                 request=request,
                 resolved_location=resolved_location,
@@ -1453,7 +1575,7 @@ class PlanningService:
                     code=note.split(':', 1)[0] if weather_warning else 'partial_downstream_data',
                     level=UncertaintyLevel.HIGH if weather_warning else UncertaintyLevel.MEDIUM,
                     message=note,
-                    impact='The score may rely on fallback values or omit one evidence source.',
+                    impact='Missing evidence is not replaced with an assumed weather score.',
                 )
             )
         if request.avoid_popular_spots or request.prefer_quiet_at_night:
@@ -1472,7 +1594,7 @@ class PlanningService:
             missing_inputs.append(
                 PlanningMissingInput(
                     field='equipment',
-                    reason='Optics materially affect which deep-sky targets fit the field of view.',
+                    reason='Optics affect which deep-sky targets fit the field of view.',
                 )
             )
 

@@ -429,3 +429,23 @@ candidate wheels, and blocks changes that add downstream failures.
 4.  Follow the repository agent conventions in `AGENTS.md` for all MCP tool and agent-facing changes.
 5.  Refer to `docs/agent-contract.md` and `docs/ROADMAP.md` for the public agent direction and
     implementation roadmap.
+
+
+### Evidence-gated observing recommendations
+
+Only candidates with the requested night's dated weather and a usable observation window
+compete for the selected session and its alternatives. Unknown weather is not replaced by
+an assumed score and is not classified as bad weather. Known forecasts without a usable
+window are also excluded, with a distinct reason. If none qualify, the primary planner
+returns `decision=null`, no alternatives, explicit uncertainties and next actions.
+Known place, sky and generic target facts remain in `evidence` entries whose source is
+`unranked_planning_reference`; `facts.status` is `weather_unknown` or `no_usable_window`.
+These entries have no session score or comparison to the decision. Equipment configuration
+is retained as evidence when supplied; reference targets are generic, not equipment-matched.
+
+Compatibility planners retain reference candidates and notes, but leave recommended-place
+and best-night summary fields null when no session qualifies. Their numeric weather fields
+remain schema-compatible: absent weather has zero base score, contribution and weight as
+placeholders, not a claim of bad weather. Place weights are not renormalized. Reference
+candidate scores and positions must not be interpreted as an observing-session ranking.
+Successful execution still means only that the request was processed.

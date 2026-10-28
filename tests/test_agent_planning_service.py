@@ -305,12 +305,18 @@ async def test_agent_plan_surfaces_missing_equipment_and_weather_degradation():
 
     result = await service.build_agent_plan(request)
 
-    assert result.decision is not None
-    assert result.decision.score_breakdown.weather_base_score == 55.0
+    assert result.decision is None
+    assert result.alternatives == []
     assert [item.field for item in result.missing_inputs] == ['equipment']
-    assert {item.code for item in result.uncertainties} >= {'partial_downstream_data'}
-    assert {item.factor for item in result.would_change_if} >= {'weather', 'equipment'}
-    assert {item.action for item in result.next_actions} >= {'provide_equipment'}
+    assert {item.code for item in result.uncertainties} >= {
+        'nightly_weather_unavailable',
+        'no_recommendable_session',
+    }
+    assert {item.action for item in result.next_actions} >= {'provide_equipment', 'recheck_weather'}
+    references = [item for item in result.evidence if item.source == 'unranked_planning_reference']
+    assert references
+    assert references[0].facts['status'] == 'weather_unknown'
+    assert references[0].facts['targets']
 
 
 @pytest.mark.asyncio
@@ -388,3 +394,107 @@ def test_agent_request_rejects_ambiguous_location_and_incomplete_custom_equipmen
 
     with pytest.raises(ValidationError, match='focal_length_mm'):
         AgentEquipmentIntent(preset=EquipmentPreset.CUSTOM)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('unavailable', ['unknown', 'rain'])
+async def test_reference_with_high_place_score_cannot_displace_usable_session(unavailable):
+    from dataclasses import replace
+
+    service, _calls = _agent_service()
+    original_weather = service._dependencies.fetch_weather
+    original_places = service._dependencies.search_places
+
+    async def places(**kwargs):
+        result = await original_places(**kwargs)
+        result['items'][0]['score'] = 100
+        result['items'][1]['score'] = 1
+        return result
+
+    async def weather(**kwargs):
+        result = await original_weather(**kwargs)
+        if kwargs['lat'] == 30.60:
+            if unavailable == 'unknown':
+                result['summary']['hourly'] = []
+            else:
+                for hour in result['summary']['hourly']:
+                    hour['precipitation_probability'] = 1.0
+        return result
+
+    service._dependencies = replace(
+        service._dependencies, fetch_weather=weather, search_places=places
+    )
+    request = AgentPlanningRequest(
+        location=AgentLocationIntent(center={'lat': 30.63, 'lon': 119.68}),
+        start_date='2026-10-25',
+        nights=1,
+        candidate_limit=2,
+    )
+    result = await service.build_agent_plan(request)
+    assert result.decision.location.name == 'Lake Overlook'
+    assert result.alternatives == []
+    reference = next(e for e in result.evidence if e.source == 'unranked_planning_reference')
+    assert reference.facts['location']['name'] == 'Dark Ridge'
+    assert reference.facts['status'] == (
+        'weather_unknown' if unavailable == 'unknown' else 'no_usable_window'
+    )
+    # The same eligibility gate must also protect the historical multiday summary.
+    multi = await service.build_multiday_plan(
+        south=30,
+        west=119,
+        north=31,
+        east=120,
+        start_date='2026-10-25',
+        time_zone='Asia/Shanghai',
+        nights=1,
+        candidate_limit=2,
+    )
+    assert multi.summary.best_location_name == 'Lake Overlook'
+
+
+@pytest.mark.asyncio
+async def test_all_unknown_nights_have_no_best_night_but_keep_references():
+    service, _calls = _agent_service(weather_failure=True)
+    multi = await service.build_multiday_plan(
+        south=30,
+        west=119,
+        north=31,
+        east=120,
+        start_date='2026-10-25',
+        time_zone='Asia/Shanghai',
+        nights=2,
+    )
+    assert multi.summary.best_night_date is None
+    assert multi.summary.best_night_index is None
+    assert multi.summary.best_score is None
+    assert all(n.plan.summary.recommended_location_name is None for n in multi.nights)
+    assert all(n.plan.candidates[0].top_targets for n in multi.nights)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('weather_failure', [True, False])
+async def test_sdk_planner_obeys_weather_eligibility_gate(monkeypatch, weather_failure):
+    from fastmcp import Client
+
+    from src.functions.planning import agent_impl
+    from src.server_instance import mcp
+
+    service, _calls = _agent_service(weather_failure=weather_failure)
+    monkeypatch.setattr(agent_impl, '_build_planning_service', lambda: service)
+    request = {
+        'location': {'center': {'lat': 30.63, 'lon': 119.68}},
+        'start_date': '2026-10-25',
+        'nights': 1,
+    }
+    async with Client(mcp._mcp) as client:
+        result = await client.call_tool('plan_stargazing_session', {'request': request})
+    payload = result.structured_content
+    assert payload['_meta']['status'] == 'success'
+    if weather_failure:
+        assert payload['data']['decision'] is None
+        assert payload['data']['alternatives'] == []
+        assert any(
+            e['source'] == 'unranked_planning_reference' for e in payload['data']['evidence']
+        )
+    else:
+        assert payload['data']['decision']['observation_window'] is not None
