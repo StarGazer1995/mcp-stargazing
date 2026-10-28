@@ -57,6 +57,16 @@ You can also run the server using Docker, which handles all dependencies and dat
 Docker catalog downloads use the official `simbad.harvard.edu` mirror. Override with
 `--build-arg SIMBAD_SERVER=simbad.cds.unistra.fr` to use the Strasbourg service.
 Standalone downloads retain the astroquery default unless `SIMBAD_SERVER` is set.
+The selected server is tried first; failed connection/query batches retry once and
+switch to the other official mirror. Subsequent batches prefer the working mirror.
+Downloads use bounded, indexed TAP queries with explicit asynchronous execution,
+avoiding astroquery 0.4.11's uploaded-name query path (which drops `async_job`).
+An empty batch or failure of both mirrors aborts rather than publishing a partial catalog.
+Connection probes have a 5-second connect and 15-second read timeout; asynchronous
+jobs have a 180-second execution limit. macOS Python can inherit the system proxy
+even without proxy environment variables; use process-local `NO_PROXY=*` only when
+deliberately testing direct connectivity. A successful small query does not verify
+the full catalog download or CI build.
 
 1. **Build the image**:
    ```bash

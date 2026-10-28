@@ -1,29 +1,87 @@
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any
 
 import astropy.units as u
 import numpy as np
+import requests
 from astropy.coordinates import SkyCoord
 from astropy.table import vstack
 from astroquery.simbad import Simbad
+from pyvo.dal.exceptions import DALServiceError
+
+_SIMBAD_SERVERS = ('simbad.cds.unistra.fr', 'simbad.harvard.edu')
 
 
-def _simbad_client():
+def _identifier_query(names):
+    """Use the indexed identifier table instead of a TAP-uploaded table join."""
+    identifiers = ','.join("'" + name.replace("'", "''") + "'" for name in names)
+    return (
+        'SELECT basic.main_id,basic.ra,basic.dec,basic.otype,'
+        'basic.galdim_majaxis,basic.galdim_minaxis,basic.galdim_angle,'
+        'allfluxes.V,ident.id AS user_specified_id '
+        'FROM ident JOIN basic ON basic.oid=ident.oidref '
+        'LEFT JOIN allfluxes ON allfluxes.oidref=basic.oid '
+        f'WHERE ident.id IN ({identifiers})'
+    )
+
+
+def _simbad_client(server=None):
     """Allow builds to select an official SIMBAD mirror without changing query semantics."""
     client = Simbad()
-    client.server = os.environ.get('SIMBAD_SERVER', client.server)
+    client.server = server or os.environ.get('SIMBAD_SERVER', client.server)
     return client
 
 
 def _query_objects(client, names):
-    """Bound uploaded identifier tables; astroquery uses sync TAP for uploads."""
+    """Retry bounded, indexed TAP queries on official mirrors without table uploads."""
     tables = []
+    servers = [client.server, *(s for s in _SIMBAD_SERVERS if s != client.server)]
+    clients = {}
     for offset in range(0, len(names), 100):
-        table = client.query_objects(names[offset : offset + 100], async_job=True)
-        if table is None or len(table) == 0:
-            raise RuntimeError('SIMBAD returned an empty identifier batch; catalog is incomplete')
+        batch = names[offset : offset + 100]
+        failures = []
+        for server in tuple(servers):
+            for attempt in range(2):
+                try:
+                    if server not in clients:
+                        # Bound connection failures before astroquery's metadata requests.
+                        response = requests.get(
+                            f'https://{server}/simbad/sim-tap/capabilities', timeout=(5, 15)
+                        )
+                        response.raise_for_status()
+                        candidate = _simbad_client(server)
+                        candidate.timeout = 180
+                        clients[server] = candidate
+                    candidate = clients[server]
+                    table = candidate.query_tap(
+                        _identifier_query(batch),
+                        maxrec=20000,
+                        async_job=True,
+                    )
+                    if table is None or len(table) == 0:
+                        raise RuntimeError(
+                            'SIMBAD returned an empty identifier batch; catalog is incomplete'
+                        )
+                    break
+                except (requests.RequestException, DALServiceError) as exc:
+                    failures.append(f'{server}: {exc}')
+                    print(f'SIMBAD batch {offset + 1}: {server} attempt {attempt + 1}: {exc}')
+                    if attempt == 0:
+                        time.sleep(1)
+            else:
+                continue
+            # Keep the working mirror first for subsequent batches.
+            servers.remove(server)
+            servers.insert(0, server)
+            print(f'SIMBAD {server}: downloaded identifiers {offset + 1}–{offset + len(batch)}')
+            break
+        else:
+            raise RuntimeError(
+                'SIMBAD mirrors failed; catalog is incomplete: ' + '; '.join(failures)
+            )
         tables.append(table)
     return vstack(tables) if tables else None
 
@@ -214,13 +272,6 @@ def download_messier_objects() -> list[dict[str, Any]]:
     # id(M) is deprecated, just use main_id or assume query order
     # flux(V) is deprecated in favor of 'V'
     custom_simbad = _simbad_client()
-    custom_simbad.add_votable_fields(
-        'otype',
-        'flux(V)',
-        'galdim_majaxis',
-        'galdim_minaxis',
-        'galdim_angle',
-    )
     # Actually, let's stick to simple defaults + otype + flux
 
     # Note: Simbad API changes frequently.
@@ -309,7 +360,7 @@ def download_messier_objects() -> list[dict[str, Any]]:
 
     except Exception as e:
         print(f'Failed to download Messier objects: {e}')
-        return []
+        raise
 
 
 def _download_catalog_objects(
@@ -318,7 +369,7 @@ def _download_catalog_objects(
     last: int,
     catalog_label: str,
 ) -> list[dict[str, Any]]:
-    """Download objects from SIMBAD by name range in a single query.
+    """Download objects from SIMBAD by name range in bounded queries.
 
     Each object carries coords, type, V magnitude, and ``galdim_*`` angular-size
     data — all returned by SIMBAD in one request.
@@ -326,13 +377,6 @@ def _download_catalog_objects(
     print(f'Downloading {catalog_label} objects via SIMBAD …')
 
     simbad = _simbad_client()
-    simbad.add_votable_fields(
-        'otype',
-        'flux(V)',
-        'galdim_majaxis',
-        'galdim_minaxis',
-        'galdim_angle',
-    )
 
     all_names = [f'{prefix} {i}' for i in range(first, last + 1)]
     print(f'  Querying {len(all_names):,} names …', end=' ', flush=True)

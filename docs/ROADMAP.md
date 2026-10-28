@@ -4,6 +4,12 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Catalog download resilience** — Failed batches retry on the two official SIMBAD
+  mirrors, retain completed batches and prefer the working mirror. Explicit async
+  TAP queries use the indexed identifier table without uploads; empty batches and
+  exhausted mirrors fail the build instead of publishing an incomplete catalog.
+  Regression coverage protects retries, mirror switching, escaping and batch preservation.
+
 - **External AI result interpretation** — Standard MCP descriptions now distinguish relative
   scores from probabilities, successful execution from a usable plan, current/daily weather
   from dated night forecasts, civil from astronomical darkness, and dusk from clock-time target
