@@ -1471,7 +1471,7 @@ requires-dist = [
     { name = "pytz" },
     { name = "rasterio" },
     { name = "requests" },
-    { name = "stargazing-core", specifier = ">=0.2.0", index = "https://pypi.org/simple/" },
+    { name = "stargazing-core", specifier = ">=0.2.1", index = "https://pypi.org/simple/" },
     { name = "stargazing-place-finder", specifier = ">=0.9.1,<1" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "tzlocal" },
@@ -2782,7 +2782,7 @@ wheels = [
 
 [[package]]
 name = "stargazing-core"
-version = "0.2.0"
+version = "0.2.1"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "astropy" },
@@ -2793,9 +2793,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/30/0ff3b97cbf02385e3db64dfe7b28f7b13caf54e3605cbc7f5ac033924c54/stargazing_core-0.2.0.tar.gz", hash = "sha256:9ba2df98b2b9b9e27f8c23ee10b34a5348398346ff4ae949339714166cbc30c6", size = 257369 }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/5d/193eb95e02ea8446b853bc47492ca47bce2d81618811adecc212ab9af3d6/stargazing_core-0.2.1.tar.gz", hash = "sha256:07ab563e2e319be2717735188350531b0cede5426ca1d276667b2f36c65aaf0b", size = 258552 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/82/3d55b9ddf16e5a5e1798b475743e43315b1e0e1d4621d77fcc9fd757644a/stargazing_core-0.2.0-py3-none-any.whl", hash = "sha256:8a9aa7f93e7f71791e0b8ff7612b8a82a5671df7e0ed535f8ac68bda47c6f82e", size = 261397 },
+    { url = "https://files.pythonhosted.org/packages/0d/ad/414f8b34bdf6e5314e9a3d8fe227e5555f996887c2b1d2f9ec2f509bf0b9/stargazing_core-0.2.1-py3-none-any.whl", hash = "sha256:b9dcc80419f66257d6a450a15eff1805fcfcb1d447fef3f54b1a35e21c2c4cc3", size = 261977 },
 ]
 
 [[package]]
@@ -2811,8 +2811,8 @@ dependencies = [
     { name = "matplotlib" },
     { name = "networkx" },
     { name = "numpy" },
-    { name = "osmnx" },
     { name = "omfiles" },
+    { name = "osmnx" },
     { name = "pillow" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
