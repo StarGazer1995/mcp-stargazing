@@ -92,7 +92,7 @@ Container
 │   └── program:spf-web  → uv run uvicorn server.main:app --port 5001
 │
 Dependency resolution (single venv, no duplication):
-  stargazing-core>=0.2.0  ←  resolved once from PyPI
+  stargazing-core>=0.2.1  ←  resolved once from PyPI
   stargazing-place-finder>=0.9.1
   fastapi, uvicorn, ...   ←  SPF's transitive deps
 ```
