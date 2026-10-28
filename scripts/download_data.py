@@ -222,7 +222,7 @@ def download_messier_objects() -> list[dict[str, Any]]:
     # Query in batches to be safe, or one big query
     # Simbad query_objects can handle a list
     try:
-        table = custom_simbad.query_objects(identifiers)
+        table = custom_simbad.query_objects(identifiers, async_job=True)
 
         if table is None:
             print('Error: No results from Simbad for Messier objects.')
@@ -325,7 +325,7 @@ def _download_catalog_objects(
     all_names = [f'{prefix} {i}' for i in range(first, last + 1)]
     print(f'  Querying {len(all_names):,} names …', end=' ', flush=True)
 
-    table = simbad.query_objects(all_names)
+    table = simbad.query_objects(all_names, async_job=True)
     if table is None or len(table) == 0:
         print('0 results')
         return []
