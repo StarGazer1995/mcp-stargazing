@@ -54,6 +54,10 @@ This project uses [uv](https://github.com/astral-sh/uv) for dependency managemen
 
 You can also run the server using Docker, which handles all dependencies and data initialization automatically.
 
+Docker catalog downloads use the official `simbad.harvard.edu` mirror. Override with
+`--build-arg SIMBAD_SERVER=simbad.cds.unistra.fr` to use the Strasbourg service.
+Standalone downloads retain the astroquery default unless `SIMBAD_SERVER` is set.
+
 1. **Build the image**:
    ```bash
    docker build -t mcp-stargazing .

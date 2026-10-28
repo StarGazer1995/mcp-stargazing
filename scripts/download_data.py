@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -6,6 +7,14 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astroquery.simbad import Simbad
+
+
+def _simbad_client():
+    """Allow builds to select an official SIMBAD mirror without changing query semantics."""
+    client = Simbad()
+    client.server = os.environ.get('SIMBAD_SERVER', client.server)
+    return client
+
 
 # SIMBAD object types that indicate stars (point sources), not deep-sky objects.
 # When SIMBAD resolves an NGC/IC number to a star, we discard it.
@@ -192,7 +201,7 @@ def download_messier_objects() -> list[dict[str, Any]]:
     # Configure Simbad to retrieve relevant fields
     # id(M) is deprecated, just use main_id or assume query order
     # flux(V) is deprecated in favor of 'V'
-    custom_simbad = Simbad()
+    custom_simbad = _simbad_client()
     custom_simbad.add_votable_fields(
         'otype',
         'flux(V)',
@@ -304,7 +313,7 @@ def _download_catalog_objects(
     """
     print(f'Downloading {catalog_label} objects via SIMBAD …')
 
-    simbad = Simbad()
+    simbad = _simbad_client()
     simbad.add_votable_fields(
         'otype',
         'flux(V)',
