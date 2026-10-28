@@ -4,6 +4,10 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **0.10.1 patch release** — Packages the observing-night weather corrections, agent
+  interpretation guidance, stargazing-core 0.2.1 dependency floor and resilient SIMBAD
+  catalog downloads. The frozen public tool schemas remain unchanged.
+
 - **Catalog download resilience** — Failed batches retry on the two official SIMBAD
   mirrors, retain completed batches and prefer the working mirror. Explicit async
   TAP queries use the indexed identifier table without uploads; empty batches and
@@ -17,13 +21,13 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
   quietness heuristics, regional searches and object-valued requests. SDK and real HTTP discovery
   tests protect the critical guidance without changing the frozen schemas.
 
-- **Dated night-weather correction (local fix)** — Planning uses only forecast hours within
+- **Dated night-weather correction** — Planning uses only forecast hours within
   the observing night, including cloud layers; missing coverage cannot reuse current weather.
   Weather evidence carries source/time provenance, unsuitable forecasts earn no weather credit,
   scores are bounded to 0–100, and spatial models reject out-of-horizon dates. Multi-night runs
   reuse raw retrievals without sharing per-night scores. Regression tests cover contradictory
   current/future weather, distinct nights, missing horizons, evening hours and provider timezones.
-  Package release and NAS rollout remain separate from these source changes.
+  Included in 0.10.1; NAS rollout remains a separate deployment step.
 
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
