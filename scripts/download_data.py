@@ -6,6 +6,7 @@ from typing import Any
 import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
+from astropy.table import vstack
 from astroquery.simbad import Simbad
 
 
@@ -14,6 +15,17 @@ def _simbad_client():
     client = Simbad()
     client.server = os.environ.get('SIMBAD_SERVER', client.server)
     return client
+
+
+def _query_objects(client, names):
+    """Bound uploaded identifier tables; astroquery uses sync TAP for uploads."""
+    tables = []
+    for offset in range(0, len(names), 100):
+        table = client.query_objects(names[offset : offset + 100], async_job=True)
+        if table is None or len(table) == 0:
+            raise RuntimeError('SIMBAD returned an empty identifier batch; catalog is incomplete')
+        tables.append(table)
+    return vstack(tables) if tables else None
 
 
 # SIMBAD object types that indicate stars (point sources), not deep-sky objects.
@@ -222,7 +234,7 @@ def download_messier_objects() -> list[dict[str, Any]]:
     # Query in batches to be safe, or one big query
     # Simbad query_objects can handle a list
     try:
-        table = custom_simbad.query_objects(identifiers, async_job=True)
+        table = _query_objects(custom_simbad, identifiers)
 
         if table is None:
             print('Error: No results from Simbad for Messier objects.')
@@ -325,7 +337,7 @@ def _download_catalog_objects(
     all_names = [f'{prefix} {i}' for i in range(first, last + 1)]
     print(f'  Querying {len(all_names):,} names …', end=' ', flush=True)
 
-    table = simbad.query_objects(all_names, async_job=True)
+    table = _query_objects(simbad, all_names)
     if table is None or len(table) == 0:
         print('0 results')
         return []
