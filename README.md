@@ -54,6 +54,20 @@ This project uses [uv](https://github.com/astral-sh/uv) for dependency managemen
 
 You can also run the server using Docker, which handles all dependencies and data initialization automatically.
 
+Docker catalog downloads use the official `simbad.harvard.edu` mirror. Override with
+`--build-arg SIMBAD_SERVER=simbad.cds.unistra.fr` to use the Strasbourg service.
+Standalone downloads retain the astroquery default unless `SIMBAD_SERVER` is set.
+The selected server is tried first; failed connection/query batches retry once and
+switch to the other official mirror. Subsequent batches prefer the working mirror.
+Downloads use bounded, indexed TAP queries with explicit asynchronous execution,
+avoiding astroquery 0.4.11's uploaded-name query path (which drops `async_job`).
+An empty batch or failure of both mirrors aborts rather than publishing a partial catalog.
+Connection probes have a 5-second connect and 15-second read timeout; asynchronous
+jobs have a 180-second execution limit. macOS Python can inherit the system proxy
+even without proxy environment variables; use process-local `NO_PROXY=*` only when
+deliberately testing direct connectivity. A successful small query does not verify
+the full catalog download or CI build.
+
 1. **Build the image**:
    ```bash
    docker build -t mcp-stargazing .
@@ -92,7 +106,7 @@ Container
 │   └── program:spf-web  → uv run uvicorn server.main:app --port 5001
 │
 Dependency resolution (single venv, no duplication):
-  stargazing-core>=0.2.0  ←  resolved once from PyPI
+  stargazing-core>=0.2.1  ←  resolved once from PyPI
   stargazing-place-finder>=0.9.1
   fastapi, uvicorn, ...   ←  SPF's transitive deps
 ```
@@ -240,6 +254,26 @@ keeps its summary `description` and full `docstring`; explicit decorator descrip
 and take precedence. See the [tool routing audit](docs/tool-surface-audit.md).
 
 ### 4. Available Tools
+
+External AI callers should follow the [planning result interpretation guide](docs/planning-result-guide.md).
+The critical field, uncertainty, score and location boundaries are also in standard MCP
+descriptions, visible through `tools/list` without opening this README.
+
+Composite planners score the **requested night's hourly forecast**, including low/mid/high cloud
+layers. Current conditions or daily averages never substitute for missing forecast hours.
+Open-Meteo requests 16 forecast days; actual usable coverage depends on each provider/model and
+field. Out-of-horizon spatial weather is omitted rather than snapped to the last model time.
+Missing/partial night coverage is explicit in notes/uncertainties; a degraded ranking is
+provisional. Weather evidence records the provider, interval, available hours and cloud
+aggregation. Weather base scores stay within 0–100; known forecasts with no usable cloud/rain/wind
+interval receive zero weather credit. Multi-night runs reuse raw place/weather retrievals, then
+evaluate each night separately; this reduces repeated I/O but does not guarantee a 60-second call.
+
+`location.center` plus `radius_km` requests **regional site selection**, not a plan locked to that
+coordinate. Quietness/popularity adjustments require the corresponding preference flags; these
+scores are heuristics, not measured noise or crowd counts. `night_window` retains its documented
+**civil-dark** meaning (Sun below −6°), not astronomical darkness (−18°). Civil-dark duration is
+not a promise of usable deep-sky exposure time; verify twilight and access before departure.
 
 - **`get_celestial_pos`**: Calculate altitude/azimuth.
 - **`get_celestial_rise_set`**: Calculate rise/set times (Returns ISO strings). Use `event_scope="calendar_day"` for the historical full-local-day behavior, or `event_scope="next_events"` to find the first rise and first set after the supplied `time`, rolling across midnight when needed.

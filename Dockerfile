@@ -32,7 +32,8 @@ RUN python -m pip install --no-cache-dir setuptools wheel && \
     uv cache clean
 
 COPY scripts/download_data.py ./scripts/
-RUN uv run python scripts/download_data.py
+ARG SIMBAD_SERVER=simbad.harvard.edu
+RUN SIMBAD_SERVER=$SIMBAD_SERVER uv run python scripts/download_data.py
 
 # --- Test Stage ---
 FROM base AS test

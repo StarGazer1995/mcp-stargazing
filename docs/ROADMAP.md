@@ -4,6 +4,27 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Catalog download resilience** — Failed batches retry on the two official SIMBAD
+  mirrors, retain completed batches and prefer the working mirror. Explicit async
+  TAP queries use the indexed identifier table without uploads; empty batches and
+  exhausted mirrors fail the build instead of publishing an incomplete catalog.
+  Regression coverage protects retries, mirror switching, escaping and batch preservation.
+
+- **External AI result interpretation** — Standard MCP descriptions now distinguish relative
+  scores from probabilities, successful execution from a usable plan, current/daily weather
+  from dated night forecasts, civil from astronomical darkness, and dusk from clock-time target
+  altitudes. The [interpretation guide](planning-result-guide.md) covers provenance, missing data,
+  quietness heuristics, regional searches and object-valued requests. SDK and real HTTP discovery
+  tests protect the critical guidance without changing the frozen schemas.
+
+- **Dated night-weather correction (local fix)** — Planning uses only forecast hours within
+  the observing night, including cloud layers; missing coverage cannot reuse current weather.
+  Weather evidence carries source/time provenance, unsuitable forecasts earn no weather credit,
+  scores are bounded to 0–100, and spatial models reject out-of-horizon dates. Multi-night runs
+  reuse raw retrievals without sharing per-night scores. Regression tests cover contradictory
+  current/future weather, distinct nights, missing horizons, evening hours and provider timezones.
+  Package release and NAS rollout remain separate from these source changes.
+
 The following baseline capabilities are already implemented and should no longer be treated as future work:
 
 - **1.0 contract preparation** — A separate full-surface baseline protects all 21 tools, task

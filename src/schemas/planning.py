@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from src.schemas.celestial import NightWindow
 from src.schemas.places import StargazingLocation
@@ -163,6 +163,9 @@ class ScoreBreakdown(BaseModel):
 
 class PlannedLocationCandidate(BaseModel):
     """A ranked location recommendation with weather and target context."""
+
+    # Request-local provenance for the agent evidence envelope, not a public field.
+    _weather_evidence: dict = PrivateAttr(default_factory=dict)
 
     rank: int = Field(ge=1, description='Rank within the returned recommendation list')
     recommendation_score: float = Field(description='Combined planning score on a 0-100 scale')

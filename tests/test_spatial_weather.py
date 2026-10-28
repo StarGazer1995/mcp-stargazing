@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 import numpy as np
+import pytest
 from stargazing_core import WeatherModel
 
 from src.functions.weather import spatial
@@ -14,6 +15,14 @@ def test_nearest_valid_time_index_uses_requested_time():
     assert (
         spatial._nearest_valid_time_index(valid_times, datetime(2026, 10, 25, 5, tzinfo=UTC)) == 1
     )
+
+
+def test_spatial_weather_does_not_snap_a_future_night_to_the_last_model_time():
+    with pytest.raises(ValueError, match='forecast horizon'):
+        spatial._nearest_valid_time_index(
+            ['2026-10-27T00:00:00Z', '2026-10-30T00:00:00Z'],
+            datetime(2026, 11, 6, tzinfo=UTC),
+        )
 
 
 def test_spatial_time_helpers_handle_naive_and_empty_inputs():

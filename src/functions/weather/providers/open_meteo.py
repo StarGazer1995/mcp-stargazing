@@ -177,6 +177,7 @@ def _build_open_meteo_params(lat: float, lon: float, timezone: str | None) -> di
         'latitude': lat,
         'longitude': lon,
         'timezone': timezone or 'auto',
+        'forecast_days': 16,
         'current': ','.join(
             [
                 'temperature_2m',

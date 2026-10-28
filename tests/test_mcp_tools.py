@@ -488,7 +488,14 @@ async def test_get_best_stargazing_plan_observation_style_changes_score_and_targ
                             'visibility_km': 20.0,
                             'wind_speed_kph': 8.0,
                         },
-                        'hourly': [],
+                        'hourly': [
+                            {
+                                'time': '2024-06-15T21:00:00+08:00',
+                                'cloud_cover_percent': 10.0,
+                                'visibility_km': 20.0,
+                                'wind_speed_kph': 8.0,
+                            }
+                        ],
                     }
                 },
                 '_meta': {'status': 'success'},
@@ -540,7 +547,7 @@ async def test_get_best_stargazing_plan_observation_style_changes_score_and_targ
         'observation_style_fit'
         in (planetary_result['data']['summary']['primary_recommendation_drivers'])
     )
-    assert any('行星观测偏好' in reason for reason in planetary_candidate['recommendation_reasons'])
+    assert any('月面照明比例' in reason for reason in planetary_candidate['recommendation_reasons'])
 
 
 @pytest.mark.asyncio
@@ -633,7 +640,20 @@ async def test_get_multiday_stargazing_plan_selects_best_night():
                 '_meta': {'status': 'success'},
             }
         )
-        mock_weather.side_effect = [_capability_payload(result) for result in weather_results]
+        # One retrieval contains both nights; the planner must select dated
+        # hourly facts rather than refetch and use changing current conditions.
+        hourly = []
+        for day, weather in zip((15, 16), weather_results, strict=True):
+            fields = weather['data']['summary']['current']
+            hourly.extend(
+                {
+                    **fields,
+                    'time': f'2024-06-{day}T{hour}:00:00+08:00',
+                }
+                for hour in (21, 22, 23)
+            )
+        weather_results[0]['data']['summary']['hourly'] = hourly
+        mock_weather.return_value = _capability_payload(weather_results[0])
         mock_forecast.return_value = _capability_payload(
             {
                 'data': {

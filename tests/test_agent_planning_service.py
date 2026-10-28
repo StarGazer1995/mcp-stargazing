@@ -58,7 +58,15 @@ def _agent_service(*, weather_failure: bool = False):
                     'visibility_km': 20.0,
                     'wind_speed_kph': 6.0,
                 },
-                'hourly': [],
+                'hourly': [
+                    {
+                        'time': f'2026-10-{day}T{hour:02d}:00:00+08:00',
+                        'cloud_cover_percent': cloud_cover,
+                        'wind_speed_kph': 6.0,
+                    }
+                    for day in (25, 26)
+                    for hour in range(24)
+                ],
             }
         }
 
@@ -70,6 +78,8 @@ def _agent_service(*, weather_failure: bool = False):
         }
 
     async def fetch_night_window(_lat, _lon, reference):
+        if reference.hour < 12:
+            reference -= timedelta(days=1)
         local_date = reference.date().isoformat()
         next_date = (reference.date() + timedelta(days=1)).isoformat()
         return NightWindow(
@@ -168,7 +178,14 @@ async def test_best_plan_uses_recall_pool_before_candidate_limit():
                     'visibility_km': weather[1],
                     'wind_speed_kph': 5.0,
                 },
-                'hourly': [],
+                'hourly': [
+                    {
+                        'time': '2026-10-25T21:00:00+08:00',
+                        'cloud_cover_percent': weather[0],
+                        'visibility_km': weather[1],
+                        'wind_speed_kph': 5.0,
+                    }
+                ],
             }
         }
 

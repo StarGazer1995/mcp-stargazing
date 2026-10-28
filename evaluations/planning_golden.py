@@ -244,7 +244,19 @@ def build_golden_service(scenario: GoldenScenario) -> PlanningService:
     async def fetch_weather(**kwargs):
         if scenario.weather_failure:
             raise MCPError(MCPError.API_TIMEOUT, 'frozen weather provider timeout')
-        return scenario.weather_by_lat.get(round(float(kwargs['lat']), 2), _weather(15))
+        weather = scenario.weather_by_lat.get(round(float(kwargs['lat']), 2), _weather(15))
+        # These are frozen forecast facts for the scenario dates, not current
+        # conditions mislabeled as future-night weather.
+        current = weather['summary']['current']
+        first_date = datetime.fromisoformat(scenario.request.start_date)
+        hourly = [
+            {
+                **current,
+                'time': (first_date + timedelta(hours=hour)).isoformat() + '+08:00',
+            }
+            for hour in range(24 * (scenario.request.nights + 1))
+        ]
+        return {**weather, 'summary': {**weather['summary'], 'hourly': hourly}}
 
     async def fetch_forecast(**_kwargs):
         return {
@@ -256,6 +268,8 @@ def build_golden_service(scenario: GoldenScenario) -> PlanningService:
     async def fetch_night_window(_lat: float, _lon: float, reference: datetime):
         if scenario.night_window_failure:
             raise ValueError('frozen scenario has no civil-dark window')
+        if reference.hour < 12:
+            reference -= timedelta(days=1)
         local_date = reference.date().isoformat()
         next_date = (reference.date() + timedelta(days=1)).isoformat()
         return NightWindow(
