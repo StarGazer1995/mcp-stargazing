@@ -291,13 +291,20 @@ async def get_nightly_forecast(
     Use when: place and night are known and you need general night targets and a night window.
     Do not use when: you need telescope-specific target matching or regional site selection.
     Requires: observer coordinates, time within the intended night, timezone, and optional limit.
+    Interpretation: this is an astronomy forecast, not a weather forecast. Deep-sky
+        altitude and score are evaluated at the supplied time; deep_sky.score sorts
+        lower first and must not be compared with telescope suitability_score (higher first).
+        The legacy transit_alt is an altitude estimate at that scoring time, not a
+        separately solved meridian transit. night_window is civil darkness (Sun below
+        -6 degrees), not astronomical darkness (-18 degrees) or guaranteed exposure time.
     Follow-up: get_telescope_targets for known optics; get_shooting_plan for an imaging schedule;
         plan_stargazing_session when place or night still needs comparison.
 
     Args:
         lon: Observer longitude in degrees
         lat: Observer latitude in degrees
-        time: Date string "YYYY-MM-DD HH:MM:SS" (Time of observation, or just date)
+        time: Observation time "YYYY-MM-DD HH:MM:SS" inside the intended night.
+            A bare date means local midnight and can belong to the previous evening's night.
         time_zone: IANA timezone string
         limit: Max number of deep-sky objects to return (default 20)
 

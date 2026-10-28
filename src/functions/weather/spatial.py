@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from math import isfinite
 from typing import Any
 
@@ -29,10 +29,13 @@ def _nearest_valid_time_index(valid_times: list[str], requested_time: datetime) 
     if not valid_times:
         raise ValueError('Spatial weather model returned no valid times.')
     requested_utc = requested_time.astimezone(UTC)
-    return min(
+    index = min(
         range(len(valid_times)),
         key=lambda index: abs(_parse_valid_time(valid_times[index]) - requested_utc),
     )
+    if abs(_parse_valid_time(valid_times[index]) - requested_utc) > timedelta(minutes=90):
+        raise ValueError('Requested night is outside the spatial weather forecast horizon.')
+    return index
 
 
 def _sample_window(

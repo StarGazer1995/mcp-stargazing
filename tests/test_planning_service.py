@@ -59,7 +59,10 @@ def _service(*, weather_failure: bool = False) -> PlanningService:
                     'visibility_km': 20.0,
                     'wind_speed_kph': 6.0,
                 },
-                'hourly': [],
+                'hourly': [
+                    {'time': f'2024-06-15T{hour}:00:00+08:00', 'cloud_cover_percent': 8.0}
+                    for hour in (22, 23)
+                ],
             }
         }
 
@@ -126,7 +129,7 @@ def test_observation_window_prefers_continuous_dark_run():
     assert window.quality_score > 95.0
 
 
-def test_observation_window_falls_back_to_best_single_bad_hour():
+def test_observation_window_does_not_recommend_any_bad_hour():
     window = _pick_best_observation_window(
         [
             {
@@ -144,9 +147,7 @@ def test_observation_window_falls_back_to_best_single_bad_hour():
         'Asia/Shanghai',
     )
 
-    assert window is not None
-    assert window.start_time == '2024-06-15T22:00:00+08:00'
-    assert window.duration_hours == 1.0
+    assert window is None
 
 
 def test_observation_window_skips_malformed_and_out_of_range_hours():

@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import math
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -50,6 +50,7 @@ from src.schemas.planning import (
     ScoreBreakdown,
     WeatherPlanningSummary,
 )
+from src.services.planning_weather import effective_cloud_cover, select_night_weather
 from src.utils import (
     ensure_timezone,
     parse_observation_time,
@@ -226,6 +227,7 @@ def _pick_best_observation_window(
         try:
             dark_start = ensure_timezone(parse_time_string(night_window.civil_dusk), time_zone)
             dark_end = ensure_timezone(parse_time_string(night_window.civil_dawn), time_zone)
+            cutoff_dt = dark_end
         except (MCPError, TypeError, ValueError):
             dark_start = dark_end = None
 
@@ -236,7 +238,7 @@ def _pick_best_observation_window(
 
     def score_item(item: dict[str, Any]) -> float:
         score = 100.0
-        cloud_cover = item.get('cloud_cover_percent')
+        cloud_cover = effective_cloud_cover(item)
         precipitation = item.get('precipitation_probability')
         wind_speed = item.get('wind_speed_kph')
         if cloud_cover is not None:
@@ -258,7 +260,7 @@ def _pick_best_observation_window(
             forecast_dt = ensure_timezone(parse_time_string(time_value), time_zone)
         except (MCPError, TypeError, ValueError):
             continue
-        if forecast_dt < requested_dt or forecast_dt > cutoff_dt:
+        if forecast_dt < requested_dt or forecast_dt >= cutoff_dt:
             continue
         if (
             dark_start is not None
@@ -273,11 +275,11 @@ def _pick_best_observation_window(
     records.sort(key=lambda record: record[0])
 
     def is_usable(item: dict[str, Any]) -> bool:
-        cloud_cover = item.get('cloud_cover_percent')
+        cloud_cover = effective_cloud_cover(item)
         precipitation = item.get('precipitation_probability')
         wind_speed = item.get('wind_speed_kph')
         return (
-            (cloud_cover is None or float(cloud_cover) <= 75.0)
+            (cloud_cover is not None and cloud_cover <= 75.0)
             and (precipitation is None or float(precipitation) <= 0.35)
             and (wind_speed is None or float(wind_speed) <= 35.0)
         )
@@ -307,37 +309,26 @@ def _pick_best_observation_window(
             ),
         )
     else:
-        selected_run = [max(records, key=lambda record: (record[2], -record[0].timestamp()))]
+        return None
 
     first_dt, best_item, _ = selected_run[0]
     last_dt = selected_run[-1][0]
-    duration_hours = max(1.0, round((last_dt - first_dt).total_seconds() / 3600.0 + 1.0, 2))
-    end_time = (last_dt + timedelta(hours=1)).isoformat()
+    end_dt = min(last_dt + timedelta(hours=1), cutoff_dt)
+    duration_hours = round((end_dt - first_dt).total_seconds() / 3600.0, 2)
+    end_time = end_dt.isoformat()
     quality_score = round(
         sum(record[2] for record in selected_run) / len(selected_run),
         2,
     )
     return ObservationWindow(
         start_time=best_item.get('time'),
-        cloud_cover_percent=best_item.get('cloud_cover_percent'),
+        cloud_cover_percent=effective_cloud_cover(best_item),
         precipitation_probability=best_item.get('precipitation_probability'),
         wind_speed_kph=best_item.get('wind_speed_kph'),
         weather_text=best_item.get('weather_text'),
         end_time=end_time,
         duration_hours=duration_hours,
         quality_score=quality_score,
-    )
-
-
-def _build_weather_summary(weather_data: dict[str, Any] | None) -> WeatherPlanningSummary | None:
-    if weather_data is None:
-        return None
-    current = weather_data.get('summary', {}).get('current', {})
-    return WeatherPlanningSummary(
-        weather_text=current.get('weather_text'),
-        cloud_cover_percent=current.get('cloud_cover_percent'),
-        visibility_km=current.get('visibility_km'),
-        wind_speed_kph=current.get('wind_speed_kph'),
     )
 
 
@@ -404,8 +395,12 @@ def _compute_recommendation_score(
         )
     if moon_illumination is not None and moon_illumination > 0.7:
         weather_score -= (moon_illumination - 0.7) * 25.0 * profile.moon_penalty_multiplier
+    if weather_summary is not None and best_window is None:
+        # Known forecast hours with no usable interval must not earn a clear-
+        # weather bonus (e.g. low total cloud but continuous heavy rain).
+        weather_score = 0.0
     place_score = float(location.score or 0.0)
-    normalized_weather_score = max(0.0, weather_score)
+    normalized_weather_score = max(0.0, min(100.0, weather_score))
     place_contribution = place_score * profile.place_weight
     weather_contribution = normalized_weather_score * profile.weather_weight
     accessibility_adjustment = 0.0
@@ -491,15 +486,20 @@ def _build_recommendation_reasons(
         reason_entries.append((650, _STYLE_PROFILES[observation_style].reason))
     reason_entries.extend((900, reason) for reason in popularity_reasons)
     if weather_summary is not None and weather_summary.cloud_cover_percent is not None:
-        reason_entries.append((800, f'当前云量约 {weather_summary.cloud_cover_percent:.0f}%。'))
+        reason_entries.append(
+            (800, f'观测时段预报云量约 {weather_summary.cloud_cover_percent:.0f}%。')
+        )
     if weather_summary is not None and weather_summary.visibility_km is not None:
-        reason_entries.append((800, f'当前能见度约 {weather_summary.visibility_km:.1f} km。'))
+        reason_entries.append(
+            (800, f'观测时段预报能见度约 {weather_summary.visibility_km:.1f} km。')
+        )
     if weather_summary is not None and weather_summary.wind_speed_kph is not None:
         if weather_summary.wind_speed_kph > 20.0:
             reason_entries.append(
                 (
                     850,
-                    f'当前风速约 {weather_summary.wind_speed_kph:.1f} km/h，已计入天气扣分。',
+                    f'观测时段预报风速约 {weather_summary.wind_speed_kph:.1f} km/h，'
+                    '已计入天气扣分。',
                 )
             )
     if best_window is not None and best_window.start_time is not None:
@@ -571,7 +571,7 @@ def _derive_primary_recommendation_drivers(
         drivers.append(RecommendationDriver.DARK_SKY)
     elif location.score is not None and float(location.score) >= 80.0:
         drivers.append(RecommendationDriver.HIGH_PLACE_SCORE)
-    if weather_summary is not None:
+    if weather_summary is not None and candidate.best_observation_window is not None:
         if (
             weather_summary.cloud_cover_percent is not None
             and weather_summary.cloud_cover_percent <= 25
@@ -712,6 +712,7 @@ class PlanningService:
         popularity_radius_km: float = 3.0,
         *,
         prefetched_weather: _WeatherScreen | None = None,
+        full_night: bool = False,
     ) -> PlannedLocationCandidate:
         """Evaluate a place whose score excludes popularity preference adjustments."""
         notes: list[str] = []
@@ -758,7 +759,11 @@ class PlanningService:
             )
         if forecast_note:
             notes.append(f'夜间目标降级处理：{forecast_note}')
-        weather_summary = _build_weather_summary(weather_data)
+        nightly_weather = select_night_weather(
+            weather_data, time, time_zone, night_window, full_night=full_night
+        )
+        weather_summary = nightly_weather.summary
+        notes.extend(nightly_weather.notes)
         top_targets = _build_top_targets(forecast_data, target_limit, observation_style)
         moon_phase = None
         moon_illumination = None
@@ -766,15 +771,19 @@ class PlanningService:
             moon_phase = forecast_data.get('moon_phase', {}).get('phase_name')
             moon_illumination = forecast_data.get('moon_phase', {}).get('illumination')
         best_window = None
-        if weather_data is not None:
+        if nightly_weather.hourly:
             best_window = _pick_best_observation_window(
-                weather_data.get('summary', {}).get('hourly', []),
-                time,
+                nightly_weather.hourly,
+                night_window.civil_dusk if full_night and night_window is not None else time,
                 time_zone,
                 night_window=night_window,
                 moon_illumination=moon_illumination,
                 top_targets=top_targets,
             )
+            if best_window is None:
+                notes.append(
+                    'no_usable_observation_window: 已有预报中没有满足云量、降水和风速条件的时段。'
+                )
         popularity_adjustment, popularity_reasons = _compute_popularity_preference_adjustment(
             location, avoid_popular_spots, prefer_quiet_at_night, popularity_radius_km
         )
@@ -798,7 +807,7 @@ class PlanningService:
             score_breakdown,
             prefetched_weather.spatial_cloud_cover_percent if prefetched_weather else None,
         )
-        return PlannedLocationCandidate(
+        candidate = PlannedLocationCandidate(
             rank=1,
             recommendation_score=score_breakdown.final_score,
             recommendation_reasons=reasons,
@@ -812,6 +821,8 @@ class PlanningService:
             top_targets=top_targets,
             notes=notes,
         )
+        candidate._weather_evidence = nightly_weather.facts
+        return candidate
 
     async def build_best_plan(
         self,
@@ -834,6 +845,7 @@ class PlanningService:
         prefer_quiet_at_night: bool = False,
         popularity_radius_km: float = 3.0,
         db_config_path: str | None = None,
+        night_window: NightWindow | None = None,
     ) -> BestStargazingPlan:
         _validate_bounds(south, west, north, east)
         _validate_positive_int('candidate_limit', candidate_limit)
@@ -905,11 +917,21 @@ class PlanningService:
                 note=weather_screen.note,
                 spatial_cloud_cover_percent=spatial_cloud,
             )
-            weather_summary = _build_weather_summary(weather_screen.data)
+            nightly_weather = select_night_weather(
+                weather_screen.data,
+                time,
+                time_zone,
+                night_window,
+                full_night=night_window is not None,
+            )
+            weather_summary = nightly_weather.summary
             best_window = None
-            if weather_screen.data is not None:
+            if nightly_weather.hourly:
                 best_window = _pick_best_observation_window(
-                    weather_screen.data.get('summary', {}).get('hourly', []), time, time_zone
+                    nightly_weather.hourly,
+                    night_window.civil_dusk if night_window is not None else time,
+                    time_zone,
+                    night_window=night_window,
                 )
             popularity_adjustment, _ = _compute_popularity_preference_adjustment(
                 location, avoid_popular_spots, prefer_quiet_at_night, popularity_radius_km
@@ -941,6 +963,7 @@ class PlanningService:
                     prefer_quiet_at_night,
                     popularity_radius_km,
                     prefetched_weather=weather_screen,
+                    full_night=night_window is not None,
                 )
                 for _screen_score, location, weather_screen in screened_candidates[
                     :target_evaluation_limit
@@ -1041,6 +1064,27 @@ class PlanningService:
         start_noon = parse_observation_time(f'{start_date} 12:00:00', time_zone)
         center_lat = (south + north) / 2.0
         center_lon = (west + east) / 2.0
+
+        # A region and a coordinate forecast do not change between requested nights.
+        # Cache only within this run; each night still selects its own dated hours.
+        def memoize(operation):
+            tasks = {}
+
+            async def cached(**kwargs):
+                key = tuple(sorted(kwargs.items()))
+                if key not in tasks:
+                    tasks[key] = asyncio.create_task(operation(**kwargs))
+                return await tasks[key]
+
+            return cached
+
+        nightly_service = PlanningService(
+            replace(
+                self._dependencies,
+                search_places=memoize(self._dependencies.search_places),
+                fetch_weather=memoize(self._dependencies.fetch_weather),
+            )
+        )
         night_results: list[NightlyStargazingPlan] = []
         for night_index in range(1, nights + 1):
             reference = start_noon + timedelta(days=night_index - 1)
@@ -1063,7 +1107,7 @@ class PlanningService:
             dawn = datetime.fromisoformat(window.civil_dawn)
             planning_time = dusk + (dawn - dusk) / 2.0
             try:
-                plan = await self.build_best_plan(
+                plan = await nightly_service.build_best_plan(
                     south=south,
                     west=west,
                     north=north,
@@ -1082,6 +1126,7 @@ class PlanningService:
                     prefer_quiet_at_night=prefer_quiet_at_night,
                     popularity_radius_km=popularity_radius_km,
                     db_config_path=db_config_path,
+                    night_window=window,
                 )
             except MCPError as exc:
                 night_results.append(
@@ -1277,6 +1322,7 @@ class PlanningService:
                         name=item['name'],
                         category=item.get('type', 'deep_sky'),
                         score=item.get('suitability_score'),
+                        transit_alt=item.get('transit_alt'),
                     )
                     for item in matched.get('targets', [])[: request.target_limit]
                 ]
@@ -1351,7 +1397,7 @@ class PlanningService:
                     source='server_weather_policy',
                     retrieved_at=retrieved_at,
                     applies_to=decision_date,
-                    facts=selected.weather_summary.model_dump(),
+                    facts={**selected.weather_summary.model_dump(), **selected._weather_evidence},
                 )
             )
         evidence.append(
@@ -1383,11 +1429,29 @@ class PlanningService:
                 )
             )
 
-        for note in selected.notes:
+        selected_noon = parse_observation_time(f'{decision_date} 12:00:00', request.time_zone)
+        lead_days = (
+            selected_noon.date() - self._dependencies.now().astimezone(selected_noon.tzinfo).date()
+        ).days
+        if lead_days >= 7:
             uncertainties.append(
                 PlanningUncertainty(
-                    code='partial_downstream_data',
+                    code='long_range_forecast',
                     level=UncertaintyLevel.MEDIUM,
+                    message=f'The selected night is {lead_days} days ahead of retrieval.',
+                    impact='Long-range weather ranking is provisional; recheck near departure.',
+                )
+            )
+
+        for note in selected.notes:
+            weather_warning = note.split(':', 1)[0] in {
+                'nightly_weather_unavailable',
+                'no_usable_observation_window',
+            }
+            uncertainties.append(
+                PlanningUncertainty(
+                    code=note.split(':', 1)[0] if weather_warning else 'partial_downstream_data',
+                    level=UncertaintyLevel.HIGH if weather_warning else UncertaintyLevel.MEDIUM,
                     message=note,
                     impact='The score may rely on fallback values or omit one evidence source.',
                 )

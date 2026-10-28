@@ -129,7 +129,13 @@ def get_weather_by_name(place_name: str, provider: str = 'all'):
 
     Geocoding uses offline China gazetteer (CJK) → Photon → Nominatim cascade.
     Weather data is aggregated from multiple providers with graceful
-    fallback — open-meteo is always available without an API key.
+    fallback. Open-Meteo needs no API key; network/provider failures can still occur.
+    Interpretation: summary.current is current weather, summary.daily is calendar-day
+    aggregation, and summary.hourly contains timestamped forecasts. For a future observing
+    night select the actual hourly timestamps across local midnight and inspect providers
+    and source for failures/provenance. Missing/null or out-of-horizon hours are unknown,
+    not clear weather. Forecasts are predictions, not observations of future conditions;
+    do not assume all providers or fields cover the same dates.
 
     **中文地名提示**：建议使用完整行政区划名称，如 "浙江安吉"、"杭州西湖区"。
     内置离线行政区划数据会正确解析到对应的行政区（如安吉县），而非 POI 商铺。
@@ -161,7 +167,13 @@ def get_weather_by_position(lat: float, lon: float, provider: str = 'all'):
         to compare observing places and nights using weather and other evidence.
 
     Weather data is aggregated from multiple providers with graceful
-    fallback — open-meteo is always available without an API key.
+    fallback. Open-Meteo needs no API key; network/provider failures can still occur.
+    Interpretation: summary.current is current weather, summary.daily is calendar-day
+    aggregation, and summary.hourly contains timestamped forecasts. For a future observing
+    night select the actual hourly timestamps across local midnight and inspect providers
+    and source for failures/provenance. Missing/null or out-of-horizon hours are unknown,
+    not clear weather. Forecasts are predictions, not observations of future conditions;
+    do not assume all providers or fields cover the same dates.
 
     Args:
         lat: 纬度

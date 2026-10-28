@@ -11,6 +11,90 @@ from src.server_instance import mcp
 
 SECTIONS = ('Use when', 'Do not use when', 'Requires', 'Returns', 'Follow-up')
 
+INTERPRETATION_GUIDANCE = {
+    'plan_stargazing_session': (
+        'relative ranking',
+        'not a probability',
+        '_meta.status=success',
+        'decision=null',
+        'null observation_window',
+        'nightly_weather_unavailable',
+        'no_usable_observation_window',
+        'long_range_forecast',
+        'summary.current',
+        'summary.daily',
+        'Sun below -6 degrees',
+        '-18 degrees',
+        'not measured noise',
+        'request as a JSON object, not a JSON string',
+        'not a plan locked to the center point',
+        'approximate search box, not a strict circular distance filter',
+        'inspect resolved_location',
+        'do not compare scores across generic and equipment rankings',
+        'a timeout does not establish that a background planning task exists',
+    ),
+    'get_best_stargazing_plan': (
+        'relative ranking',
+        '_meta.status=success',
+        'candidate notes',
+        'Missing night-hour weather is unknown',
+        'null best_observation_window',
+        'Sun below -6 degrees',
+        '-18 degrees',
+        'not a fixed-site plan',
+    ),
+    'get_multiday_stargazing_plan': (
+        'relative ranking',
+        'per-night errors',
+        'dated forecast hours for each night',
+        'summary.current',
+        'summary.daily',
+        'unknown, not clear',
+        'null best_observation_window',
+        '-18 degrees',
+    ),
+    'get_weather_by_name': (
+        'summary.current',
+        'summary.daily',
+        'summary.hourly',
+        'across local midnight',
+        'Missing/null or out-of-horizon hours are unknown',
+        'not observations',
+    ),
+    'get_weather_by_position': (
+        'summary.current',
+        'summary.daily',
+        'summary.hourly',
+        'across local midnight',
+        'Missing/null or out-of-horizon hours are unknown',
+        'not observations',
+    ),
+    'get_telescope_targets': (
+        'altitude is at civil dusk, not at the requested clock time',
+        'sampled peak within the civil-night window',
+        'UTC Unix seconds',
+        'no crossing was found inside that window',
+        'not a probability',
+        'Missing photometry is unknown',
+        'get_celestial_pos',
+    ),
+    'get_shooting_plan': (
+        'altitude is at civil dusk, not the requested clock time',
+        'does not validate weather',
+        'not an all-night imaging commitment',
+        '-18 degrees',
+    ),
+    'get_nightly_forecast': (
+        'not a weather forecast',
+        'at the supplied time',
+        'lower first',
+        'higher first',
+        'not a separately solved meridian transit',
+        '-18 degrees',
+        "A bare date means local midnight and can belong to the previous evening's night",
+    ),
+}
+
 
 def assert_routing_contract(listed, catalog):
     listed_by_name = {tool['name']: tool for tool in listed}
@@ -31,6 +115,12 @@ def assert_routing_contract(listed, catalog):
         )
         assert references <= set(listed_by_name), (name, references - set(listed_by_name))
         assert set(entry) == {'name', 'description', 'docstring', 'parameters', 'return_type'}
+    # Both SDK and real HTTP discovery must carry the interpretation boundaries;
+    # a README-only clarification would not protect a newly connected AI caller.
+    for name, phrases in INTERPRETATION_GUIDANCE.items():
+        description = ' '.join(listed_by_name[name]['description'].split())
+        for phrase in phrases:
+            assert phrase in description, (name, phrase)
 
 
 @pytest.mark.asyncio

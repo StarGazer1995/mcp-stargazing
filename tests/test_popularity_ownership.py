@@ -145,8 +145,15 @@ async def test_popularity_is_applied_once_across_planning_entrypoints(
     adjustment = 6.3 * (int(avoid) + int(quiet)) if has_signals else 0.0
     assert scores['Popular Ridge'].popularity_adjustment == pytest.approx(-adjustment)
     assert scores['Quiet Ridge'].popularity_adjustment == pytest.approx(adjustment)
-    assert scores['Popular Ridge'].final_score == pytest.approx(63.0 - adjustment)
-    assert scores['Quiet Ridge'].final_score == pytest.approx(61.7 + adjustment)
+    # Current-only weather is unknown for these future nights (neutral 55),
+    # not a dated cloud-cover forecast. Popularity is still applied once.
+    assert scores['Popular Ridge'].weather_base_score == 55.0
+    assert scores['Popular Ridge'].final_score == pytest.approx(
+        70.0 * 0.65 + 55.0 * 0.35 - adjustment
+    )
+    assert scores['Quiet Ridge'].final_score == pytest.approx(
+        68.0 * 0.65 + 55.0 * 0.35 + adjustment
+    )
     assert scores['Quiet Ridge'].factor_contributions['popularity_preferences'] == pytest.approx(
         adjustment
     )

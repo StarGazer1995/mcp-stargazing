@@ -241,6 +241,26 @@ and take precedence. See the [tool routing audit](docs/tool-surface-audit.md).
 
 ### 4. Available Tools
 
+External AI callers should follow the [planning result interpretation guide](docs/planning-result-guide.md).
+The critical field, uncertainty, score and location boundaries are also in standard MCP
+descriptions, visible through `tools/list` without opening this README.
+
+Composite planners score the **requested night's hourly forecast**, including low/mid/high cloud
+layers. Current conditions or daily averages never substitute for missing forecast hours.
+Open-Meteo requests 16 forecast days; actual usable coverage depends on each provider/model and
+field. Out-of-horizon spatial weather is omitted rather than snapped to the last model time.
+Missing/partial night coverage is explicit in notes/uncertainties; a degraded ranking is
+provisional. Weather evidence records the provider, interval, available hours and cloud
+aggregation. Weather base scores stay within 0–100; known forecasts with no usable cloud/rain/wind
+interval receive zero weather credit. Multi-night runs reuse raw place/weather retrievals, then
+evaluate each night separately; this reduces repeated I/O but does not guarantee a 60-second call.
+
+`location.center` plus `radius_km` requests **regional site selection**, not a plan locked to that
+coordinate. Quietness/popularity adjustments require the corresponding preference flags; these
+scores are heuristics, not measured noise or crowd counts. `night_window` retains its documented
+**civil-dark** meaning (Sun below −6°), not astronomical darkness (−18°). Civil-dark duration is
+not a promise of usable deep-sky exposure time; verify twilight and access before departure.
+
 - **`get_celestial_pos`**: Calculate altitude/azimuth.
 - **`get_celestial_rise_set`**: Calculate rise/set times (Returns ISO strings). Use `event_scope="calendar_day"` for the historical full-local-day behavior, or `event_scope="next_events"` to find the first rise and first set after the supplied `time`, rolling across midnight when needed.
 - **`get_moon_info`**: Detailed moon phase, illumination, and age.

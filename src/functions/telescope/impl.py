@@ -45,10 +45,19 @@ async def get_telescope_targets(
     Requires: focal length, observer coordinates, time, and timezone; supply known sensor
         and optical details for matching. For equipment presets use plan_stargazing_session.
     Follow-up: get_shooting_plan for timed imaging slots; plan_stargazing_session
-        if the observing place or night still needs comparison.
+        if the observing place or night still needs comparison; get_celestial_pos
+        for altitude at a specific clock time (the target altitude field is at civil dusk).
 
     Given a telescope/camera configuration and observing location+time,
     returns a ranked list of deep-sky objects best suited for imaging.
+    Interpretation: altitude is at civil dusk, not at the requested clock time; azimuth
+    is at civil midnight. Use altitude_curve or get_celestial_pos for another time.
+    transit_alt is the sampled peak within the civil-night window, in degrees;
+    transit_time and curve time values are UTC Unix seconds. Null rise/set values mean
+    no crossing was found inside that window, not that an object can never rise/set.
+    suitability_score is a heuristic (higher is better), not a probability or weather
+    clearance. Missing photometry is unknown; do not infer a seasonal visibility error
+    from missing magnitude or from the civil-dusk altitude alone.
 
     Args:
         focal_length_mm: Telescope focal length in mm (e.g. 250 for RedCat51)
@@ -70,11 +79,11 @@ async def get_telescope_targets(
     Returns:
         data.targets[] — ranked list, best first.  Each target has:
             name, type, magnitude, catalog
-            altitude, azimuth, dawn_altitude
+            altitude (civil dusk, degrees), azimuth (civil midnight, degrees), dawn_altitude
             angular_size_arcmin, angular_size_min_arcmin, angular_size_pa_deg
             surface_brightness (mag/arcmin²), fov_fit_score, fov_fill_ratio
             suitability_score (0-100), mosaic_recommended, optimal_rotation_deg
-            rise_time, set_time, transit_time, transit_alt (UTC unix timestamps)
+            rise_time, set_time, transit_time (UTC unix timestamps), transit_alt (degrees)
             altitude_curve[{time, alt}]
             civil_dusk, civil_dawn, observation_time
         data.moon — {illumination, phase, altitude_curve, always_down,
@@ -202,6 +211,11 @@ async def get_shooting_plan(
 
     Runs match_telescope_targets then generate_shooting_schedule,
     returning targets + moon + timed shooting slots in one response.
+    Interpretation: target altitude is at civil dusk, not the requested clock time;
+    use altitude_curve or get_celestial_pos for another time. The schedule uses a
+    civil-dark window (Sun below -6 degrees), not astronomical darkness (-18 degrees),
+    and does not validate weather, access, obstructions or achieved integration time.
+    Empty/null slots or exposure values are not an all-night imaging commitment.
 
     Returns:
         data.targets[] — same structure as get_telescope_targets

@@ -128,6 +128,12 @@ async def get_best_stargazing_plan(
     Requires: south/west/north/east bounds, observation time, and timezone.
     Returns: data.query, ranked data.candidates with scores, windows, weather and targets,
         and data.summary; all within the standard response envelope.
+        recommendation_score is a relative ranking, not a probability or go/no-go threshold.
+        _meta.status=success can still contain summary.warnings and candidate notes.
+        Missing night-hour weather is unknown, not clear; a null best_observation_window
+        is not an all-night opening. night_window is civil darkness (Sun below -6 degrees),
+        not astronomical darkness (-18 degrees) or guaranteed exposure time.
+        Inspect the returned candidate coordinates; a regional result is not a fixed-site plan.
     Follow-up: plan_stargazing_session is preferred for new integrations;
         get_multiday_stargazing_plan preserves bbox-first comparison across nights.
     """
@@ -186,6 +192,12 @@ async def get_multiday_stargazing_plan(
     Requires: south/west/north/east bounds, local start_date, timezone, and optional night count.
     Returns: normalized data.query, per-night plans, the best night, and summary;
         each night uses its own civil-dark window.
+        recommendation_score is a relative ranking, not a probability or go/no-go threshold.
+        _meta.status=success can still contain per-night errors, warnings and candidate notes.
+        Compare the dated forecast hours for each night; do not reuse summary.current or
+        summary.daily as night weather. Missing night-hour coverage is unknown, not clear.
+        Civil darkness (Sun below -6 degrees) is not astronomical darkness (-18 degrees)
+        or guaranteed exposure time; a null best_observation_window is not an all-night opening.
     Follow-up: plan_stargazing_session is preferred for new integrations;
         get_best_stargazing_plan for the compatible single-night regional detail.
     """
