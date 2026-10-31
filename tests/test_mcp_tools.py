@@ -325,7 +325,8 @@ async def test_get_best_stargazing_plan_keeps_partial_results_when_weather_fails
     data = result['data']
     assert data['summary']['warnings']
     assert data['summary']['popularity_preferences_enabled'] is False
-    assert '天气摘要降级处理' in data['summary']['warnings'][0]
+    assert any('天气摘要降级处理' in warning for warning in data['summary']['warnings'])
+    assert data['summary']['recommended_location_name'] is None
     assert data['candidates'][0]['weather_summary'] is None
     assert data['candidates'][0]['notes']
     assert data['candidates'][0]['top_targets'][0]['name'] == 'M8'

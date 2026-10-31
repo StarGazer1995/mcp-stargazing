@@ -101,7 +101,8 @@ async def test_three_nights_use_distinct_hourly_layers_and_reuse_only_raw_inputs
     assert result.decision.date == '2026-11-08'
     scores = {result.decision.score_breakdown.weather_base_score}
     scores.update(alt.score_breakdown.weather_base_score for alt in result.alternatives)
-    assert len(scores) == 3
+    assert len(scores) == 2
+    assert any(e.facts.get('status') == 'no_usable_window' for e in result.evidence)
     assert max(scores) <= 100
     assert calls == {'places': 1, 'weather': 1}
     evidence = next(item for item in result.evidence if item.kind == EvidenceKind.WEATHER)
@@ -216,14 +217,13 @@ async def test_missing_or_unusable_forecasts_are_explicit_high_uncertainty(hours
     )
     code = 'no_usable_observation_window' if hours else 'nightly_weather_unavailable'
     assert any(item.code == code and item.level == 'high' for item in result.uncertainties)
-    assert result.decision.observation_window is None
-    assert '天气更晴朗' not in result.decision.reason_summary
-    if hours:
-        assert result.decision.score_breakdown.weather_base_score == 0
-    assert '_weather_evidence' not in result.model_dump()['decision']
+    assert result.decision is None
+    assert result.alternatives == []
+    references = [e for e in result.evidence if e.source == 'unranked_planning_reference']
+    assert references[0].facts['status'] == ('no_usable_window' if hours else 'weather_unknown')
 
 
-def test_unknown_weather_stays_neutral_but_known_rain_cannot_earn_clear_credit():
+def test_unknown_weather_earns_no_credit_and_known_rain_earns_no_clear_credit():
     rainy = select_night_weather(
         {
             'summary': {
@@ -254,3 +254,20 @@ def test_unknown_weather_stays_neutral_but_known_rain_cannot_earn_clear_credit()
 
 def test_open_meteo_requests_the_extended_forecast_horizon():
     assert _build_open_meteo_params(30.485, 119.468, 'Asia/Shanghai')['forecast_days'] == 16
+
+
+def test_unknown_weather_ignores_spatial_and_moon_proxies_without_renormalizing():
+    score = _compute_recommendation_score(
+        StargazingLocation(name='Ridge', lat=30.485, lon=119.468, score=70),
+        None,
+        None,
+        1.0,
+        ObservationStyle.DEEP_SKY,
+        0.0,
+        0.0,
+    )
+    assert score.weather_base_score == 0
+    assert score.weather_weight == 0
+    assert score.weather_contribution == 0
+    assert score.place_weight == 0.72
+    assert score.final_score == 50.4

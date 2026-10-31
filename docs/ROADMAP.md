@@ -4,6 +4,12 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Evidence-gated planning** — Removes the assumed weather score. Only dated forecasts
+  with usable windows participate in session ranking; unknown weather and known unsuitable
+  forecasts remain distinct unranked references. No qualifying session means no decision,
+  recommended place or best night. Existing schemas remain compatible.
+
+
 - **0.10.1 patch release** — Packages the observing-night weather corrections, agent
   interpretation guidance, stargazing-core 0.2.1 dependency floor and resilient SIMBAD
   catalog downloads. The frozen public tool schemas remain unchanged.

@@ -293,7 +293,10 @@ async def test_planning_service_preserves_partial_results_when_weather_fails():
     assert plan.summary.total_candidates == 1
     assert plan.candidates[0].weather_summary is None
     assert plan.candidates[0].top_targets[0].name == 'M31'
-    assert plan.summary.warnings == ['天气摘要降级处理：API_TIMEOUT: weather timed out']
+    assert '天气摘要降级处理：API_TIMEOUT: weather timed out' in plan.summary.warnings
+    assert plan.summary.recommended_location_name is None
+    assert plan.candidates[0].score_breakdown.weather_weight == 0
+    assert plan.candidates[0].score_breakdown.weather_contribution == 0
 
 
 @pytest.mark.asyncio
@@ -342,7 +345,7 @@ async def test_spatial_weather_can_reverse_regional_ranking():
                     'visibility_km': 10.0,
                     'wind_speed_kph': 5.0,
                 },
-                'hourly': [],
+                'hourly': [{'time': '2024-06-15T22:00:00+08:00', 'cloud_cover_percent': 50.0}],
             }
         }
 
@@ -391,7 +394,7 @@ async def test_spatial_weather_can_reverse_regional_ranking():
 
     assert plan.summary.recommended_location_name == 'Regional Clear Ridge'
     assert len(forecast_calls) == 3
-    assert '区域空间天气参考云量约 0%，已用于区域比较。' in plan.candidates[0].notes
+    assert '区域空间天气参考云量约 0%，仅在该夜天气可用时参与比较。' in plan.candidates[0].notes
 
 
 @pytest.mark.asyncio

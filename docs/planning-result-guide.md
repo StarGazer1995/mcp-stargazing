@@ -113,3 +113,23 @@ Open-Meteo 请求最长十六天，但不同 provider、模型、字段的实际
 拍摄排程使用民用暗夜与目标高度条件，不验证未来天气、现场开放或实际完成的积分时间。
 主规划仍是同步调用；扩大夜晚/候选范围可能超过客户端默认超时。超时不能单独证明
 返回数据错误，也不能在没有任务编号时假定后台规划任务已创建。
+
+
+### Evidence-gated observing recommendations
+
+Only candidates with the requested night's dated weather and a usable observation window
+compete for the selected session and its alternatives. Unknown weather is not replaced by
+an assumed score and is not classified as bad weather. Known forecasts without a usable
+window are also excluded, with a distinct reason. If none qualify, the primary planner
+returns `decision=null`, no alternatives, explicit uncertainties and next actions.
+Known place, sky and generic target facts remain in `evidence` entries whose source is
+`unranked_planning_reference`; `facts.status` is `weather_unknown` or `no_usable_window`.
+These entries have no session score or comparison to the decision. Equipment configuration
+is retained as evidence when supplied; reference targets are generic, not equipment-matched.
+
+Compatibility planners retain reference candidates and notes, but leave recommended-place
+and best-night summary fields null when no session qualifies. Their numeric weather fields
+remain schema-compatible: absent weather has zero base score, contribution and weight as
+placeholders, not a claim of bad weather. Place weights are not renormalized. Reference
+candidate scores and positions must not be interpreted as an observing-session ranking.
+Successful execution still means only that the request was processed.

@@ -124,11 +124,21 @@ async def test_popularity_is_applied_once_across_planning_entrypoints(
                 location={'bounds': bounds}, start_date='2026-10-27', **preferences
             )
         )
-        assert result.decision is not None
-        scores = {result.decision.location.name: result.decision.score_breakdown}
-        scores.update({item.location.name: item.score_breakdown for item in result.alternatives})
-        resource_id = next(item.resource_id for item in result.evidence if item.resource_id)
-        winner = result.decision.location.name
+        assert result.decision is None
+        assert result.alternatives == []
+        references = [e for e in result.evidence if e.source == 'unranked_planning_reference']
+        assert references
+        assert all(e.facts['status'] == 'weather_unknown' for e in references)
+        assert {e.facts['location']['score'] for e in references} == {70.0, 68.0}
+        resource_id = references[0].resource_id
+        # Check retained compatibility reference scores separately, without
+        # treating them as ranked agent alternatives.
+        reference_plan = await service.build_best_plan(
+            **bounds, **preferences, time='2026-10-27 22:00:00', time_zone='Asia/Shanghai'
+        )
+        assert reference_plan.summary.recommended_location_name is None
+        scores = {item.location.name: item.score_breakdown for item in reference_plan.candidates}
+        winner = reference_plan.candidates[0].location.name
 
     # Neutral results are shared across all nights; a paged neutral public
     # search reuses exactly the resource advertised by the planner.
@@ -145,15 +155,12 @@ async def test_popularity_is_applied_once_across_planning_entrypoints(
     adjustment = 6.3 * (int(avoid) + int(quiet)) if has_signals else 0.0
     assert scores['Popular Ridge'].popularity_adjustment == pytest.approx(-adjustment)
     assert scores['Quiet Ridge'].popularity_adjustment == pytest.approx(adjustment)
-    # Current-only weather is unknown for these future nights (neutral 55),
-    # not a dated cloud-cover forecast. Popularity is still applied once.
-    assert scores['Popular Ridge'].weather_base_score == 55.0
-    assert scores['Popular Ridge'].final_score == pytest.approx(
-        70.0 * 0.65 + 55.0 * 0.35 - adjustment
-    )
-    assert scores['Quiet Ridge'].final_score == pytest.approx(
-        68.0 * 0.65 + 55.0 * 0.35 + adjustment
-    )
+    # Current-only weather is unknown: no imputed weather contribution.
+    # Reference scores still apply popularity exactly once, without renormalizing.
+    assert scores['Popular Ridge'].weather_base_score == 0.0
+    assert scores['Popular Ridge'].weather_weight == 0.0
+    assert scores['Popular Ridge'].final_score == pytest.approx(70.0 * 0.65 - adjustment)
+    assert scores['Quiet Ridge'].final_score == pytest.approx(68.0 * 0.65 + adjustment)
     assert scores['Quiet Ridge'].factor_contributions['popularity_preferences'] == pytest.approx(
         adjustment
     )

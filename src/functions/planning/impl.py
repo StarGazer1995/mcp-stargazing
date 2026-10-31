@@ -130,6 +130,10 @@ async def get_best_stargazing_plan(
         and data.summary; all within the standard response envelope.
         recommendation_score is a relative ranking, not a probability or go/no-go threshold.
         _meta.status=success can still contain summary.warnings and candidate notes.
+        Only candidates with dated weather and a usable window can be recommended.
+        Missing-weather references retain their place weight without renormalization; weather
+        base score/contribution/weight are zero compatibility placeholders, not bad-weather facts.
+        summary.recommended_location_name is null when none qualify.
         Missing night-hour weather is unknown, not clear; a null best_observation_window
         is not an all-night opening. night_window is civil darkness (Sun below -6 degrees),
         not astronomical darkness (-18 degrees) or guaranteed exposure time.
