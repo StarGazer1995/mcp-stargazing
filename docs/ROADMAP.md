@@ -4,6 +4,10 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **0.10.2 patch release** — Ships evidence-gated observing-session ranking without
+  assumed weather scores, retaining distinct unknown/unsuitable unranked references.
+  Public schemas remain compatible; NAS rollout is a separate deployment step.
+
 - **Evidence-gated planning** — Removes the assumed weather score. Only dated forecasts
   with usable windows participate in session ranking; unknown weather and known unsuitable
   forecasts remain distinct unranked references. No qualifying session means no decision,
