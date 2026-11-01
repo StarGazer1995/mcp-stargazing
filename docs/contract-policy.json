@@ -1,5 +1,5 @@
 {
-  "policy_version": 1,
+  "policy_version": 2,
   "target_release": "1.0.0",
   "schema_baseline": "tests/public_contract_v1.json",
   "minimum_notice_days": 90,
@@ -9,5 +9,20 @@
     "get_best_stargazing_plan",
     "get_multiday_stargazing_plan"
   ],
-  "deprecations": []
+  "deprecations": [],
+  "compatible_extensions": [
+    {
+      "id": "weather-atmosphere-v1",
+      "payload": "AggregatedWeatherResponse",
+      "schema_extension": "tests/weather_atmosphere_contract.json",
+      "review": "docs/weather-atmosphere-contract.md",
+      "added_optional_fields": {
+        "CurrentWeather": ["atmosphere"],
+        "HourlyForecastItem": ["atmosphere"],
+        "NormalizedWeatherData": ["atmosphere_sources"],
+        "WeatherSummary": ["atmosphere_sources"]
+      },
+      "historical_baselines_unchanged": true
+    }
+  ]
 }

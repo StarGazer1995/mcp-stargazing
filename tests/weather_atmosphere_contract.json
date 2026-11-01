@@ -1,0 +1,386 @@
+{
+  "definitions": {
+    "AtmosphericSource": {
+      "description": "Dataset provenance and degradation, independent of the weather provider status.",
+      "properties": {
+        "attribution": {
+          "title": "Attribution",
+          "type": "string"
+        },
+        "coverage_end_time": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coverage End Time"
+        },
+        "coverage_start_time": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coverage Start Time"
+        },
+        "data_kind": {
+          "const": "model_estimate",
+          "default": "model_estimate",
+          "title": "Data Kind",
+          "type": "string"
+        },
+        "dataset": {
+          "title": "Dataset",
+          "type": "string"
+        },
+        "documentation_url": {
+          "title": "Documentation Url",
+          "type": "string"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        },
+        "grid_elevation_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grid Elevation M"
+        },
+        "grid_lat": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grid Lat"
+        },
+        "grid_lon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grid Lon"
+        },
+        "model_run_time": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Run Time"
+        },
+        "native_time_resolution": {
+          "title": "Native Time Resolution",
+          "type": "string"
+        },
+        "provider": {
+          "default": "open-meteo",
+          "title": "Provider",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "description": "Retrieval-start time; not model run or observation time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "spatial_resolution": {
+          "title": "Spatial Resolution",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "success",
+            "partial",
+            "error"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "units": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Units",
+          "type": "object"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "dataset",
+        "retrieved_at",
+        "documentation_url",
+        "attribution",
+        "spatial_resolution",
+        "native_time_resolution",
+        "units"
+      ],
+      "title": "AtmosphericSource",
+      "type": "object"
+    },
+    "AtmosphericState": {
+      "description": "One model-valid hour, with its own time and per-field provenance.",
+      "properties": {
+        "aod_550nm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Dimensionless column extinction",
+          "title": "Aod 550Nm"
+        },
+        "boundary_layer_height_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Boundary Layer Height M"
+        },
+        "co_ug_m3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Co Ug M3"
+        },
+        "data_kind": {
+          "const": "model_estimate",
+          "default": "model_estimate",
+          "title": "Data Kind",
+          "type": "string"
+        },
+        "dust_ug_m3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dust Ug M3"
+        },
+        "field_sources": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Non-null field to atmosphere_sources key",
+          "title": "Field Sources",
+          "type": "object"
+        },
+        "no2_ug_m3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "No2 Ug M3"
+        },
+        "o3_ug_m3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "O3 Ug M3"
+        },
+        "pm10_ug_m3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pm10 Ug M3"
+        },
+        "pm2_5_ug_m3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pm2 5 Ug M3"
+        },
+        "so2_ug_m3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "So2 Ug M3"
+        },
+        "temporal_role": {
+          "enum": [
+            "past_model_estimate",
+            "current_model_estimate",
+            "forecast"
+          ],
+          "title": "Temporal Role",
+          "type": "string"
+        },
+        "time": {
+          "description": "Atmospheric valid time, ISO 8601 with explicit UTC offset",
+          "title": "Time",
+          "type": "string"
+        },
+        "visibility_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visibility Km"
+        }
+      },
+      "required": [
+        "time",
+        "temporal_role"
+      ],
+      "title": "AtmosphericState",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "CurrentWeather": {
+      "atmosphere": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AtmosphericState"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Optional hourly atmospheric model state with its own valid time"
+      }
+    },
+    "HourlyForecastItem": {
+      "atmosphere": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AtmosphericState"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Atmospheric model state matched by valid time; null is unknown"
+      }
+    },
+    "NormalizedWeatherData": {
+      "atmosphere_sources": {
+        "additionalProperties": {
+          "$ref": "#/$defs/AtmosphericSource"
+        },
+        "description": "Atmospheric dataset provenance and independent failures",
+        "title": "Atmosphere Sources",
+        "type": "object"
+      }
+    },
+    "WeatherSummary": {
+      "atmosphere_sources": {
+        "additionalProperties": {
+          "$ref": "#/$defs/AtmosphericSource"
+        },
+        "description": "Sources referenced by current/hourly atmosphere fields",
+        "title": "Atmosphere Sources",
+        "type": "object"
+      }
+    }
+  }
+}

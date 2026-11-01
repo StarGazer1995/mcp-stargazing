@@ -54,6 +54,9 @@ INTERPRETATION_GUIDANCE = {
         '-18 degrees',
     ),
     'get_weather_by_name': (
+        'summary.current.atmosphere',
+        'summary.atmosphere_sources',
+        'AOD is column extinction',
         'summary.current',
         'summary.daily',
         'summary.hourly',
@@ -62,6 +65,9 @@ INTERPRETATION_GUIDANCE = {
         'not observations',
     ),
     'get_weather_by_position': (
+        'summary.current.atmosphere',
+        'summary.atmosphere_sources',
+        'AOD is column extinction',
         'summary.current',
         'summary.daily',
         'summary.hourly',
@@ -154,7 +160,13 @@ async def test_ambiguous_tools_explain_their_actual_scope():
         'analysis_area': ('synchronous', 'submit_area_analysis'),
         'get_best_stargazing_plan': ('existing bbox-first', 'plan_stargazing_session'),
         'get_multiday_stargazing_plan': ('existing bbox-first', 'nonconsecutive'),
-        'get_weather_by_name': ('exact coordinates', 'get_weather_by_position'),
+        'get_weather_by_name': (
+            'summary.current.atmosphere',
+            'summary.atmosphere_sources',
+            'AOD is column extinction',
+            'exact coordinates',
+            'get_weather_by_position',
+        ),
         'get_area_analysis_result': ('publication', 'TASK_RESULT_EXPIRED'),
         'cancel_area_analysis_task': ('terminal state stays unchanged', 'execution_pending'),
     }

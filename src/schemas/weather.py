@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from src.schemas.atmosphere import AtmosphericSource, AtmosphericState
+
 # ── Location ──────────────────────────────────────────────────────────────
 
 
@@ -52,6 +54,9 @@ class CurrentWeather(BaseModel):
     )
     weather_text: str | None = Field(default=None, description='Human-readable weather description')
     observation_time: str | None = Field(default=None, description='Observation time string')
+    atmosphere: AtmosphericState | None = Field(
+        default=None, description='Optional hourly atmospheric model state with its own valid time'
+    )
 
 
 # ── Forecast Items ────────────────────────────────────────────────────────
@@ -100,6 +105,9 @@ class HourlyForecastItem(BaseModel):
     )
     weather_code: str | None = Field(default=None, description='Internal unified weather code')
     weather_text: str | None = Field(default=None, description='Human-readable weather description')
+    atmosphere: AtmosphericState | None = Field(
+        default=None, description='Atmospheric model state matched by valid time; null is unknown'
+    )
 
 
 # ── Provider Results ──────────────────────────────────────────────────────
@@ -113,6 +121,9 @@ class NormalizedWeatherData(BaseModel):
     daily: list[DailyForecastItem] = Field(default_factory=list, description='Daily forecast list')
     hourly: list[HourlyForecastItem] = Field(
         default_factory=list, description='Hourly forecast list'
+    )
+    atmosphere_sources: dict[str, AtmosphericSource] = Field(
+        default_factory=dict, description='Atmospheric dataset provenance and independent failures'
     )
 
 
@@ -158,6 +169,9 @@ class WeatherSummary(BaseModel):
     )
     hourly: list[dict[str, Any]] = Field(
         default_factory=list, description='Hourly forecast from primary provider'
+    )
+    atmosphere_sources: dict[str, AtmosphericSource] = Field(
+        default_factory=dict, description='Sources referenced by current/hourly atmosphere fields'
     )
 
 

@@ -4,6 +4,14 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Atmosphere within weather aggregation** — Extend the existing name/coordinate weather
+  results with optional current/hourly atmospheric states and source metadata. The adapter
+  reuses weather retrievals, adds CAMS global air composition and joins by valid time;
+  air failures preserve weather, and horizon gaps remain unknown. The public tool set retains
+  21 entries. Historical snapshots remain immutable;
+  the explicit additive weather contract is reviewed and tested separately. Rankings and
+  releases are unchanged. See [contract review](weather-atmosphere-contract.md).
+
 - **Deep-sky imaging quality and measurement** — Versioned cloud/rain/wind and continuous
   astronomical-dark-window gates reject marginal dawn-only recommendations. Provider stage
   timing separates real calls from request-local cache reads. Repeated frozen/live benchmarks

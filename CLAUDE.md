@@ -56,7 +56,8 @@ MCP Transport Layer:   Streamable HTTP (:3001)  |  SSE  |  Local (stdio)
 **Tool domains** (each in `src/functions/<domain>/impl.py`):
 - **celestial** — 6 async tools: positions, rise/set, moon, planets, constellation, nightly forecast
 - **telescope** — 2 async tools: target matching for telescope optics, shooting plan generation
-- **weather** — 2 sync tools (with retry): weather by name, weather by position. Multi-provider aggregation.
+- **weather** — 2 sync tools (with retry): weather by name and weather by position, including
+  optional current/hourly atmospheric model states and independent dataset provenance.
 - **places** — 6 async tools: light pollution, synchronous area analysis, and four background task tools
 - **planning** — 3 async tools: agent-native, single-night, and multi-night composite planning
 - **time** — 1 sync tool: local datetime info
