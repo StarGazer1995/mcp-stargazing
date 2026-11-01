@@ -4,6 +4,12 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **0.11.0 release preparation** — Update package metadata for atmospheric states within
+  weather aggregation and the astronomical-dark deep-sky quality gates. Existing tool inputs
+  and the 21-tool surface remain intact; the optional weather contract extension is reviewed
+  separately from immutable historical snapshots. Tag-triggered PyPI and Docker publication
+  follows the main-branch dependency checks; NAS deployment is verified separately.
+
 - **Atmosphere within weather aggregation** — Extend the existing name/coordinate weather
   results with optional current/hourly atmospheric states and source metadata. The adapter
   reuses weather retrievals, adds CAMS global air composition and joins by valid time;
