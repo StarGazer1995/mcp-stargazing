@@ -44,6 +44,9 @@ This is not a runtime requirement, but it is the best place for team-level regul
   (`tests/public_contract_v1.json`), including task annotations/models. Follow `docs/v1-migration.md`
   and `docs/contract-policy.json` for compatibility review and finite deprecation requirements;
   snapshot refreshes must not conceal drift. A contract freeze does not authorize a release.
+  The explicitly reviewed optional weather-atmosphere extension is recorded in
+  `docs/contract-policy.json` and `docs/weather-atmosphere-contract.md`. Its separate schema
+  record must match exactly before projecting only those additions for historical comparison.
 - Use `src.response.format_response(...)` for standard response wrapping.
 - Business validation failures that remain inside normal tool execution should return the structured `{error, _meta}` payload shape instead of ad hoc dicts.
 - Dates and times should be returned as ISO strings whenever possible.
@@ -79,6 +82,9 @@ This is not a runtime requirement, but it is the best place for team-level regul
 - Avoid raising raw exceptions from tools; catch and translate them into structured MCPError responses.
 - Prefer translating input and validation failures at the boundary helper level so tool functions stay simple; avoid scattering repetitive `try/except` blocks across individual tool implementations.
 - Weather tools include automatic retry logic for network failures (up to 3 attempts with exponential backoff).
+- Atmospheric fields belong to the existing weather tools. Air-source failures must preserve
+  usable weather; join model fields by valid time, retain per-field provenance and leave
+  missing/out-of-horizon data unknown. Keep this capability within the existing weather tools.
 - Tool failures should be explicit and actionable for the calling agent.
 
 ## Harness engineering requirements

@@ -7,6 +7,7 @@ import pytest
 from conftest import _list_tool_entries
 
 from scripts.capture_v1_contract import capture_v1_contract
+from scripts.weather_contract_extension import project_reviewed_weather_extension
 from src.paths import PROJECT_ROOT
 
 BASELINE_PATH = Path(__file__).with_name('public_contract_v1.json')
@@ -22,7 +23,10 @@ async def test_v1_schema_models_annotations_and_envelopes_are_preserved():
     for section in ('tool_schemas', 'payload_schemas', 'tool_annotations'):
         assert baseline[section].keys() <= current[section].keys()
         for name, expected in baseline[section].items():
-            assert current[section][name] == expected, (
+            actual = current[section][name]
+            if section == 'payload_schemas' and name == 'AggregatedWeatherResponse':
+                actual = project_reviewed_weather_extension(actual, expected)
+            assert actual == expected, (
                 f'Frozen 1.0 contract changed: {section}/{name}. '
                 'Review compatibility and migration; do not refresh a snapshot to hide drift.'
             )

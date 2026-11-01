@@ -130,6 +130,12 @@ def get_weather_by_name(place_name: str, provider: str = 'all'):
     Geocoding uses offline China gazetteer (CJK) → Photon → Nominatim cascade.
     Weather data is aggregated from multiple providers with graceful
     fallback. Open-Meteo needs no API key; network/provider failures can still occur.
+    Atmospheric fields: summary.current.atmosphere and summary.hourly[*].atmosphere contain
+    optional model estimates with their own valid time and per-field provenance. Inspect
+    summary.atmosphere_sources for source failures and resolution. Missing/null means unknown.
+    CAMS global is approximately 45 km and natively 3-hourly; hourly output may be interpolated.
+    AOD is column extinction, not surface visibility. Boundary-layer height is above local
+    model ground, not a pollution ceiling. No AQI or pollution attribution is inferred.
     Interpretation: summary.current is current weather, summary.daily is calendar-day
     aggregation, and summary.hourly contains timestamped forecasts. For a future observing
     night select the actual hourly timestamps across local midnight and inspect providers
@@ -168,6 +174,12 @@ def get_weather_by_position(lat: float, lon: float, provider: str = 'all'):
 
     Weather data is aggregated from multiple providers with graceful
     fallback. Open-Meteo needs no API key; network/provider failures can still occur.
+    Atmospheric fields: summary.current.atmosphere and summary.hourly[*].atmosphere contain
+    optional model estimates with their own valid time and per-field provenance. Inspect
+    summary.atmosphere_sources for source failures and resolution. Missing/null means unknown.
+    CAMS global is approximately 45 km and natively 3-hourly; hourly output may be interpolated.
+    AOD is column extinction, not surface visibility. Boundary-layer height is above local
+    model ground, not a pollution ceiling. No AQI or pollution attribution is inferred.
     Interpretation: summary.current is current weather, summary.daily is calendar-day
     aggregation, and summary.hourly contains timestamped forecasts. For a future observing
     night select the actual hourly timestamps across local midnight and inspect providers

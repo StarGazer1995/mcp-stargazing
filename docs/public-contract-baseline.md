@@ -37,6 +37,10 @@ uv run pytest tests/test_public_schema_baseline.py tests/test_mcp_client.py
 5. 不通过批量刷新快照来掩盖兼容性失败。变更应解释原因、影响、兼容或弃用策略，并在
    独立审查中决定如何建立下一份基线。进入 1.0 时再保存完整的新契约。
 
+已审查增量：天气聚合的大气状态字段见 [契约审查](weather-atmosphere-contract.md)。
+它以独立扩展快照精确保护新增字段，保留两份历史基线；投影去除的字段有明确白名单，
+不允许顺带改动旧字段、增加必填项或扩大豁免。
+
 ## 重新采集用于比较
 
 另有独立的 1.0 冻结基线 `tests/public_contract_v1.json`，补齐全部工具、公开注解、任务、

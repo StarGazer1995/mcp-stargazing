@@ -18,6 +18,7 @@ from ._common import percent_index_to_ratio as _percent_index_to_ratio
 from ._common import safe_index as _safe_index
 from ._common import to_float as _to_float
 from ._http import fetch_weather_json
+from .atmosphere import enrich_weather, fetch_air_quality, utc_now
 
 OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast'
 
@@ -63,12 +64,20 @@ def fetch_open_meteo_raw_weather(
     timezone: str | None = None,
 ) -> dict:
     """查询 Open-Meteo 原始天气数据。"""
-    return fetch_weather_json(
+    retrieved_at = utc_now()
+    raw = fetch_weather_json(
         OPEN_METEO_URL,
         service_name='Open-Meteo',
         context={'lat': lat, 'lon': lon},
         params=_build_open_meteo_params(lat, lon, timezone),
     )
+    raw = dict(raw)
+    raw['_atmosphere_retrieved_at'] = retrieved_at
+    try:
+        raw['_air_quality'] = fetch_air_quality(lat, lon)
+    except MCPError as exc:
+        raw['_air_quality_error'] = {'code': exc.code, 'message': exc.message}
+    return raw
 
 
 def normalize_open_meteo_weather(
@@ -85,7 +94,7 @@ def normalize_open_meteo_weather(
     hourly = raw_data.get('hourly', {})
     resolved_timezone = raw_data.get('timezone', timezone)
 
-    return NormalizedWeatherData(
+    normalized = NormalizedWeatherData(
         location=LocationInfo(
             name=location_name,
             lat=lat,
@@ -150,6 +159,9 @@ def normalize_open_meteo_weather(
             for idx, time_value in enumerate(hourly.get('time', []))
         ],
     )
+    return enrich_weather(
+        normalized, raw_data, raw_data.get('_atmosphere_retrieved_at') or utc_now()
+    )
 
 
 def map_open_meteo_weather_code(code: int | None) -> str | None:
@@ -196,6 +208,8 @@ def _build_open_meteo_params(lat: float, lon: float, timezone: str | None) -> di
         ),
         'hourly': ','.join(
             [
+                'visibility',
+                'boundary_layer_height',
                 'temperature_2m',
                 'relative_humidity_2m',
                 'precipitation_probability',

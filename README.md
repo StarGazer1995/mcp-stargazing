@@ -282,6 +282,23 @@ not a promise of usable deep-sky exposure time; verify twilight and access befor
 - **`get_constellation`**: Find the position (Alt/Az) of a constellation center.
 - **`get_nightly_forecast`**: Smart planner returning curated list of best objects to view tonight (Planets + Deep Sky) plus the local civil-dark `night_window` with dusk, dawn, duration, date, and timezone.
 - **`get_weather_by_name` / `get_weather_by_position`**: Fetch current weather with automatic retry on network failures.
+  - Atmospheric state is included in `summary.current.atmosphere` and
+    `summary.hourly[*].atmosphere`, with provenance and independent errors in
+    `summary.atmosphere_sources` (also available in each provider's normalized data).
+    The optional state contains PM2.5/PM10, NO₂/O₃/SO₂/CO, dust, AOD at 550 nm,
+    visibility and boundary-layer height. CO uses μg/m³; AOD is dimensionless.
+  - Atmospheric `time` is an explicit-offset model valid time. Current atmosphere uses
+    its own hourly time, which can differ from parent weather `observation_time`.
+    `data_kind=model_estimate`, `temporal_role`, per-field source keys and source metadata
+    distinguish estimates from observations and retrieval from model run time.
+  - Open-Meteo reuses the weather response and makes one additional CAMS global request.
+    Exact valid-time joins preserve the shorter air horizon; missing values are unknown.
+    Air failures do not discard valid weather. Explicit `provider=qweather/wttr` makes no
+    hidden Open-Meteo call and currently has no atmosphere data.
+  - Native CAMS global data is approximately 45 km and 3-hourly; hourly output may be
+    interpolated. AOD is column extinction, not surface visibility; local boundary-layer
+    height is not a pollution ceiling. No AQI, pollution attribution or new ranking score
+    is calculated. See the [reviewed contract extension](docs/weather-atmosphere-contract.md).
 - **`get_local_datetime_info`**: Get current local time information.
 - **`get_tool_catalog`**: Discover available MCP tool metadata and parameters.
 - **`plan_stargazing_session`**: Preferred end-to-end entry point for deciding when, where, and what to observe across one to seven nights.

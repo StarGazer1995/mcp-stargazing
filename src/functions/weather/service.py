@@ -169,6 +169,11 @@ def _build_summary(successful_providers: list[ProviderSuccess]) -> WeatherSummar
         current=_build_summary_current(successful_providers),
         daily=_build_summary_daily(successful_providers),
         hourly=_build_summary_hourly(successful_providers),
+        atmosphere_sources={
+            key: source
+            for provider in successful_providers
+            for key, source in provider.data.atmosphere_sources.items()
+        },
     )
 
 
