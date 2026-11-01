@@ -649,6 +649,7 @@ async def test_get_multiday_stargazing_plan_selects_best_night():
             hourly.extend(
                 {
                     **fields,
+                    'precipitation_probability': 0.0,
                     'time': f'2024-06-{day}T{hour}:00:00+08:00',
                 }
                 for hour in (21, 22, 23)

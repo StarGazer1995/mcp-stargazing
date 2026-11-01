@@ -75,6 +75,7 @@ def _weather(cloud_cover: float, visibility_km: float = 20.0) -> dict[str, Any]:
                 'cloud_cover_percent': cloud_cover,
                 'visibility_km': visibility_km,
                 'wind_speed_kph': 6.0,
+                'precipitation_probability': 0.0,
             },
             'hourly': [],
         }

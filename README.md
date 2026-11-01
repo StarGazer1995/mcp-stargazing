@@ -449,3 +449,27 @@ remain schema-compatible: absent weather has zero base score, contribution and w
 placeholders, not a claim of bad weather. Place weights are not renormalized. Reference
 candidate scores and positions must not be interpreted as an observing-session ranking.
 Successful execution still means only that the request was processed.
+
+
+### Deep-sky imaging quality gate
+
+`observation_style=deep_sky` uses policy `deep-sky-v1`: each admitted forecast hour
+requires effective cloud cover <=25% (the maximum of total/low/mid/high layers), known
+precipitation probability <=0.20 and known wind <=20 km/h. A continuous run must last
+at least two hours after clipping to astronomical darkness (Sun below -18 degrees).
+Duplicate timestamps and gaps longer than one hour cannot manufacture a run. Unknown
+rain or wind is excluded, not filled with a favorable value. No astronomical-dark interval
+means no deep-sky window; civil darkness is never substituted.
+
+These are versioned screening heuristics, not measured success probabilities or universal
+hardware limits. Other observing styles retain the existing more permissive weather gate.
+The public `night_window` remains civil darkness; only the deep-sky observation window is
+clipped. Existing response schemas are unchanged. Weather evidence records `imaging_policy`
+and `astronomical_bounds`; deep-sky window cloud/rain/wind fields report the worst admitted
+hour, while quality is a relative score. This still does not guarantee seeing, transparency,
+dew control, target altitude throughout the session, field access or a noise-free site.
+
+Provider stage logs (`planning_stage`) record elapsed seconds, outcome and request identity;
+request-local cache reads (`planning_cache_read`) are separate. Concurrent stage durations
+must not be added as wall-clock latency. Timing uses a monotonic clock and never changes the
+MCP response envelope or writes into the stdio protocol stream.
