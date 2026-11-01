@@ -90,3 +90,43 @@ Run `uv run pytest tests/test_v1_planning_clients.py -q`. The existing runner an
 does not claim live provider availability or coverage of all natural-language paraphrases.
 The [P6 report](reports/2026-10-27-v1-contract.md) preserves the initial unnecessary lookup,
 the description fix, the full-run discovery failures, and separate successful rechecks.
+
+
+## Imaging quality, latency and forecast verification
+
+Run the fixed quality gate with `uv run pytest tests/test_imaging_quality.py`.
+The versioned cases in `imaging_quality.py` test thick cloud layers, windy/rainy weather,
+missing fields, short or broken forecasts, dawn-only clearing and absent astronomical darkness.
+They are deterministic policy tests, not field validation. The older planning fixtures now
+include explicit zero precipitation for their frozen clear-weather cases; expected ranking
+answers and schema snapshots are not rewritten.
+
+```bash
+uv run python -m evaluations.planning_benchmark --mode frozen --repeats 3 --out-dir "$TASK_DIR/out/frozen"
+uv run python -m evaluations.planning_benchmark --mode live --url http://localhost:3001/shttp --requests "$TASK_DIR/work/requests.json" --repeats 3 --label deployment-version --out-dir "$TASK_DIR/out/live"
+```
+
+Live input is an array of `{ "id": "case-name", "request": { ... } }`; optionally add
+`expected_decision: true/false` for a genuinely known expectation. Unknown expectations remain
+ungraded. The JSON report separates execution success from expectation checks, includes each
+attempt and its start time, and reports median/p95 (nearest-rank p95, descriptive for small
+samples). First repetition is not proof of a cold cache. Preserve deployment label, requests,
+version/revision, dates and provider availability when comparing runs. Live reports do not
+apply the local policy version to a remote server. Provider timings for deployed new code
+are in server logs; black-box client latency does not reveal their breakdown.
+
+Forecast verification is separate:
+
+```bash
+uv run python -m evaluations.forecast_verification --pairs "$TASK_DIR/work/pairs.json" --out-dir "$TASK_DIR/out/verification"
+```
+
+Each pair supplies `site_id`, timezone-aware `valid_time`, a `forecast` with `source`,
+`issued_at`, `effective_cloud_percent` and/or `precipitation_probability` (0–1), and an
+`observation` with matching `site_id`/`valid_time`, `source`, `kind: "observation"`,
+`effective_cloud_percent` and/or boolean `precipitation_occurred`. Clouds must use comparable
+measurement definitions. The verifier reports cloud MAE in percentage points, rain Brier
+score, sample counts, lead times and rejected pairs; an empty set earns no accuracy result.
+Source labels are a necessary audit trail, not independent proof of observation quality.
+Ground observations or a clearly identified independent reference must be retained before
+claiming real forecast skill. No recurring automation or production deployment is created.

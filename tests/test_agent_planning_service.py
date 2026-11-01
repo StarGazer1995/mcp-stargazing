@@ -62,6 +62,7 @@ def _agent_service(*, weather_failure: bool = False):
                     {
                         'time': f'2026-10-{day}T{hour:02d}:00:00+08:00',
                         'cloud_cover_percent': cloud_cover,
+                        'precipitation_probability': 0.0,
                         'wind_speed_kph': 6.0,
                     }
                     for day in (25, 26)

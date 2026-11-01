@@ -8,12 +8,16 @@ the public transport contract separate from application behavior.
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import math
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
+from time import perf_counter
 from typing import Any
 
+from src.logging_config import get_request_id
 from src.response import MCPError
 from src.schemas.agent_planning import (
     AgentPlanningAlternative,
@@ -50,7 +54,8 @@ from src.schemas.planning import (
     ScoreBreakdown,
     WeatherPlanningSummary,
 )
-from src.services.planning_weather import effective_cloud_cover, select_night_weather
+from src.services.planning_quality import IMAGING_POLICY, fetch_imaging_bounds
+from src.services.planning_weather import effective_cloud_cover, finite_number, select_night_weather
 from src.utils import (
     ensure_timezone,
     parse_observation_time,
@@ -85,6 +90,8 @@ class PlanningDependencies:
     resolve_place: PlaceResolver | None = None
     fetch_equipment_targets: EquipmentTargetFetch | None = None
     fetch_spatial_weather: SpatialWeatherFetch | None = None
+    fetch_imaging_bounds: Callable = fetch_imaging_bounds
+    timing_sink: Callable[[dict[str, Any]], None] | None = None
 
 
 @dataclass(frozen=True)
@@ -216,6 +223,8 @@ def _pick_best_observation_window(
     night_window: NightWindow | None = None,
     moon_illumination: float | None = None,
     top_targets: list[PlanningTarget] | None = None,
+    observation_style: ObservationStyle = ObservationStyle.BALANCED,
+    imaging_bounds: tuple[datetime, datetime] | None = None,
 ) -> ObservationWindow | None:
     if not hourly_items:
         return None
@@ -230,6 +239,15 @@ def _pick_best_observation_window(
             cutoff_dt = dark_end
         except (MCPError, TypeError, ValueError):
             dark_start = dark_end = None
+
+    imaging = observation_style == ObservationStyle.DEEP_SKY
+    if imaging:
+        if imaging_bounds is None:
+            return None
+        dark_start = max(requested_dt, imaging_bounds[0], dark_start or imaging_bounds[0])
+        cutoff_dt = min(cutoff_dt, imaging_bounds[1])
+        dark_end = cutoff_dt
+        requested_dt = dark_start
 
     target_altitudes = [
         float(target.transit_alt) for target in top_targets or [] if target.transit_alt is not None
@@ -268,7 +286,8 @@ def _pick_best_observation_window(
             and not (dark_start <= forecast_dt <= dark_end)
         ):
             continue
-        records.append((forecast_dt, item, score_item(item)))
+        if not any(record[0] == forecast_dt for record in records):
+            records.append((forecast_dt, item, score_item(item)))
 
     if not records:
         return None
@@ -278,6 +297,17 @@ def _pick_best_observation_window(
         cloud_cover = effective_cloud_cover(item)
         precipitation = item.get('precipitation_probability')
         wind_speed = item.get('wind_speed_kph')
+        if imaging:
+            rain = finite_number(precipitation)
+            wind = finite_number(wind_speed)
+            return (
+                cloud_cover is not None
+                and cloud_cover <= IMAGING_POLICY['max_cloud_percent']
+                and rain is not None
+                and 0 <= rain <= IMAGING_POLICY['max_precipitation_probability']
+                and wind is not None
+                and 0 <= wind <= IMAGING_POLICY['max_wind_kph']
+            )
         return (
             (cloud_cover is not None and cloud_cover <= 75.0)
             and (precipitation is None or float(precipitation) <= 0.35)
@@ -292,13 +322,22 @@ def _pick_best_observation_window(
                 runs.append(current_run)
                 current_run = []
             continue
-        if current_run and record[0] - current_run[-1][0] > timedelta(minutes=90):
+        if current_run and record[0] - current_run[-1][0] > timedelta(
+            minutes=60 if imaging else 90
+        ):
             runs.append(current_run)
             current_run = []
         current_run.append(record)
     if current_run:
         runs.append(current_run)
 
+    if imaging:
+        runs = [
+            run
+            for run in runs
+            if (min(run[-1][0] + timedelta(hours=1), cutoff_dt) - run[0][0]).total_seconds()
+            >= IMAGING_POLICY['minimum_hours'] * 3600
+        ]
     if runs:
         selected_run = max(
             runs,
@@ -322,9 +361,21 @@ def _pick_best_observation_window(
     )
     return ObservationWindow(
         start_time=best_item.get('time'),
-        cloud_cover_percent=effective_cloud_cover(best_item),
-        precipitation_probability=best_item.get('precipitation_probability'),
-        wind_speed_kph=best_item.get('wind_speed_kph'),
+        cloud_cover_percent=(
+            max(effective_cloud_cover(r[1]) for r in selected_run)
+            if imaging
+            else effective_cloud_cover(best_item)
+        ),
+        precipitation_probability=(
+            max(r[1]['precipitation_probability'] for r in selected_run)
+            if imaging
+            else best_item.get('precipitation_probability')
+        ),
+        wind_speed_kph=(
+            max(r[1]['wind_speed_kph'] for r in selected_run)
+            if imaging
+            else best_item.get('wind_speed_kph')
+        ),
         weather_text=best_item.get('weather_text'),
         end_time=end_time,
         duration_hours=duration_hours,
@@ -694,11 +745,79 @@ def _score_comparison(decision: ScoreBreakdown, alternative: ScoreBreakdown) -> 
     }
 
 
+def _emit_timing(sink, event, name='planning_stage'):
+    try:
+        if sink is not None:
+            sink(event)
+        else:
+            logging.getLogger(__name__).info(
+                json.dumps({'event': name, 'request_id': get_request_id(), **event})
+            )
+    except Exception:
+        # Observability must not change the planning outcome.
+        logging.getLogger(__name__).warning('planning_timing_sink_failed')
+
+
 class PlanningService:
     """Plan observing sessions without depending on MCP wrappers or transport."""
 
     def __init__(self, dependencies: PlanningDependencies):
-        self._dependencies = dependencies
+        # Observe provider work without changing public payloads. Cached reads
+        # are logged separately; concurrent stage durations are not additive.
+        def timed(name, operation):
+            if operation is None or getattr(operation, '_planning_timed', False):
+                return operation
+
+            async def call(*args, **kwargs):
+                started = perf_counter()
+                outcome = 'error'
+                try:
+                    value = await operation(*args, **kwargs)
+                    outcome = 'success'
+                    return value
+                finally:
+                    event = {
+                        'stage': name,
+                        'elapsed_seconds': perf_counter() - started,
+                        'outcome': outcome,
+                        'cache_hit': False,
+                    }
+                    _emit_timing(dependencies.timing_sink, event)
+
+            call._planning_timed = True
+            call._planning_stage = name
+            return call
+
+        names = (
+            'search_places',
+            'fetch_weather',
+            'fetch_forecast',
+            'fetch_night_window',
+            'resolve_place',
+            'fetch_equipment_targets',
+            'fetch_spatial_weather',
+            'fetch_imaging_bounds',
+        )
+        self._dependencies = replace(
+            dependencies, **{name: timed(name, getattr(dependencies, name)) for name in names}
+        )
+
+    async def _imaging_bounds(self, location, reference, time_zone, night_window, style):
+        if style != ObservationStyle.DEEP_SKY:
+            return None
+        # Always solve the intended evening's night, even for a pre-dawn request.
+        if night_window is not None:
+            reference = parse_observation_time(f'{night_window.local_date} 12:00:00', time_zone)
+        else:
+            if reference.hour < 12:
+                reference -= timedelta(days=1)
+            reference = reference.replace(hour=12, minute=0, second=0, microsecond=0)
+        try:
+            return await self._dependencies.fetch_imaging_bounds(
+                location.lat, location.lon, reference
+            )
+        except (MCPError, ValueError):
+            return None
 
     async def _fetch_optional(self, operation: Awaitable[dict[str, Any]]):
         try:
@@ -795,6 +914,25 @@ class PlanningService:
         if forecast_data is not None:
             moon_phase = forecast_data.get('moon_phase', {}).get('phase_name')
             moon_illumination = forecast_data.get('moon_phase', {}).get('illumination')
+        imaging_bounds = (
+            await self._imaging_bounds(
+                location, reference, time_zone, night_window, observation_style
+            )
+            if nightly_weather.hourly
+            else None
+        )
+        if (
+            observation_style == ObservationStyle.DEEP_SKY
+            and nightly_weather.hourly
+            and imaging_bounds is None
+        ):
+            notes.append('imaging_darkness_unavailable: 无法确定天文黑夜，未使用民用夜晚替代。')
+        if observation_style == ObservationStyle.DEEP_SKY and any(
+            finite_number(hour.get('precipitation_probability')) is None
+            or finite_number(hour.get('wind_speed_kph')) is None
+            for hour in nightly_weather.hourly
+        ):
+            notes.append('imaging_weather_incomplete: 降水或风速未知的小时未纳入摄影窗口。')
         best_window = None
         if nightly_weather.hourly:
             best_window = _pick_best_observation_window(
@@ -804,10 +942,13 @@ class PlanningService:
                 night_window=night_window,
                 moon_illumination=moon_illumination,
                 top_targets=top_targets,
+                observation_style=observation_style,
+                imaging_bounds=imaging_bounds,
             )
             if best_window is None:
                 notes.append(
-                    'no_usable_observation_window: 已有预报中没有满足云量、降水和风速条件的时段。'
+                    'no_usable_observation_window: 已有预报中没有满足所选观测风格的'
+                    '天气、连续时长和暗夜条件的时段。'
                 )
         popularity_adjustment, popularity_reasons = _compute_popularity_preference_adjustment(
             location, avoid_popular_spots, prefer_quiet_at_night, popularity_radius_km
@@ -848,7 +989,12 @@ class PlanningService:
             top_targets=top_targets,
             notes=notes,
         )
-        candidate._weather_evidence = nightly_weather.facts
+        candidate._weather_evidence = dict(nightly_weather.facts)
+        if observation_style == ObservationStyle.DEEP_SKY:
+            candidate._weather_evidence['imaging_policy'] = dict(IMAGING_POLICY)
+            candidate._weather_evidence['astronomical_bounds'] = (
+                [value.isoformat() for value in imaging_bounds] if imaging_bounds else None
+            )
         return candidate
 
     async def build_best_plan(
@@ -954,6 +1100,17 @@ class PlanningService:
                 full_night=night_window is not None,
             )
             weather_summary = nightly_weather.summary
+            imaging_bounds = (
+                await self._imaging_bounds(
+                    location,
+                    parse_observation_time(time, time_zone),
+                    time_zone,
+                    night_window,
+                    style,
+                )
+                if nightly_weather.hourly
+                else None
+            )
             best_window = None
             if nightly_weather.hourly:
                 best_window = _pick_best_observation_window(
@@ -961,6 +1118,8 @@ class PlanningService:
                     night_window.civil_dusk if night_window is not None else time,
                     time_zone,
                     night_window=night_window,
+                    observation_style=style,
+                    imaging_bounds=imaging_bounds,
                 )
             popularity_adjustment, _ = _compute_popularity_preference_adjustment(
                 location, avoid_popular_spots, prefer_quiet_at_night, popularity_radius_km
@@ -1110,8 +1269,27 @@ class PlanningService:
                 key = tuple(sorted(kwargs.items()))
                 if key not in tasks:
                     tasks[key] = asyncio.create_task(operation(**kwargs))
+                else:
+                    started = perf_counter()
+                    outcome = 'error'
+                    try:
+                        result = await tasks[key]
+                        outcome = 'success'
+                        return result
+                    finally:
+                        _emit_timing(
+                            self._dependencies.timing_sink,
+                            {
+                                'stage': getattr(operation, '_planning_stage', operation.__name__),
+                                'elapsed_seconds': perf_counter() - started,
+                                'outcome': outcome,
+                                'cache_hit': True,
+                            },
+                            'planning_cache_read',
+                        )
                 return await tasks[key]
 
+            cached._planning_timed = True
             return cached
 
         nightly_service = PlanningService(

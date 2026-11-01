@@ -4,6 +4,13 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Deep-sky imaging quality and measurement** — Versioned cloud/rain/wind and continuous
+  astronomical-dark-window gates reject marginal dawn-only recommendations. Provider stage
+  timing separates real calls from request-local cache reads. Repeated frozen/live benchmarks
+  distinguish successful execution from graded policy outcomes; archived forecast verification
+  requires explicit time/site-matched observations and makes no unsampled accuracy claim.
+
+
 - **0.10.2 patch release** — Ships evidence-gated observing-session ranking without
   assumed weather scores, retaining distinct unknown/unsuitable unranked references.
   Public schemas remain compatible; NAS rollout is a separate deployment step.
