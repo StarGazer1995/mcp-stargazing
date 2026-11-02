@@ -11,6 +11,11 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
   unknown when unavailable; verification labels lead time from completed retrieval separately.
   This delivers the collection/pairing tooling, not an observation feed or a forecast accuracy claim.
 
+- **Independent station-source review** — Correct the proposed live-feed route from retired NCEI
+  ISD to GHCNh. Document station-coordinate discrepancies, per-field coverage, source-specific
+  quality codes, categorical clouds and running precipitation totals before ingestion. Accessible
+  station files remain distinct from comparable truth. See [the source review](forecast-observation-sources.md).
+
 - **0.11.0 release preparation** — Update package metadata for atmospheric states within
   weather aggregation and the astronomical-dark deep-sky quality gates. Existing tool inputs
   and the 21-tool surface remain intact; the optional weather contract extension is reviewed

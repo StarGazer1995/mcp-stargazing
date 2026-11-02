@@ -184,3 +184,8 @@ observation; their errors are correlated and must not be called independent weat
 Source labels and matching metadata are an audit trail, not proof of source independence or quality.
 An observation adapter still requires separate review of definitions, station metadata and licensing.
 No independent observation feed or recurring capture schedule is installed by these commands.
+
+See [the independent-source review](../docs/forecast-observation-sources.md) before building an
+observation adapter. Legacy NCEI ISD is retired; its current replacement is GHCNh. A source's
+nominal hourly labels, cloud categories and missing rainfall require source-specific review
+before they can qualify as verification observations.
