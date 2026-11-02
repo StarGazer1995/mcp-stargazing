@@ -54,6 +54,7 @@ from src.schemas.planning import (
     ScoreBreakdown,
     WeatherPlanningSummary,
 )
+from src.services.planning_atmosphere import summarize_window_atmosphere
 from src.services.planning_quality import IMAGING_POLICY, fetch_imaging_bounds
 from src.services.planning_weather import effective_cloud_cover, finite_number, select_night_weather
 from src.utils import (
@@ -990,6 +991,19 @@ class PlanningService:
             notes=notes,
         )
         candidate._weather_evidence = dict(nightly_weather.facts)
+        if best_window is not None:
+            selected_provider = nightly_weather.facts['provider']
+            atmosphere_sources = (
+                (weather_data or {}).get('summary', {})
+                if selected_provider == 'summary.hourly'
+                else (weather_data or {})
+                .get('providers', {})
+                .get(selected_provider, {})
+                .get('data', {})
+            ).get('atmosphere_sources', {})
+            candidate._weather_evidence['atmosphere'] = summarize_window_atmosphere(
+                nightly_weather.hourly, atmosphere_sources, best_window
+            )
         if observation_style == ObservationStyle.DEEP_SKY:
             candidate._weather_evidence['imaging_policy'] = dict(IMAGING_POLICY)
             candidate._weather_evidence['astronomical_bounds'] = (
@@ -1700,6 +1714,24 @@ class PlanningService:
                     facts={**selected.weather_summary.model_dump(), **selected._weather_evidence},
                 )
             )
+            atmosphere = selected._weather_evidence.get('atmosphere')
+            if atmosphere is not None:
+                uncertainties.append(
+                    PlanningUncertainty(
+                        code='atmosphere_unavailable'
+                        if atmosphere['status'] == 'unknown'
+                        else 'atmosphere_unvalidated',
+                        level=UncertaintyLevel.MEDIUM,
+                        message=(
+                            'Selected-window atmospheric model evidence is '
+                            f'{atmosphere["status"]}; missing samples remain unknown.'
+                        ),
+                        impact=(
+                            'Transparency and seeing are not validated. Atmospheric fields do '
+                            'not change ranking, window selection or observing eligibility.'
+                        ),
+                    )
+                )
         evidence.append(
             PlanningEvidence(
                 kind=EvidenceKind.SKY,
