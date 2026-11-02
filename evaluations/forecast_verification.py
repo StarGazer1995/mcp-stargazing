@@ -17,11 +17,14 @@ def _time(value):
 def _number(value, maximum):
     if isinstance(value, bool) or not isinstance(value, (float, int)):
         return None
-    return float(value) if math.isfinite(value) and 0 <= value <= maximum else None
+    try:
+        return float(value) if math.isfinite(value) and 0 <= value <= maximum else None
+    except OverflowError:
+        return None
 
 
 def verify(pairs):
-    clouds, rain, rejected, lead_hours = [], [], [], []
+    clouds, rain, rejected, lead_hours, lead_time_basis = [], [], [], [], []
     for index, pair in enumerate(pairs):
         try:
             forecast = pair['forecast']
@@ -36,7 +39,9 @@ def verify(pairs):
             valid = _time(pair['valid_time'])
             if valid != _time(observation['valid_time']):
                 raise ValueError('Valid times must match')
-            lead = (valid - _time(forecast['issued_at'])).total_seconds() / 3600
+            # Capture time must never be silently presented as a model issue time.
+            basis = 'issued_at' if forecast.get('issued_at') else 'available_at'
+            lead = (valid - _time(forecast[basis])).total_seconds() / 3600
             if lead < 0:
                 raise ValueError('Forecast was issued after the event')
             f = _number(forecast.get('effective_cloud_percent'), 100)
@@ -52,6 +57,7 @@ def verify(pairs):
             if probability is not None and isinstance(occurred, bool):
                 rain.append((probability - int(occurred)) ** 2)
             lead_hours.append(lead)
+            lead_time_basis.append(basis)
         except (KeyError, ValueError, TypeError) as exc:
             rejected.append({'index': index, 'reason': str(exc)})
     return {
@@ -63,6 +69,7 @@ def verify(pairs):
         'rain_pairs': len(rain),
         'rain_brier_score': sum(rain) / len(rain) if rain else None,
         'lead_hours': lead_hours,
+        'lead_time_basis': lead_time_basis,
         'scope': 'Supplied matched observations only; not a general forecast skill claim.',
     }
 

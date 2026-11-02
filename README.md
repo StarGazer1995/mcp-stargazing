@@ -126,8 +126,8 @@ uncertainties, material missing inputs, ranking-reversal conditions, and next ac
 `get_best_stargazing_plan` and `get_multiday_stargazing_plan` remain registered as compatibility
 entries for existing bbox-first callers. The deterministic 10-scenario gate and representative
 Codex/Claude black-box smoke passed before the primary entry point was registered. New independent
-astronomy lookup tools remain deferred while long-running task semantics and the 1.0 contract are
-completed.
+astronomy lookup tools remain deferred while development focuses on production evidence and
+planning reliability. Background tasks and the 1.0 contract freeze are already delivered.
 
 Background area analysis has bounded execution, duplicate submission, cancellation, deadlines,
 retention, and paged result retrieval. The task tools activate optional `task_id` / `progress`
@@ -139,6 +139,8 @@ See [Third-party Agent Contract](docs/agent-contract.md),
 [Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 21-tool routing and
 parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md). Evaluation assets
 and the two-client evidence are under [`evaluations/`](evaluations/README.md).
+The evaluation guide also documents prospective forecast capture and independent-observation
+pairing, with explicit site, time, measurement-definition and lead-time limits.
 
 The [pre-1.0 public schema baseline](docs/public-contract-baseline.md) records the existing tool
 schemas and detailed planning/area models. SDK and real `tools/list` tests detect contract drift
