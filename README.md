@@ -324,6 +324,7 @@ not a promise of usable deep-sky exposure time; verify twilight and access befor
   - **Returns**: Ranked targets with visibility scores, altitude/azimuth, rise/set/transit data, FOV fit, surface brightness, mosaic guidance, and the normalized telescope configuration.
 - **`get_shooting_plan`**: Generate an optimized imaging schedule for a target, maximizing time above altitude threshold.
   - **Inputs**: the same telescope/observer fields as `get_telescope_targets`, plus optional `limit` and `min_altitude`.
+  - **Observation time**: naive values use `time_zone`; ISO values with an explicit UTC offset preserve that instant, consistently with target matching.
   - **Returns**: `targets`, `moon`, a single-night `plan` with timed imaging slots, `config`, and `total`.
 - **`light_pollution_map`**: Query light pollution data for a bounding box area.
   - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).

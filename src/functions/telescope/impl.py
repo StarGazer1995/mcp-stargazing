@@ -255,7 +255,9 @@ async def get_shooting_plan(
     observer = EarthLocation(lat=lat * u.deg, lon=lon * u.deg)
 
     tz = pytz.timezone(time_zone)
-    dt = tz.localize(datetime.fromisoformat(time))
+    dt = datetime.fromisoformat(time)
+    if dt.tzinfo is None:
+        dt = tz.localize(dt)
     t = Time(dt)
 
     results = await asyncio.to_thread(
