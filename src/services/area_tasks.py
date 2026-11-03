@@ -107,9 +107,13 @@ class AreaTaskService:
         except TaskRegistryError:
             return  # Cancelled or expired before a worker could claim it.
         try:
+            source_token = self._cache.source_token()
             locations = self._compute(query)
             self.registry.succeed(
-                task_id, publish=lambda: self._cache.set(generate_cache_key(**query), locations)
+                task_id,
+                publish=lambda: self._cache.set(
+                    generate_cache_key(**query), locations, expected_source=source_token
+                ),
             )
         except TaskRegistryError:
             return  # Late results are discarded before cache publication.

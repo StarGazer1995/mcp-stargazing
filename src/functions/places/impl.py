@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.analysis_cache import ANALYSIS_CACHE, generate_cache_key
+from src.analysis_cache import ANALYSIS_CACHE, AreaSourceError, generate_cache_key
 from src.logging_config import get_logger, get_request_id, set_request_id
 from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
 from src.response import MCPError, format_error, format_response
@@ -244,13 +244,14 @@ async def analyze_area_capability(
     cached = ANALYSIS_CACHE.get(resource_id)
 
     if cached is None:
+        source_token = ANALYSIS_CACHE.source_token()
         try:
             cached = await asyncio.to_thread(compute_area_locations, calc_params)
         except MCPError:
             raise
         except Exception as exc:
             raise _translate_spf_error(exc) from exc
-        ANALYSIS_CACHE.set(resource_id, cached)
+        ANALYSIS_CACHE.set(resource_id, cached, expected_source=source_token)
 
     return build_analysis_page(cached, resource_id, road_radius_km, page, page_size)
 
@@ -347,6 +348,9 @@ async def analysis_area(
 
     This tool searches for dark, accessible locations with good viewing conditions.
     Results are cached based on search parameters.
+    Server configuration changes can invalidate cached pages without changing resource_id.
+    A configuration change during calculation returns structured CONFIGURATION_ERROR;
+    resubmit after the configuration is stable. Cache lifetime is not source-data age.
 
     **Fast mode**: Set ``road_radius_km=0`` to skip road connectivity checks.
     This avoids OSMnx network downloads from Overpass API and is much faster —
@@ -394,22 +398,25 @@ async def analysis_area(
             {'popularity_radius_km': popularity_radius_km},
         )
 
-    capability_result = await analyze_area_capability(
-        south=south,
-        west=west,
-        north=north,
-        east=east,
-        max_locations=max_locations,
-        min_height_diff=min_height_diff,
-        road_radius_km=road_radius_km,
-        network_type=network_type,
-        avoid_popular_spots=avoid_popular_spots,
-        prefer_quiet_at_night=prefer_quiet_at_night,
-        popularity_radius_km=popularity_radius_km,
-        db_config_path=db_config_path,
-        page=page,
-        page_size=page_size,
-    )
+    try:
+        capability_result = await analyze_area_capability(
+            south=south,
+            west=west,
+            north=north,
+            east=east,
+            max_locations=max_locations,
+            min_height_diff=min_height_diff,
+            road_radius_km=road_radius_km,
+            network_type=network_type,
+            avoid_popular_spots=avoid_popular_spots,
+            prefer_quiet_at_night=prefer_quiet_at_night,
+            popularity_radius_km=popularity_radius_km,
+            db_config_path=db_config_path,
+            page=page,
+            page_size=page_size,
+        )
+    except AreaSourceError as exc:
+        return exc.to_response()
     meta: dict[str, Any] = {}
     if capability_result.warnings:
         meta['warnings'] = capability_result.warnings

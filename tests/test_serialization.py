@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import pytz
 
+from src.analysis_cache import AnalysisCache
 from src.functions.celestial.impl import get_celestial_pos, get_celestial_rise_set
 from src.functions.places.impl import analysis_area
 from src.functions.planning.impl import get_best_stargazing_plan
@@ -81,15 +82,8 @@ def test_celestial_pos_serialization():
 def test_analysis_area_pagination_serialization():
     """Test analysis_area pagination and result serialization."""
 
-    class MockCache:
-        def __init__(self):
-            self.store = {}
-
-        def get(self, key):
-            return self.store.get(key)
-
-        def set(self, key, value):
-            self.store[key] = value
+    # Exercise the real cache publication/identity protocol.
+    MockCache = AnalysisCache
 
     async def run_test():
         # Mock StargazingPlaceFinder
@@ -136,15 +130,8 @@ def test_analysis_area_pagination_serialization():
 def test_analysis_area_serializes_popularity_fields():
     """Popularity heuristic fields should survive analysis_area serialization."""
 
-    class MockCache:
-        def __init__(self):
-            self.store = {}
-
-        def get(self, key):
-            return self.store.get(key)
-
-        def set(self, key, value):
-            self.store[key] = value
+    # Exercise the real cache publication/identity protocol.
+    MockCache = AnalysisCache
 
     async def run_test():
         with (
@@ -190,15 +177,8 @@ def test_analysis_area_serializes_popularity_fields():
 async def test_analysis_area_resource_id_is_stable_across_pages():
     """The same non-pagination query should reuse the same cached resource identifier."""
 
-    class MockCache:
-        def __init__(self):
-            self.store = {}
-
-        def get(self, key):
-            return self.store.get(key)
-
-        def set(self, key, value):
-            self.store[key] = value
+    # Exercise the real cache publication/identity protocol.
+    MockCache = AnalysisCache
 
     with (
         patch('src.functions.places.impl.StargazingPlaceFinder') as mock_placefinder,
@@ -236,12 +216,8 @@ async def test_analysis_area_resource_id_is_stable_across_pages():
 async def test_analysis_area_resource_id_changes_with_calc_params():
     """Changing a calculation parameter should produce a distinct resource identifier."""
 
-    class MockCache:
-        def get(self, key):
-            return None
-
-        def set(self, key, value):
-            return None
+    # Exercise the real cache publication/identity protocol.
+    MockCache = AnalysisCache
 
     with (
         patch('src.functions.places.impl.StargazingPlaceFinder') as mock_placefinder,
@@ -273,12 +249,8 @@ async def test_analysis_area_resource_id_changes_with_calc_params():
 async def test_analysis_area_resource_id_changes_with_popularity_preferences():
     """Popularity preference parameters should participate in the resource identifier."""
 
-    class MockCache:
-        def get(self, key):
-            return None
-
-        def set(self, key, value):
-            return None
+    # Exercise the real cache publication/identity protocol.
+    MockCache = AnalysisCache
 
     with (
         patch('src.functions.places.impl.StargazingPlaceFinder') as mock_placefinder,
@@ -314,15 +286,8 @@ async def test_analysis_area_resource_id_changes_with_popularity_preferences():
 async def test_analysis_area_returns_empty_items_for_out_of_range_page():
     """Out-of-range pages should remain successful and return an empty item list."""
 
-    class MockCache:
-        def __init__(self):
-            self.store = {}
-
-        def get(self, key):
-            return self.store.get(key)
-
-        def set(self, key, value):
-            self.store[key] = value
+    # Exercise the real cache publication/identity protocol.
+    MockCache = AnalysisCache
 
     with (
         patch('src.functions.places.impl.StargazingPlaceFinder') as mock_placefinder,

@@ -4,6 +4,13 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Central-config cache invalidation and publication fence** — Production area caches
+  observe the explicitly bound SPF configuration's path/file metadata, invalidate old
+  results on change and reject publications from an older configuration generation.
+  Sync SDK and background-worker checks protect resubmission, old-task expiry and
+  cancellation/timeout semantics. No query/schema change or source-data-age guarantee;
+  database/GeoTIFF/default-file versions remain outside this bounded observer.
+
 - **Effective configuration on place recomputation** — Each actual place computation
   reloads public SPF settings before checking analyzer reuse, including reused bridge
   instances. Unchanged effective settings retain resource reuse; changed settings are
