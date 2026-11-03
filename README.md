@@ -334,6 +334,7 @@ not a promise of usable deep-sky exposure time; verify twilight and access befor
   - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).
   - **Returns**: A grid of data points with Bortle class, brightness, and SQM values.
 - **`analysis_area`**: Find best stargazing spots in a region.
+  - **Cache lifetime**: results use a one-hour monotonic elapsed TTL and a 128-entry LRU. Paging and cache hits do not renew the TTL; system-clock corrections do not extend or shorten it. `resource_id` identifies a query, not a source-data version or a freshness guarantee. See [data freshness boundaries](docs/data-freshness.md).
   - **Inputs**: `south`, `west`, `north`, `east`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`, `db_config_path`, `page`, `page_size`.
   - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters. Each item may also include popularity heuristic fields such as `static_popularity_risk_score`, `night_quiet_likelihood_score`, and `popularity_notes`.
   - **Validation**: `page >= 1`, `page_size >= 1`, and `popularity_radius_km > 0`; invalid arguments return `CONFIGURATION_ERROR`.

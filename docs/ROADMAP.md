@@ -4,6 +4,13 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Elapsed area-cache lifetime** — Area result TTL now follows monotonic elapsed time
+  since publication, independently of system-clock corrections. Paging/cache hits do not
+  renew it; exact-TTL reads expire and old background tasks retain publication isolation.
+  Source-data age remains unknown without provenance. This is the first bounded freshness
+  fix, not source-version invalidation or a forecast freshness guarantee. See
+  [data freshness boundaries](data-freshness.md).
+
 - **Forecast capture and explicit observation pairing** — Evaluation commands preserve separate
   provider snapshots before their valid times and join independent observations by exact site,
   coordinates and UTC time. Cloud definitions and precipitation periods/thresholds must match;

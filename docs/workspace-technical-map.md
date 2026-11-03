@@ -118,7 +118,10 @@ MCP public contract
 
 ### 6. 进程内缓存缺少数据新鲜度模型
 
-`analysis_area` 使用进程内 TTL 缓存；天气、光污染、地点画像的更新时间与失效原因尚未形成统一 evidence 结构。
+`analysis_area` 的地点结果使用单调经过时间 TTL，默认 3600 秒/128 条 LRU，翻页和命中
+不续期。查询标识与发布 revision 分离；来源更新时间和计算缓存年龄仍不是同一事实。
+天气、光污染、地点画像尚无统一来源版本失效/evidence 模型，边界见
+[数据新鲜度](data-freshness.md)。
 
 目标：区分计算缓存、静态数据版本和动态 provider 时效。
 
