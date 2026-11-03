@@ -71,8 +71,19 @@ class StargazingPlaceFinder:
         self._init_analyzer()
 
     def _init_analyzer(self) -> None:
-        """Configure the SPF singleton analyzer — skipped when params are unchanged."""
+        """Reuse resources only when parameters and effective SPF config still match."""
         global _last_params
+
+        # Use the public loader on every actual computation. An unchanged path
+        # or unchanged request does not imply unchanged configuration values.
+        try:
+            spf_config = _load_spf_config()
+        except FileNotFoundError:
+            logger.debug('No SPF config file found, using defaults')
+            spf_config = None
+        except Exception:
+            logger.warning('Failed to load SPF config, using defaults', exc_info=True)
+            spf_config = None
 
         new_params = {
             'geotiff_path': self.geotiff_path,
@@ -82,22 +93,12 @@ class StargazingPlaceFinder:
             'prefer_quiet_at_night': self.prefer_quiet_at_night,
             'popularity_radius_km': self.popularity_radius_km,
             'db_config_path': self.db_config_path,
+            'config': spf_config,
         }
 
         with _last_params_lock:
             if _last_params == new_params:
                 return  # nothing changed — reuse the existing singleton
-
-        # Load SPF config from the dependency package so bridge callers do not
-        # need to know about SPF's internal top-level module layout.
-        try:
-            spf_config = _load_spf_config()
-        except FileNotFoundError:
-            logger.debug('No SPF config file found, using defaults')
-            spf_config = None
-        except Exception:
-            logger.warning('Failed to load SPF config, using defaults', exc_info=True)
-            spf_config = None
 
         self._spf.init_stargazing_analyzer(
             geotiff_path=self.geotiff_path,
@@ -127,14 +128,8 @@ class StargazingPlaceFinder:
         prefer_quiet_at_night: bool = False,
         popularity_radius_km: float = 3.0,
     ) -> list[dict[str, Any]]:
-        # Only re-init the analyzer when spatial parameters actually change.
-        # This avoids re-opening GeoTIFF files and re-creating PostGIS
-        # connection pools on every call (e.g. pagination).
-        #
-        # Note: geotiff_path / db_config_path are constructor-only and cannot
-        # change across analyze_area calls on the same instance.  Cross-instance
-        # param changes are caught by __init__ → _init_analyzer() which compares
-        # the full param dict including data-source paths.
+        # Refresh the global singleton's effective configuration even when
+        # reusing this bridge object. Equal config/params still reuse handles.
         if (
             min_height_diff != self.min_height_difference
             or road_radius_km != self.road_search_radius_km
@@ -147,7 +142,7 @@ class StargazingPlaceFinder:
             self.avoid_popular_spots = avoid_popular_spots
             self.prefer_quiet_at_night = prefer_quiet_at_night
             self.popularity_radius_km = popularity_radius_km
-            self._init_analyzer()
+        self._init_analyzer()
 
         # When road_radius_km <= 0 the caller explicitly opts out of road
         # connectivity analysis.  This avoids triggering OSMnx downloads from

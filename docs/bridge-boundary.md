@@ -15,9 +15,23 @@
 
 ### `StargazingPlaceFinder` 约定
 
-- 构造参数（`geotiff_path`、`min_height_difference`、`road_search_radius_km`、`db_config_path`）在首次调用 `analyze_area()` 时生效
-- 仅当 `min_height_diff` 或 `road_radius_km` 变更时才重建底层 analyzer，避免重复打开 GeoTIFF 文件和重建数据库连接池
+- 构造时初始化或复用底层 analyzer；每次实际 `analyze_area()` 都重新核对自己的参数和公共配置加载器返回的有效模型
+- 参数或有效配置变化时通过 SPF 公共初始化入口重建 analyzer；相同配置模型继续复用 GeoTIFF 文件和数据库连接池，即使配置文件的格式/身份变化
 - `analyze_area()` 返回 `list[dict[str, Any]]`，每个元素是下层 `StargazingLocation` 对象的字典表示
+
+### 配置新鲜度的边界
+
+`stargazingplacefinder.config.load_stargazing_config()` 在每次实际计算前重新调用；bridge
+不复制其默认路径发现、TOML 解析或字段规则。复用判断同时包含有效配置模型，不能仅凭
+请求/文件路径相同就永久沿用旧配置。重用同一个 bridge 实例、切换 `STARGAZING_CONFIG`
+或修改同一 TOML 的有效值时，下一次实际计算会重新核对；不同实例交替使用也会恢复各自
+的参数。加载失败保持既有 defaults 降级，不把失败当成已确认配置最新。
+
+这是实际计算的配置核对，**不主动清除已命中的地点结果缓存**。配置改变后，同查询仍
+可能读到尚未失效的计算结果；缓存未命中/到期后的重新计算才经过此路径。数据库内容、
+同路径数据库连接配置、GeoTIFF 内容版本以及下层 GIS/道路缓存失效仍未统一处理，不能
+据本轮修复声称来源资料已更新或 P7.6 已完成。构造时解析的 DB/GeoTIFF 路径仍是该
+bridge 实例的参数，不会被后续环境变化隐式替换。
 
 ### 热门度评分归属
 

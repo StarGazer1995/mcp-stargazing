@@ -4,6 +4,13 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Effective configuration on place recomputation** — Each actual place computation
+  reloads public SPF settings before checking analyzer reuse, including reused bridge
+  instances. Unchanged effective settings retain resource reuse; changed settings are
+  no longer ignored indefinitely after a cache miss. Existing cached results, source-data
+  versions and lower-level GIS caches retain their separate boundaries. Public schemas,
+  query identifiers and thresholds are unchanged. See [bridge boundaries](bridge-boundary.md).
+
 - **Forecast capture and explicit observation pairing** — Evaluation commands preserve separate
   provider snapshots before their valid times and join independent observations by exact site,
   coordinates and UTC time. Cloud definitions and precipitation periods/thresholds must match;
