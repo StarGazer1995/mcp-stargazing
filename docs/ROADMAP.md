@@ -16,6 +16,13 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
   quality codes, categorical clouds and running precipitation totals before ingestion. Accessible
   station files remain distinct from comparable truth. See [the source review](forecast-observation-sources.md).
 
+- **Selected-window atmospheric evidence** — The primary planner summarizes exact-time
+  atmospheric model states only inside the selected observing window, retaining per-field
+  ranges, means, missing samples, units and source provenance. Failed/missing/out-of-horizon
+  fields remain unknown, with explicit unavailable/unvalidated uncertainties. This description
+  adds no provider calls and changes no ranking, window eligibility or frozen schemas.
+  It is not a transparency or seeing calibration. See [the interpretation contract](planning-atmosphere-evidence.md).
+
 - **0.11.0 release preparation** — Update package metadata for atmospheric states within
   weather aggregation and the astronomical-dark deep-sky quality gates. Existing tool inputs
   and the 21-tool surface remain intact; the optional weather contract extension is reviewed

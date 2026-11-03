@@ -31,7 +31,10 @@ stargazing-core --------------------------> mcp-stargazing
 天气聚合通过同一个 Open-Meteo adapter 提供普通天气与可选大气状态：复用天气响应的
 能见度/边界层数据，只额外取 CAMS global 空气数据，按有效时间连接进当前/小时
 `atmosphere` 字段。独立来源错误记录在 `atmosphere_sources`，不让空气失败吞掉天气。
-本次不新增 MCP 入口或改变规划权重，契约边界见 [扩展审查](weather-atmosphere-contract.md)。
+不新增 MCP 入口或改变规划权重，契约边界见 [扩展审查](weather-atmosphere-contract.md)。
+规划在选定观测窗口后，通过 `services/planning_atmosphere.py` 汇总同 provider 的有效时刻
+模型证据，保留逐字段缺失与来源，不影响评分或窗口准入。解释边界见
+[窗口大气证据](planning-atmosphere-evidence.md)。
 
 ```text
 third-party agent
