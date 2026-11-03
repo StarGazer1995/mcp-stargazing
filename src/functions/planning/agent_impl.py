@@ -45,6 +45,11 @@ from src.server_instance import mcp
         'not measured noise or calibrated crowd probabilities.\n'
         'When equipment is supplied, decision.targets already contains equipment-matched targets; '
         "use that list to answer the selected session's target question without a second lookup.\n"
+        'Read selected_target_window_check evidence before claiming shootability: complete '
+        'equipment curves with no 25-degree, 30-minute model slot in the selected weather '
+        'window are excluded. Missing or partial curves and generic targets remain unknown '
+        'references. Altitude-only checks have unknown Moon constraints; independent slots '
+        'may overlap and do not verify per-slot Moon separation, tracking or actual exposure.\n'
         'Keep the returned target order; do not compare scores across generic and equipment '
         'rankings. This is a synchronous call and can exceed a client default deadline; '
         'a timeout does not establish that a background planning task exists.\n'

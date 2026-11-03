@@ -4,6 +4,14 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Selected target/window consistency** — Primary equipment shortlists now retain altitude
+  curves for individual core-scheduler checks within the selected weather window. Complete
+  negative checks exclude targets; missing/partial curves and generic targets remain explicit
+  unknown references. Evidence distinguishes scheduler-policy from altitude-only checks and
+  exposes independent model slots. No location reranking, legacy altitude redefinition,
+  public schema refresh or accuracy claim. Moon separation, terrain and hardware tracking
+  throughout exposures still need separate verification.
+
 - **0.11.0 release preparation** — Update package metadata for atmospheric states within
   weather aggregation and the astronomical-dark deep-sky quality gates. Existing tool inputs
   and the 21-tool surface remain intact; the optional weather contract extension is reviewed
