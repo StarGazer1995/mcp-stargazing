@@ -21,22 +21,31 @@ class AreaSourceError(MCPError):
 @dataclass
 class AnalysisCacheItem:
     results: list[Any]
-    created_at: float = field(default_factory=time.time)
+    created_at: float  # Process-local monotonic publication time, not an epoch timestamp.
     revision: str = field(default_factory=lambda: uuid4().hex)
 
 
 class AnalysisCache:
     """TTL-based in-memory cache with LRU eviction when maxsize is exceeded.
 
-    Thread-safe: public methods are guarded by a lock. An optional source
-    identity callback invalidates prior results and fences guarded publication.
+    Thread-safe: all public methods are guarded by a lock. TTL measures elapsed
+    time since publication, independently of wall-clock corrections or reads.
+    An optional source identity invalidates results and fences old publications.
     """
 
-    def __init__(self, ttl_seconds=3600, maxsize=128, *, source_identity: Callable | None = None):
+    def __init__(
+        self,
+        ttl_seconds=3600,
+        maxsize=128,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+        source_identity: Callable | None = None,
+    ):
         self._cache: OrderedDict[str, AnalysisCacheItem] = OrderedDict()
         self.ttl = ttl_seconds
         self.maxsize = maxsize
         self._lock = threading.Lock()
+        self._clock = clock
         self._source_identity = source_identity
         self._source_value = _UNSET
         self._source_token = uuid4().hex
@@ -75,7 +84,7 @@ class AnalysisCache:
             item = self._cache.get(key)
             if item is None:
                 return None
-            if time.time() - item.created_at < self.ttl:
+            if self._clock() - item.created_at < self.ttl:
                 self._cache.move_to_end(key)
                 return item.results, item.revision
             del self._cache[key]
@@ -94,7 +103,7 @@ class AnalysisCache:
                 self._cache.move_to_end(key)
             elif len(self._cache) >= self.maxsize:
                 self._cache.popitem(last=False)
-            item = AnalysisCacheItem(results=results)
+            item = AnalysisCacheItem(results=results, created_at=self._clock())
             self._cache[key] = item
             return item.revision
 

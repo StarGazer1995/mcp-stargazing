@@ -1,5 +1,7 @@
 import time
 
+import pytest
+
 from src.analysis_cache import AnalysisCache, generate_cache_key
 
 
@@ -75,6 +77,30 @@ class TestAnalysisCache:
         cache.set('b', [2])
         assert cache.get('a') is None
         assert cache.get('b') == [2]
+
+    @pytest.mark.parametrize('wall_shift', [-120, 3600])
+    def test_elapsed_ttl_ignores_wall_clock_jumps_and_reads(self, monkeypatch, wall_shift):
+        elapsed = [500.0]
+        cache = AnalysisCache(ttl_seconds=60, clock=lambda: elapsed[0])
+        revision = cache.set('query', [])
+        monkeypatch.setattr(time, 'time', lambda: 1000.0 + wall_shift)
+        elapsed[0] += 59.999
+        assert cache.get_versioned('query') == ([], revision)
+        elapsed[0] = 560.0
+        assert cache.get_versioned('query') is None
+        assert cache.get('query') is None
+
+    def test_republication_starts_new_ttl_and_revision_without_changing_key(self):
+        elapsed = [0.0]
+        cache = AnalysisCache(ttl_seconds=60, clock=lambda: elapsed[0])
+        first = cache.set('query', [1])
+        elapsed[0] = 59.0
+        second = cache.set('query', [2])
+        assert second != first
+        elapsed[0] = 60.0
+        assert cache.get_versioned('query') == ([2], second)
+        elapsed[0] = 119.0
+        assert cache.get('query') is None
 
 
 class TestGenerateCacheKey:

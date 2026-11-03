@@ -18,6 +18,14 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
   versions and lower-level GIS caches retain their separate boundaries. Public schemas,
   query identifiers and request defaults are unchanged. See [bridge boundaries](bridge-boundary.md).
 
+- **Elapsed area-cache lifetime** — Area result TTL now follows monotonic elapsed time
+  since publication, independently of system-clock corrections. Paging/cache hits do not
+  renew it; exact-TTL reads expire and old background tasks retain publication isolation.
+  Source-data age remains unknown without provenance. Elapsed TTL and the central-config
+  publication fence are verified together; neither establishes upstream dataset age or
+  forecast freshness. See
+  [data freshness boundaries](data-freshness.md).
+
 - **Forecast capture and explicit observation pairing** — Evaluation commands preserve separate
   provider snapshots before their valid times and join independent observations by exact site,
   coordinates and UTC time. Cloud definitions and precipitation periods/thresholds must match;

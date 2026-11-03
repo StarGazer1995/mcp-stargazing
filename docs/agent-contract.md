@@ -324,6 +324,13 @@ request-local cache reads (`planning_cache_read`) are separate. Concurrent stage
 must not be added as wall-clock latency. Timing uses a monotonic clock and never changes the
 MCP response envelope or writes into the stdio protocol stream.
 
+### Place result lifetime
+
+Place result reuse follows an elapsed monotonic TTL, independently of wall-clock changes;
+paging/cache hits do not renew it. Place `resource_id` is query identity, not publication or
+source freshness. Evidence `retrieved_at` does not date the underlying place/light-pollution
+dataset. See [data freshness boundaries](data-freshness.md); missing source age remains unknown.
+
 ### Selected target windows
 
 `plan_stargazing_session` checks each equipment-matched shortlisted target independently

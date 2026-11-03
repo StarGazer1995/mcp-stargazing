@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastmcp import Client
 
-from src.analysis_cache import AnalysisCache
+from src.analysis_cache import AnalysisCache, generate_cache_key
 from src.area_source_identity import area_source_identity
 from src.functions.places import impl
 from src.response import MCPError
@@ -181,6 +181,64 @@ def test_background_source_fence_preserves_terminal_state_and_allows_resubmit(co
         with pytest.raises(MCPError) as error:
             service.result(old.task_id)
         assert error.value.code == MCPError.TASK_RESULT_EXPIRED
+    finally:
+        finish.set()
+        service.close()
+
+
+def test_expired_cache_and_source_change_cannot_resurrect_old_worker_or_task(configured):
+    elapsed = [0.0]
+    cache = AnalysisCache(
+        ttl_seconds=60, clock=lambda: elapsed[0], source_identity=area_source_identity
+    )
+    started, finish, done = threading.Event(), threading.Event(), threading.Event()
+
+    def compute(_query):
+        started.set()
+        assert finish.wait(5)
+        return location()
+
+    service = AreaTaskService(compute, cache, AnalysisTaskRegistry())
+    release = service._release
+
+    def completed(t, r):
+        release(t, r)
+        done.set()
+
+    service._release = completed
+    query = AreaAnalysisRequest(bounds={'south': 30, 'north': 31, 'west': 119, 'east': 120})
+    resource = generate_cache_key(**query.search_parameters())
+    cache.set(resource, location())
+    try:
+        old = service.submit(query)  # Cache-backed success, without running the worker.
+        assert old.state == TaskState.SUCCEEDED
+        elapsed[0] = 60.0
+        with pytest.raises(MCPError) as expired:
+            service.result(old.task_id)
+        assert expired.value.code == MCPError.TASK_RESULT_EXPIRED
+        pending = service.submit(query)
+        assert started.wait(5)
+        configured.write_text('min_height_difference = 29.0\n')
+        # A new generation is published while the old-source worker is still running.
+        token = cache.source_token()
+        elapsed[0] = 75.0
+        fresh = [StargazingLocation(name='Replacement', lat=30.5, lon=119.5)]
+        revision = cache.set(resource, fresh, expected_source=token)
+        finish.set()
+        assert done.wait(5)
+        assert service.status(pending.task_id).state == TaskState.FAILED
+        assert service.status(pending.task_id).failure.code == MCPError.CONFIGURATION_ERROR
+        assert cache.get_versioned(resource) == (fresh, revision)
+        with pytest.raises(MCPError) as replaced:
+            service.result(old.task_id)
+        assert replaced.value.code == MCPError.TASK_RESULT_EXPIRED
+        current = service.submit(query)
+        elapsed[0] = 134.999
+        assert service.result(current.task_id)[1] == fresh
+        elapsed[0] = 135.0
+        with pytest.raises(MCPError) as expired:
+            service.result(current.task_id)
+        assert expired.value.code == MCPError.TASK_RESULT_EXPIRED
     finally:
         finish.set()
         service.close()

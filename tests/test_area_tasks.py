@@ -261,6 +261,40 @@ def test_replaced_cache_publication_cannot_be_read_as_an_old_task_result(runtime
     assert service.result(retry.task_id)[1] == []
 
 
+def test_elapsed_cache_expiry_survives_clock_rollback_and_requires_new_publication(runtime):
+    make, _event, now = runtime
+    elapsed = [0.0]
+    cache = AnalysisCache(ttl_seconds=60, clock=lambda: elapsed[0])
+    query = request()
+    resource_id = generate_cache_key(**query.search_parameters())
+    revision = cache.set(resource_id, [])
+    compute = MagicMock(return_value=locations())
+    service, drain = make(compute, cache=cache)
+    old = service.submit(query)
+    assert old.result_revision == revision
+    assert service.result(old.task_id)[1] == []
+    # Task metadata uses its independent UTC clock; a rollback must not extend
+    # the elapsed cache lifetime or make old task data reusable.
+    now[0] -= timedelta(hours=1)
+    elapsed[0] = 60.0
+    with pytest.raises(MCPError) as error:
+        service.result(old.task_id)
+    assert error.value.code == MCPError.TASK_RESULT_EXPIRED
+    assert service.status(old.task_id).state == TaskState.SUCCEEDED
+    new = service.submit(query)
+    drain(new.task_id)
+    assert new.resource_id == resource_id
+    assert new.task_id != old.task_id
+    published = service.status(new.task_id)
+    assert published.result_revision is not None
+    assert published.result_revision != revision
+    assert service.result(new.task_id)[1] == locations()
+    compute.assert_called_once()
+    with pytest.raises(MCPError) as error:
+        service.result(old.task_id)
+    assert error.value.code == MCPError.TASK_RESULT_EXPIRED
+
+
 @pytest.mark.parametrize(
     'failure',
     [

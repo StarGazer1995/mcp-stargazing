@@ -150,16 +150,18 @@ prefer_quiet_at_night, popularity_radius_km, db_config_path
 
 - 缓存 key = `resource_id`（即搜索参数的 MD5）
 - 缓存 value = 完整的地点列表（未分页）
-- TTL = 3600 秒（1 小时），基于创建时间
+- TTL = 3600 秒（1 小时），使用进程内单调时钟计算自结果发布后的经过时间；系统时间校正不延长或缩短 TTL
 - 缓存作用域 = 进程内存（`src/analysis_cache.py:ANALYSIS_CACHE`）
 
 ### 缓存失效
 
-- 超过 TTL 后自动失效，下次请求触发重新计算
+- 经过时间达到 TTL（含边界）后，下次读取删除该条目；后续地点请求重新计算
+- 命中、翻页和后台任务复用不会续期；重新发布结果会启动新 TTL 并生成新的内部 revision
 - 搜索参数变化 → 新的 `resource_id` → 新的缓存条目
 - 进程重启 → 缓存清空
 - 中央配置：生产缓存观察显式 `STARGAZING_CONFIG` 的路径绑定与文件设备/inode、大小、mtime/ctime 元数据；读取或发布时发现变化会使当前缓存整体失效
 - 不主动监听数据库内容、GeoTIFF、下层 GIS 缓存、DB 连接配置或未显式绑定的默认 SPF 配置文件
+- 没有定时清扫线程；到期条目在读取时清除，也可能先被容量驱逐
 
 ### 配置变化与发布保护
 
@@ -180,7 +182,9 @@ prefer_quiet_at_night, popularity_radius_km, db_config_path
 
 - 缓存不跨进程：多个 MCP server 实例各自维护独立缓存
 - 无预热机制：首次请求触发完整计算
-- 无主动驱逐：不因内存压力驱逐条目（仅依赖 TTL）
+- 默认最多 128 个条目，容量满时驱逐最近最少使用（LRU）条目；不根据字节数或系统内存压力驱逐
+- `resource_id` 是查询标识，不是数据版本或新鲜度证明；内部 revision 保护后台任务读取自己的发布结果。缓存到期或发布被替换时，旧任务返回 `TASK_RESULT_EXPIRED`
+- TTL 是计算结果的复用寿命，不是地点或光污染来源的年龄；来源时间未知时仍为未知。各类时间身份见 [数据新鲜度边界](data-freshness.md)
 
 ## 验证行为
 
