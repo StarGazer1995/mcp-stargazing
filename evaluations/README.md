@@ -130,3 +130,62 @@ score, sample counts, lead times and rejected pairs; an empty set earns no accur
 Source labels are a necessary audit trail, not independent proof of observation quality.
 Ground observations or a clearly identified independent reference must be retained before
 claiming real forecast skill. No recurring automation or production deployment is created.
+
+### Prospective capture and observation pairing
+
+`forecast_archive.py` captures the existing weather capability for an explicitly supplied WGS84
+point. Every invocation writes a separate archive containing normalized provider results and
+retrieval start/completion timestamps; it never overwrites an earlier capture. Choose the actual
+observation station coordinates after checking the source's station metadata. A nearby station
+does not validate a different observing site. Example coordinates below are synthetic test inputs.
+
+```bash
+uv run python -m evaluations.forecast_archive capture --site-id test-site --lat 30 --lon 120 --timezone Asia/Shanghai --out-dir "$TASK_DIR/out/captures"
+uv run python -m evaluations.forecast_archive pair --archives "$TASK_DIR"/out/captures/forecast-*.json --observations "$TASK_DIR/work/observations.json" --out-dir "$TASK_DIR/out/verification"
+```
+
+The observation file is a JSON array. The following is a **synthetic format example**, not a
+measurement or a validated reference source:
+
+```json
+[
+  {
+    "site_id": "test-site",
+    "lat": 30,
+    "lon": 120,
+    "valid_time": "2026-11-02T12:00:00Z",
+    "source": "independent-station",
+    "kind": "observation",
+    "cloud_definition": "max_total_and_layers_percent",
+    "effective_cloud_percent": 40,
+    "precipitation_definition": "preceding_hour_total_precipitation_gt_0.1mm",
+    "precipitation_occurred": false
+  }
+]
+```
+
+Pairing requires exact site, coordinates and UTC time, with no nearest-station or nearest-hour
+substitution. Duplicate observation identities are ambiguous and excluded; repeating the same
+archive cannot multiply samples. Forecast hours at/before completed retrieval are excluded.
+Cloud comparisons require the same maximum-of-total-and-layer definition; total cloud oktas alone
+do not establish it. Invalid or absent fields remain unknown. Open-Meteo precipitation probability
+refers to **more than 0.1 mm during the preceding hour**, per its
+[official variable definitions](https://open-meteo.com/en/docs#hourly-parameter-definition).
+Rain comparisons require that exact event definition and capture before the full event period;
+point-in-time rain reports do not qualify. Other providers' rain periods are not yet reviewed,
+so their precipitation probabilities are not scored by the archive pairer.
+
+The pairer writes `forecast-pairs.json` for the existing verifier and `forecast-pairing.json`
+with unmatched/excluded/rejected records and verification metrics. No matching observations means
+no accuracy result and a nonzero command exit. Model issue time stays `null`; `available_at`
+records completed retrieval, and `lead_time_basis` distinguishes that conservative availability
+bound from a supplied actual `issued_at`. Multiple retrievals may verify against the same
+observation; their errors are correlated and must not be called independent weather events.
+Source labels and matching metadata are an audit trail, not proof of source independence or quality.
+An observation adapter still requires separate review of definitions, station metadata and licensing.
+No independent observation feed or recurring capture schedule is installed by these commands.
+
+See [the independent-source review](../docs/forecast-observation-sources.md) before building an
+observation adapter. Legacy NCEI ISD is retired; its current replacement is GHCNh. A source's
+nominal hourly labels, cloud categories and missing rainfall require source-specific review
+before they can qualify as verification observations.
