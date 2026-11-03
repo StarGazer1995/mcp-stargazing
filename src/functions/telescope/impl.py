@@ -229,7 +229,7 @@ async def get_shooting_plan(
     from datetime import datetime
 
     import pytz
-    from stargazing_core._shooting_plan import generate_shooting_schedule
+    from stargazing_core import generate_shooting_schedule
 
     config = TelescopeConfig(
         focal_length_mm=focal_length_mm,
