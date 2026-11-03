@@ -12,8 +12,11 @@
 兼容保留期限和可运行示例见 [1.0 迁移说明](v1-migration.md)。冻结不自动触发发版。
 
 天气聚合的 [可选大气状态扩展](weather-atmosphere-contract.md) 通过现有两个天气工具
-提供，含自身有效时间、模型标记和独立来源错误。主规划器可收到这些原始字段，目前
-尚未用它们改变推荐评分；调用方不能把存在大气字段当成已完成污染归因或透明度评分。
+提供，含自身有效时间、模型标记和独立来源错误。主规划器在选定窗口后，将同 provider、
+同有效时刻的大气模型数据汇总到天气 evidence 的 `facts.atmosphere`，保留逐字段缺失、
+来源与未验证的不确定性。该描述不改变推荐评分、排序或窗口准入；调用方不能把存在
+大气字段当成已完成污染归因、透明度评分或视宁度评估。
+边界见 [窗口大气证据](planning-atmosphere-evidence.md)。
 
 ## 北极星目标
 
@@ -320,3 +323,37 @@ Provider stage logs (`planning_stage`) record elapsed seconds, outcome and reque
 request-local cache reads (`planning_cache_read`) are separate. Concurrent stage durations
 must not be added as wall-clock latency. Timing uses a monotonic clock and never changes the
 MCP response envelope or writes into the stdio protocol stream.
+
+### Selected target windows
+
+`plan_stargazing_session` checks each equipment-matched shortlisted target independently
+with the public core scheduler inside `decision.observation_window`, using 25° minimum
+altitude and 30 consecutive minutes. It uses curves, never the whole-night `transit_alt`,
+and normalizes bounds to UTC instants for compatibility with published core 0.2.1.
+Location/night scores, weather-window selection and legacy fields remain unchanged.
+
+Read the SKY evidence with source `selected_target_window_check`:
+
+| Per-target status | Meaning |
+|---|---|
+| `scheduler_window_available` | Complete curve coverage yields an independent slot under the core Moon-delay policy |
+| `altitude_window_available` | An altitude-only model slot exists; Moon evidence is insufficient |
+| `no_scheduler_window` / `no_altitude_window` | Complete curve check yields no qualifying slot; excluded from `decision.targets` |
+| `unknown` | Generic reference, missing/invalid/partial curve or scheduler-input failure; retained without a shootability claim |
+
+Facts include the checked window, thresholds, per-target UTC slots and scheduler warnings.
+Generic targets and matching-failure fallbacks have `assessment_scope=generic_reference_only`.
+`target_window_unverified` and `target_window_exclusions` explain partial evidence and
+exclusions; `review_target_windows` directs the agent to inspect them. Empty filtered
+targets leave the place/weather decision intact and do not prove catalog-wide absence:
+the matcher shortlist was already bounded by `target_limit`.
+
+These slots use sampled linear interpolation at minute resolution. They are separate
+checks and may overlap, not a jointly allocated shooting plan. Missing Moon data is never
+reported as a completed scheduler-policy check. Core's bright-Moon delay/warning policy
+does not enforce per-slot Moon separation, tracking limits, meridian flips, terrain or
+actual completed exposure. Equipment fit scores remain matcher estimates. Civil-night
+curve bounds do not enlarge the selected weather window or imply astronomical darkness;
+only the existing deep-sky weather policy clips to astronomical darkness. Historical/v1
+schemas and golden fixtures remain unchanged; generic reference targets still require
+time-specific verification before choosing exposures.

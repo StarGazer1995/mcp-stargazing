@@ -126,8 +126,8 @@ uncertainties, material missing inputs, ranking-reversal conditions, and next ac
 `get_best_stargazing_plan` and `get_multiday_stargazing_plan` remain registered as compatibility
 entries for existing bbox-first callers. The deterministic 10-scenario gate and representative
 Codex/Claude black-box smoke passed before the primary entry point was registered. New independent
-astronomy lookup tools remain deferred while long-running task semantics and the 1.0 contract are
-completed.
+astronomy lookup tools remain deferred while development focuses on production evidence and
+planning reliability. Background tasks and the 1.0 contract freeze are already delivered.
 
 Background area analysis has bounded execution, duplicate submission, cancellation, deadlines,
 retention, and paged result retrieval. The task tools activate optional `task_id` / `progress`
@@ -139,6 +139,8 @@ See [Third-party Agent Contract](docs/agent-contract.md),
 [Agent Evolution Checklist](docs/workspace-action-checklist.md). The current 21-tool routing and
 parameter review is recorded in [Tool Surface Audit](docs/tool-surface-audit.md). Evaluation assets
 and the two-client evidence are under [`evaluations/`](evaluations/README.md).
+The evaluation guide also documents prospective forecast capture and independent-observation
+pairing, with explicit site, time, measurement-definition and lead-time limits.
 
 The [pre-1.0 public schema baseline](docs/public-contract-baseline.md) records the existing tool
 schemas and detailed planning/area models. SDK and real `tools/list` tests detect contract drift
@@ -304,7 +306,9 @@ not a promise of usable deep-sky exposure time; verify twilight and access befor
 - **`plan_stargazing_session`**: Preferred end-to-end entry point for deciding when, where, and what to observe across one to seven nights.
   - **Inputs**: a `request` object containing `location` (exactly one of `place_name`, `center`, or `bounds`), `start_date`, optional `time_zone`, `nights`, `observation_style`, `equipment`, candidate/target limits, and popularity preferences.
   - **Equipment**: stable presets are `seestar_s50` and `hope_d60_asi2600mc_air`; advanced callers may use `custom` or override individual optical fields.
+  - **Target windows**: equipment shortlists are checked individually with the public core scheduler inside the selected weather window (25° minimum altitude, 30-minute minimum run). Complete curves with no slot are excluded. Missing/invalid/partial curves remain explicitly unverified references; generic targets are also references. Read `selected_target_window_check` evidence and `target_window_unverified` / `target_window_exclusions` uncertainties. Independent slots may overlap; this is not a joint shooting plan or a Moon-separation, tracking, weather or exposure guarantee. Legacy `transit_alt` retains its source-specific meaning.
   - **Returns**: normalized request and resolved geography, a first-choice `decision`, ranked `alternatives`, traceable `evidence`, `uncertainties`, material `missing_inputs`, `would_change_if` conditions, and concrete `next_actions`.
+  - **Atmospheric evidence**: weather `evidence[*].facts.atmosphere` summarizes model values within the selected observing window, with per-field missing samples, units and sources. It explains uncertainty without changing scores or eligibility; coverage is not validated transparency or seeing. See [window evidence](docs/planning-atmosphere-evidence.md).
   - **Routing**: use this for a complete observing decision. Use weather, celestial, telescope, or place tools directly for focused fact lookups.
 - **`get_best_stargazing_plan`**: Build a ranked regional observing plan with candidate places, weather summaries, best observation windows, and top targets.
   - **Inputs**: `south`, `west`, `north`, `east`, `time`, `time_zone`, `candidate_limit`, `target_limit`, `weather_provider`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `observation_style`, `avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`, `db_config_path`.
@@ -324,6 +328,7 @@ not a promise of usable deep-sky exposure time; verify twilight and access befor
   - **Returns**: Ranked targets with visibility scores, altitude/azimuth, rise/set/transit data, FOV fit, surface brightness, mosaic guidance, and the normalized telescope configuration.
 - **`get_shooting_plan`**: Generate an optimized imaging schedule for a target, maximizing time above altitude threshold.
   - **Inputs**: the same telescope/observer fields as `get_telescope_targets`, plus optional `limit` and `min_altitude`.
+  - **Observation time**: naive values use `time_zone`; ISO values with an explicit UTC offset preserve that instant, consistently with target matching.
   - **Returns**: `targets`, `moon`, a single-night `plan` with timed imaging slots, `config`, and `total`.
 - **`light_pollution_map`**: Query light pollution data for a bounding box area.
   - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).

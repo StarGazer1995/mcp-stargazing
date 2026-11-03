@@ -4,6 +4,38 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Forecast capture and explicit observation pairing** — Evaluation commands preserve separate
+  provider snapshots before their valid times and join independent observations by exact site,
+  coordinates and UTC time. Cloud definitions and precipitation periods/thresholds must match;
+  ambiguous observations and repeated inputs cannot manufacture samples. Model issue time stays
+  unknown when unavailable; verification labels lead time from completed retrieval separately.
+  This delivers the collection/pairing tooling, not an observation feed or a forecast accuracy claim.
+
+- **Independent station-source review** — Correct the proposed live-feed route from retired NCEI
+  ISD to GHCNh. Document station-coordinate discrepancies, per-field coverage, source-specific
+  quality codes, categorical clouds and running precipitation totals before ingestion. Accessible
+  station files remain distinct from comparable truth. See [the source review](forecast-observation-sources.md).
+
+- **Selected-window atmospheric evidence** — The primary planner summarizes exact-time
+  atmospheric model states only inside the selected observing window, retaining per-field
+  ranges, means, missing samples, units and source provenance. Failed/missing/out-of-horizon
+  fields remain unknown, with explicit unavailable/unvalidated uncertainties. This description
+  adds no provider calls and changes no ranking, window eligibility or frozen schemas.
+  It is not a transparency or seeing calibration. See [the interpretation contract](planning-atmosphere-evidence.md).
+
+- **Shooting request time consistency** — Accept explicit ISO UTC offsets in
+  `get_shooting_plan` without relocalizing an already-aware timestamp. Equivalent UTC, local
+  naive and explicit-offset requests reach target matching at the same instant and produce
+  the same timed slots. Existing tool signatures and frozen schemas remain unchanged.
+
+- **Selected target/window consistency** — Primary equipment shortlists now retain altitude
+  curves for individual core-scheduler checks within the selected weather window. Complete
+  negative checks exclude targets; missing/partial curves and generic targets remain explicit
+  unknown references. Evidence distinguishes scheduler-policy from altitude-only checks and
+  exposes independent model slots. No location reranking, legacy altitude redefinition,
+  public schema refresh or accuracy claim. Moon separation, terrain and hardware tracking
+  throughout exposures still need separate verification.
+
 - **0.11.0 release preparation** — Update package metadata for atmospheric states within
   weather aggregation and the astronomical-dark deep-sky quality gates. Existing tool inputs
   and the 21-tool surface remain intact; the optional weather contract extension is reviewed
@@ -278,7 +310,23 @@ live in `docs/agent-contract.md` and `docs/workspace-action-checklist.md`.
 - Preserve paging and `resource_id` semantics while adding polling, resumption, expiry, and
   restart behavior.
 
-## Deferred until the decision contract is stable
+## Next development cycle: production evidence and planning reliability
+
+The P0–P6 foundation checklist is complete. The next work prioritizes evidence and operational
+validation; it does not require expanding the public tool catalog.
+
+1. Verify published package/image revisions and the actual deployed runtime before evaluating changes.
+2. Capture forecasts prospectively and connect independently documented observations. Report sample
+   counts, measurement definitions and retrieval-based lead times; no samples means no accuracy result.
+3. Summarize atmospheric model data within the selected observing window as evidence and uncertainty.
+   Keep unvalidated atmospheric indicators out of ranking and avoid inferring seeing or source cities.
+4. Check agreement between observing windows, target altitude/moon separation, equipment and schedules.
+5. Define freshness and invalidation separately for dynamic forecasts, static place data and caches.
+6. Optimize provider calls only after repeatable deployed measurements identify a bottleneck.
+
+See [the acceptance checklist](workspace-action-checklist.md).
+
+## Deferred feature expansion
 
 - Satellite and ISS tracking.
 - Meteor-shower and eclipse tools.

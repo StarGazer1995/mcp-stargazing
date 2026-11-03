@@ -54,7 +54,9 @@ from src.schemas.planning import (
     ScoreBreakdown,
     WeatherPlanningSummary,
 )
+from src.services.planning_atmosphere import summarize_window_atmosphere
 from src.services.planning_quality import IMAGING_POLICY, fetch_imaging_bounds
+from src.services.planning_targets import assess_target_windows
 from src.services.planning_weather import effective_cloud_cover, finite_number, select_night_weather
 from src.utils import (
     ensure_timezone,
@@ -990,6 +992,19 @@ class PlanningService:
             notes=notes,
         )
         candidate._weather_evidence = dict(nightly_weather.facts)
+        if best_window is not None:
+            selected_provider = nightly_weather.facts['provider']
+            atmosphere_sources = (
+                (weather_data or {}).get('summary', {})
+                if selected_provider == 'summary.hourly'
+                else (weather_data or {})
+                .get('providers', {})
+                .get(selected_provider, {})
+                .get('data', {})
+            ).get('atmosphere_sources', {})
+            candidate._weather_evidence['atmosphere'] = summarize_window_atmosphere(
+                nightly_weather.hourly, atmosphere_sources, best_window
+            )
         if observation_style == ObservationStyle.DEEP_SKY:
             candidate._weather_evidence['imaging_policy'] = dict(IMAGING_POLICY)
             candidate._weather_evidence['astronomical_bounds'] = (
@@ -1607,6 +1622,10 @@ class PlanningService:
                 'Agent-native planning requires candidate score_breakdown data.',
             )
         decision_targets = selected.top_targets
+        target_window_facts = {
+            'assessment_scope': 'generic_reference_only',
+            'targets': [{'name': target.name, 'status': 'unknown'} for target in decision_targets],
+        }
         if equipment is not None and self._dependencies.fetch_equipment_targets is not None:
             try:
                 matched = await self._dependencies.fetch_equipment_targets(
@@ -1617,6 +1636,12 @@ class PlanningService:
                     time_zone=request.time_zone,
                     limit=request.target_limit,
                 )
+                matched_targets, matched_window_facts = assess_target_windows(
+                    matched.get('targets', [])[: request.target_limit],
+                    matched.get('moon'),
+                    selected.best_observation_window,
+                    request.time_zone,
+                )
                 decision_targets = [
                     PlanningTarget(
                         name=item['name'],
@@ -1624,8 +1649,9 @@ class PlanningService:
                         score=item.get('suitability_score'),
                         transit_alt=item.get('transit_alt'),
                     )
-                    for item in matched.get('targets', [])[: request.target_limit]
+                    for item in matched_targets
                 ]
+                target_window_facts = matched_window_facts
             except Exception as exc:
                 uncertainties.append(
                     PlanningUncertainty(
@@ -1638,6 +1664,52 @@ class PlanningService:
                         ),
                     )
                 )
+
+        evidence.append(
+            PlanningEvidence(
+                kind=EvidenceKind.SKY,
+                source='selected_target_window_check',
+                retrieved_at=retrieved_at,
+                applies_to=decision_date,
+                facts=target_window_facts,
+            )
+        )
+        if any(
+            item['status'] in {'unknown', 'altitude_window_available'}
+            for item in target_window_facts['targets']
+        ):
+            uncertainties.append(
+                PlanningUncertainty(
+                    code='target_window_unverified',
+                    level=UncertaintyLevel.MEDIUM,
+                    message='Some retained targets are references with incomplete window evidence.',
+                    impact=(
+                        'Check per-target status; missing curves or Moon data '
+                        'do not prove shootability.'
+                    ),
+                )
+            )
+        if len(decision_targets) < len(target_window_facts['targets']):
+            uncertainties.append(
+                PlanningUncertainty(
+                    code='target_window_exclusions',
+                    level=UncertaintyLevel.MEDIUM,
+                    message='Some equipment targets have no slot in the selected weather window.',
+                    impact=(
+                        'The location decision remains; an empty shortlist '
+                        'does not rule out other targets.'
+                    ),
+                )
+            )
+        next_actions.append(
+            PlanningNextAction(
+                action='review_target_windows',
+                reason=(
+                    'Read selected_target_window_check before choosing exposures; '
+                    'reference targets are unverified and independent slots may overlap.'
+                ),
+            )
+        )
 
         selected_night = next(
             night
@@ -1700,6 +1772,24 @@ class PlanningService:
                     facts={**selected.weather_summary.model_dump(), **selected._weather_evidence},
                 )
             )
+            atmosphere = selected._weather_evidence.get('atmosphere')
+            if atmosphere is not None:
+                uncertainties.append(
+                    PlanningUncertainty(
+                        code='atmosphere_unavailable'
+                        if atmosphere['status'] == 'unknown'
+                        else 'atmosphere_unvalidated',
+                        level=UncertaintyLevel.MEDIUM,
+                        message=(
+                            'Selected-window atmospheric model evidence is '
+                            f'{atmosphere["status"]}; missing samples remain unknown.'
+                        ),
+                        impact=(
+                            'Transparency and seeing are not validated. Atmospheric fields do '
+                            'not change ranking, window selection or observing eligibility.'
+                        ),
+                    )
+                )
         evidence.append(
             PlanningEvidence(
                 kind=EvidenceKind.SKY,
