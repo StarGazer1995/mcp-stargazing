@@ -333,6 +333,7 @@ not a promise of usable deep-sky exposure time; verify twilight and access befor
 - **`light_pollution_map`**: Query light pollution data for a bounding box area.
   - **Inputs**: `south`, `west`, `north`, `east`, `zoom` (default 10).
   - **Returns**: A grid of data points with Bortle class, brightness, and SQM values.
+  - **Unavailable data**: points explicitly labelled as upstream defaults retain their coordinates, label, and overlay marker; their numeric and colour values are `null`, with a count in `_meta.warnings`. A default Bortle 5/SQM 20 is not source data. An unmarked or source-backed Bortle 5 is preserved; values alone are not used to infer a placeholder. This map does not change planning scores or establish dataset age.
 - **`analysis_area`**: Find best stargazing spots in a region.
   - **Inputs**: `south`, `west`, `north`, `east`, `max_locations`, `min_height_diff`, `road_radius_km`, `network_type`, `avoid_popular_spots`, `prefer_quiet_at_night`, `popularity_radius_km`, `db_config_path`, `page`, `page_size`.
   - **Returns**: List of spots with pagination metadata (`total`, `page`, `page_size`, `total_pages`) and a `resource_id` that identifies the cached non-pagination query parameters. Each item may also include popularity heuristic fields such as `static_popularity_risk_score`, `night_quiet_likelihood_score`, and `popularity_notes`.
