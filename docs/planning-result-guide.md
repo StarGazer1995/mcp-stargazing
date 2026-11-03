@@ -89,6 +89,10 @@ Open-Meteo 请求最长十六天，但不同 provider、模型、字段的实际
 
 ## 暗夜、目标高度与拍摄时长不能混用
 
+`get_telescope_targets` 与 `get_shooting_plan` 对请求中的显式 ISO UTC offset 保留同一绝对
+时刻；无 offset 时使用 `time_zone`。例如同一时刻的 UTC 与 `+08:00` 写法不能被再次本地化。
+这保证请求时间一致，不代表拍摄排程已经使用主规划器的天气窗口；两者仍需核对实际时段。
+
 `night_window` 是民用暗夜（太阳高度低于 −6°），不是天文黑夜（−18°）。
 `night_window.duration_hours` 是该时间区间长度，不能直接称为保证的深空曝光时长。
 `best_observation_window` / `decision.observation_window` 还受小时预报约束，

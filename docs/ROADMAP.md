@@ -23,6 +23,11 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
   adds no provider calls and changes no ranking, window eligibility or frozen schemas.
   It is not a transparency or seeing calibration. See [the interpretation contract](planning-atmosphere-evidence.md).
 
+- **Shooting request time consistency** — Accept explicit ISO UTC offsets in
+  `get_shooting_plan` without relocalizing an already-aware timestamp. Equivalent UTC, local
+  naive and explicit-offset requests reach target matching at the same instant and produce
+  the same timed slots. Existing tool signatures and frozen schemas remain unchanged.
+
 - **0.11.0 release preparation** — Update package metadata for atmospheric states within
   weather aggregation and the astronomical-dark deep-sky quality gates. Existing tool inputs
   and the 21-tool surface remain intact; the optional weather contract extension is reviewed

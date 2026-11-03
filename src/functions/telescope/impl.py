@@ -229,7 +229,7 @@ async def get_shooting_plan(
     from datetime import datetime
 
     import pytz
-    from stargazing_core._shooting_plan import generate_shooting_schedule
+    from stargazing_core import generate_shooting_schedule
 
     config = TelescopeConfig(
         focal_length_mm=focal_length_mm,
@@ -255,7 +255,9 @@ async def get_shooting_plan(
     observer = EarthLocation(lat=lat * u.deg, lon=lon * u.deg)
 
     tz = pytz.timezone(time_zone)
-    dt = tz.localize(datetime.fromisoformat(time))
+    dt = datetime.fromisoformat(time)
+    if dt.tzinfo is None:
+        dt = tz.localize(dt)
     t = Time(dt)
 
     results = await asyncio.to_thread(
