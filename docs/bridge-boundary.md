@@ -121,6 +121,7 @@ MCP Agent
 |---------|---------|
 | `tests/test_paths.py` | 仓库路径常量 |
 | `tests/test_placefinder.py` | Bridge 的构造、配置加载、legacy fallback、analyze_area 转发、get_light_pollution_grid 转发 |
+| `tests/test_bridge_config_refresh.py` | 合成 TOML 的真实公共加载、同实例/跨实例配置复用、SDK 缓存未命中与后台实际计算 |
 
 ## 变更规则
 
