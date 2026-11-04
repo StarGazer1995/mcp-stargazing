@@ -81,6 +81,11 @@ agent 客户端代表性黑盒验收通过后注册。旧入口至少保留一�
 - 天气：`get_weather_by_name`、`get_weather_by_position`
 - 设备：`get_telescope_targets`、`get_shooting_plan`
 
+`light_pollution_map` 中上游明确标记为默认数据的点只保留位置和来源标记，光污染数值
+及颜色为 `null`，数量见 `_meta.warnings`。不能把显示占位的 Bortle 5/SQM 20 当成来源
+测量或可用观测条件；真实 class-5 数据不会仅因数值相同而被删除。该语义使用冻结模型
+已有的可空字段，不影响地点排名或拍摄窗口评分，也不证明来源资料是最新的。
+
 ### 诊断与发现工具
 
 - `get_tool_catalog` 用于程序化检查工具元数据。
@@ -323,6 +328,13 @@ Provider stage logs (`planning_stage`) record elapsed seconds, outcome and reque
 request-local cache reads (`planning_cache_read`) are separate. Concurrent stage durations
 must not be added as wall-clock latency. Timing uses a monotonic clock and never changes the
 MCP response envelope or writes into the stdio protocol stream.
+
+### Place result lifetime
+
+Place result reuse follows an elapsed monotonic TTL, independently of wall-clock changes;
+paging/cache hits do not renew it. Place `resource_id` is query identity, not publication or
+source freshness. Evidence `retrieved_at` does not date the underlying place/light-pollution
+dataset. See [data freshness boundaries](data-freshness.md); missing source age remains unknown.
 
 ### Selected target windows
 

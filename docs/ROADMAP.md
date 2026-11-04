@@ -4,6 +4,34 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **Central-config cache invalidation and publication fence** — Production area caches
+  observe the explicitly bound SPF configuration's path/file metadata, invalidate old
+  results on change and reject publications from an older configuration generation.
+  Sync SDK and background-worker checks protect resubmission, old-task expiry and
+  cancellation/timeout semantics. No query/schema change or source-data-age guarantee;
+  database/GeoTIFF/default-file versions remain outside this bounded observer.
+
+- **Effective configuration on place recomputation** — Each actual place computation
+  reloads public SPF settings before checking analyzer reuse, including reused bridge
+  instances. Unchanged effective settings retain resource reuse; changed settings are
+  no longer ignored indefinitely after a cache miss. Existing cached results, source-data
+  versions and lower-level GIS caches retain their separate boundaries. Public schemas,
+  query identifiers and request defaults are unchanged. See [bridge boundaries](bridge-boundary.md).
+
+- **Elapsed area-cache lifetime** — Area result TTL now follows monotonic elapsed time
+  since publication, independently of system-clock corrections. Paging/cache hits do not
+  renew it; exact-TTL reads expire and old background tasks retain publication isolation.
+  Source-data age remains unknown without provenance. Elapsed TTL and the central-config
+  publication fence are verified together; neither establishes upstream dataset age or
+  forecast freshness. See
+  [data freshness boundaries](data-freshness.md).
+
+- **Unknown source-default light-pollution points** — The map adapter projects SPF's
+  explicit default-overlay points to the existing nullable fields and warns about their
+  count. Positions, grid shape and genuine class-5 values remain intact. Real temporary
+  TIFF and MCP SDK checks cover outside, closed, mixed and covered grids; frozen schemas
+  are unchanged. This does not alter the separate place-ranking or planning-score path.
+
 - **Forecast capture and explicit observation pairing** — Evaluation commands preserve separate
   provider snapshots before their valid times and join independent observations by exact site,
   coordinates and UTC time. Cloud definitions and precipitation periods/thresholds must match;

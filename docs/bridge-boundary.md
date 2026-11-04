@@ -15,9 +15,28 @@
 
 ### `StargazingPlaceFinder` 约定
 
-- 构造参数（`geotiff_path`、`min_height_difference`、`road_search_radius_km`、`db_config_path`）在首次调用 `analyze_area()` 时生效
-- 仅当 `min_height_diff` 或 `road_radius_km` 变更时才重建底层 analyzer，避免重复打开 GeoTIFF 文件和重建数据库连接池
+- 构造时初始化或复用底层 analyzer；每次实际 `analyze_area()` 都重新核对自己的参数和公共配置加载器返回的有效模型
+- 参数或有效配置变化时通过 SPF 公共初始化入口重建 analyzer；相同配置模型继续复用 GeoTIFF 文件和数据库连接池，即使配置文件的格式/身份变化
 - `analyze_area()` 返回 `list[dict[str, Any]]`，每个元素是下层 `StargazingLocation` 对象的字典表示
+
+### 配置新鲜度的边界
+
+`stargazingplacefinder.config.load_stargazing_config()` 在每次实际计算前重新调用；bridge
+不复制其默认路径发现、TOML 解析或字段规则。复用判断同时包含有效配置模型，不能仅凭
+请求/文件路径相同就永久沿用旧配置。重用同一个 bridge 实例、切换 `STARGAZING_CONFIG`
+或修改同一 TOML 的有效值时，下一次实际计算会重新核对；不同实例交替使用也会恢复各自
+的参数。加载失败保持既有 defaults 降级，不把失败当成已确认配置最新。
+
+这是 bridge 的实际计算配置核对；上层生产结果缓存另外观察显式 `STARGAZING_CONFIG`
+路径及文件元数据，变化时失效并拒绝旧代次发布。没有身份观察器的独立缓存仍只按
+自己的 TTL 复用。元数据保护不等于读取配置内容或证明地理资料更新。数据库内容、
+同路径数据库连接配置、GeoTIFF 内容版本以及下层 GIS/道路缓存失效仍未统一处理，不能
+据本轮修复声称来源资料已更新或 P7.6 已完成。构造时解析的 DB/GeoTIFF 路径仍是该
+bridge 实例的参数，不会被后续环境变化隐式替换。
+
+缓存的配置代次与 bridge 的有效模型比较分工不同：格式或文件身份变化可以保守地使
+结果失效，但新模型值相等时仍可复用 analyzer 资源；源配置元数据不可验证时，上层
+拒绝缓存复用/发布。具体边界见 `analysis-area-semantics.md`。
 
 ### 热门度评分归属
 
@@ -96,6 +115,12 @@ MCP Agent
           → light_pollution             # GeoTIFF 查询
 ```
 
+网格适配器识别 SPF 的明确 `overlay_name="默认数据"` 标记。其 Bortle 5、SQM 20、
+亮度和颜色是显示占位值，不能作为来源数据；MCP 保留坐标、点名和该标记，将这些
+可空字段返回为 `null`，并在既有 `_meta.warnings` 中报告数量。不会仅凭 Bortle 5、
+灰色或缺失 radiance 猜测占位点；没有该标记的既有值继续保留。网格点数、bounds、zoom、
+工具参数和公共模型不变，不修改上游 Web 默认显示，也不改变独立地点/规划评分链。
+
 ## 测试覆盖
 
 后台任务与同步区域分析复用 `compute_area_locations` 和 `build_analysis_page`。
@@ -107,6 +132,7 @@ MCP Agent
 |---------|---------|
 | `tests/test_paths.py` | 仓库路径常量 |
 | `tests/test_placefinder.py` | Bridge 的构造、配置加载、legacy fallback、analyze_area 转发、get_light_pollution_grid 转发 |
+| `tests/test_bridge_config_refresh.py` | 合成 TOML 的真实公共加载、同实例/跨实例配置复用、SDK 缓存未命中与后台实际计算 |
 
 ## 变更规则
 
