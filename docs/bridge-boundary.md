@@ -115,6 +115,12 @@ MCP Agent
           → light_pollution             # GeoTIFF 查询
 ```
 
+网格适配器识别 SPF 的明确 `overlay_name="默认数据"` 标记。其 Bortle 5、SQM 20、
+亮度和颜色是显示占位值，不能作为来源数据；MCP 保留坐标、点名和该标记，将这些
+可空字段返回为 `null`，并在既有 `_meta.warnings` 中报告数量。不会仅凭 Bortle 5、
+灰色或缺失 radiance 猜测占位点；没有该标记的既有值继续保留。网格点数、bounds、zoom、
+工具参数和公共模型不变，不修改上游 Web 默认显示，也不改变独立地点/规划评分链。
+
 ## 测试覆盖
 
 后台任务与同步区域分析复用 `compute_area_locations` 和 `build_analysis_page`。

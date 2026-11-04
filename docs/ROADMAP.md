@@ -26,6 +26,12 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
   forecast freshness. See
   [data freshness boundaries](data-freshness.md).
 
+- **Unknown source-default light-pollution points** — The map adapter projects SPF's
+  explicit default-overlay points to the existing nullable fields and warns about their
+  count. Positions, grid shape and genuine class-5 values remain intact. Real temporary
+  TIFF and MCP SDK checks cover outside, closed, mixed and covered grids; frozen schemas
+  are unchanged. This does not alter the separate place-ranking or planning-score path.
+
 - **Forecast capture and explicit observation pairing** — Evaluation commands preserve separate
   provider snapshots before their valid times and join independent observations by exact site,
   coordinates and UTC time. Cloud definitions and precipitation periods/thresholds must match;

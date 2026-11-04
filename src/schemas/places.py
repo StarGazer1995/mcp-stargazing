@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+SPF_DEFAULT_LIGHT_POLLUTION_OVERLAY = '默认数据'
+
 
 class LightPollutionGridPoint(BaseModel):
     """A single data point in a light pollution grid."""
@@ -25,6 +27,15 @@ class LightPollutionGridPoint(BaseModel):
     @classmethod
     def from_spf_point(cls, point: dict) -> LightPollutionGridPoint:
         """Build from a stargazingplacefinder raw grid point dict."""
+        if point.get('overlay_name') == SPF_DEFAULT_LIGHT_POLLUTION_OVERLAY:
+            # SPF's explicit no-data marker carries display defaults, not source values.
+            # Keep the sample position and label; all nullable values stay unknown.
+            return cls(
+                lat=float(point['lat']),
+                lon=float(point.get('lng', point.get('lon', 0))),
+                name=point.get('name'),
+                overlay_name=SPF_DEFAULT_LIGHT_POLLUTION_OVERLAY,
+            )
         sqm_raw = point.get('sqm')
         return cls(
             lat=float(point['lat']),

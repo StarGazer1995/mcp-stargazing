@@ -10,6 +10,7 @@ from src.logging_config import get_logger, get_request_id, set_request_id
 from src.placefinder import StargazingPlaceFinder, get_light_pollution_grid
 from src.response import MCPError, format_error, format_response
 from src.schemas.places import (
+    SPF_DEFAULT_LIGHT_POLLUTION_OVERLAY,
     AnalysisAreaResult,
     LightPollutionGrid,
     LightPollutionGridPoint,
@@ -161,7 +162,17 @@ async def light_pollution_map(
         bounds={'south': south, 'west': west, 'north': north, 'east': east},
         zoom=zoom,
     )
-    return format_response(grid.model_dump())
+    missing = sum(p.overlay_name == SPF_DEFAULT_LIGHT_POLLUTION_OVERLAY for p in grid.grid)
+    meta = (
+        {
+            'warnings': [
+                f'Light-pollution data unavailable for {missing} grid point(s); values are unknown.'
+            ]
+        }
+        if missing
+        else None
+    )
+    return format_response(grid.model_dump(), meta=meta)
 
 
 def compute_area_locations(query: dict[str, Any]) -> list[StargazingLocation]:
