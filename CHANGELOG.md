@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.12.0 — 2026-11-04
+
+### Added
+
+- Repository evaluation commands for forecast capture and strict independent-observation pairing, with explicit
+  station-source limitations. No verified forecast-accuracy claim or live observation feed.
+- Atmospheric model evidence and risk explanations for the selected observing window,
+  retaining missing values and provenance without changing ranking or eligibility.
+
+### Fixed
+
+- Accept offset-aware shooting requests and use core 0.2.2 to preserve their UTC instants.
+- Check equipment targets against actual model slots inside the selected weather window;
+  missing curves remain unknown references, with explicit Moon/tracking/exposure limitations.
+- Use monotonic area-cache TTL and central-configuration publication guards; actual place
+  recomputation reloads effective settings. Query IDs and public schemas remain stable.
+- Project explicitly marked default light-pollution grid values to unknown; require SPF 0.9.2
+  for source-lifetime caches and NoData/GDAL-mask handling.
+
+### Validation and limits
+
+- The coordinated source candidate passed a bounded NAS dual-service/SDK experiment, including
+  equivalent local/offset/UTC schedules, real weather/place calls and synthetic window/raster checks.
+- This is not forecast calibration, observed accuracy, an SLA or complete source-age validation.
+  Database/TIFF watching, broader cache invalidation and the legacy unknown-score fallback remain
+  separate work. The experiment does not switch the production container or ports.
+
 ## 0.10.0 — 2026-10-27
 
 ### Added
