@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.1 — 2026-11-05
+
+### Fixed
+
+- Require stargazing-place-finder 0.9.3 so the bundled Web UI dismisses its startup
+  cover after initialization and accepts input while data requests remain pending
+  or unavailable. MCP tools, schemas and scoring are unchanged.
+
 ## 0.12.0 — 2026-11-04
 
 ### Added
