@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.2 — 2026-11-05
+
+### Changed
+
+- Require `stargazing-place-finder>=0.9.4,<1` so MCP consumers receive the restored
+  telescope UI, local Aladin assets, same-origin API routing and matching backend contracts.
+- Align the missing-dependency guidance and bridge documentation with the 0.9.4 minimum.
+
+### Validation
+
+- MCP bridge, integration, contract and documentation tests pass against the published SPF
+  0.9.4 package. No tool schemas or response envelopes changed.
+
 ## 0.12.1 — 2026-11-05
 
 ### Fixed
