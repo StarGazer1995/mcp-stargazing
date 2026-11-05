@@ -76,7 +76,7 @@ bridge 实例的参数，不会被后续环境变化隐式替换。
 
 ## 导入边界
 
-`mcp-stargazing` 最低支持 `stargazing-place-finder>=0.9.2`。Bridge 只导入
+`mcp-stargazing` 最低支持 `stargazing-place-finder>=0.9.3`。Bridge 只导入
 `stargazingplacefinder` 命名空间下的公共 API，不再修改 `sys.path`，也不兼容旧版
 顶层 `config` / `models` / `cache` 布局。
 
@@ -85,7 +85,7 @@ bridge 实例的参数，不会被后续环境变化隐式替换。
 SPF 的内部模块发生名称遮蔽。
 
 依赖缺失时，bridge 会明确提示需要安装
-`stargazing-place-finder>=0.9.2`。配置只从
+`stargazing-place-finder>=0.9.3`。配置只从
 `stargazingplacefinder.config.load_stargazing_config` 加载。
 
 ## 调用链总览
