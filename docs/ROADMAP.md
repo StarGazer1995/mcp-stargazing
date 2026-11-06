@@ -4,6 +4,11 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **SPF 0.9.4 integration** — Require `stargazing-place-finder>=0.9.4,<1` so MCP
+  installations receive the restored telescope Web UI, locally
+  bundled Aladin assets, same-origin API routing and aligned telescope response fields.
+  The 21-tool MCP surface and frozen schemas are unchanged.
+
 - **Central-config cache invalidation and publication fence** — Production area caches
   observe the explicitly bound SPF configuration's path/file metadata, invalidate old
   results on change and reject publications from an older configuration generation.
