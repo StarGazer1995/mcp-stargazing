@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.3 — 2026-11-10
+
+### Changed
+
+- Require `stargazing-place-finder>=0.9.5,<1` to bundle the restored sky viewport,
+  one mode-aware search field, local-first catalog resolution and bounded search errors.
+- Validate the installed SPF package and its catalog lookup in the MCP test harness
+  and production-container smoke check. The 21 MCP tools and public schemas are unchanged.
+
+
 ## 0.12.2 — 2026-11-05
 
 ### Changed

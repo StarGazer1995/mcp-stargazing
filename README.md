@@ -107,7 +107,7 @@ Container
 │
 Dependency resolution (single venv, no duplication):
   stargazing-core>=0.2.2  ←  resolved once from PyPI
-  stargazing-place-finder>=0.9.4
+  stargazing-place-finder>=0.9.5
   fastapi, uvicorn, ...   ←  SPF's transitive deps
 ```
 

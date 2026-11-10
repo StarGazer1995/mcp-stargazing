@@ -283,7 +283,7 @@ def test_load_spf_wraps_missing_dependency_error():
     missing_dependency.name = placefinder_module.SPF_PACKAGE_NAME
 
     with patch.object(importlib, 'import_module', side_effect=missing_dependency):
-        with pytest.raises(ModuleNotFoundError, match='stargazing-place-finder>=0.9.4'):
+        with pytest.raises(ModuleNotFoundError, match='stargazing-place-finder>=0.9.5'):
             placefinder_module._load_spf()
 
 
@@ -293,7 +293,7 @@ def test_load_spf_wraps_missing_namespaced_submodule_error():
     nested_failure.name = 'stargazingplacefinder.config'
 
     with patch.object(importlib, 'import_module', side_effect=nested_failure):
-        with pytest.raises(ModuleNotFoundError, match='stargazing-place-finder>=0.9.4'):
+        with pytest.raises(ModuleNotFoundError, match='stargazing-place-finder>=0.9.5'):
             placefinder_module._load_spf()
 
 

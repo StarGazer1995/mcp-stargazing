@@ -4,6 +4,11 @@ This roadmap tracks the remaining agent-facing, harness, and feature work for `m
 
 ## Recently completed foundation work
 
+- **SPF 0.9.5 integration** — Require `stargazing-place-finder>=0.9.5,<1` to ship
+  the sky viewport fix, unified mode-aware search and offline catalog ID lookup.
+  Names outside the catalog and sky imagery still depend on external services;
+  no new MCP tool, argument or response schema is introduced.
+
 - **SPF 0.9.4 integration** — Require `stargazing-place-finder>=0.9.4,<1` so MCP
   installations receive the restored telescope Web UI, locally
   bundled Aladin assets, same-origin API routing and aligned telescope response fields.
