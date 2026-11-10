@@ -24,7 +24,7 @@ def _load_spf() -> ModuleType:
         return importlib.import_module(SPF_PACKAGE_NAME)
     except ModuleNotFoundError as exc:
         if exc.name == SPF_PACKAGE_NAME or (exc.name or '').startswith(f'{SPF_PACKAGE_NAME}.'):
-            message = 'stargazing-place-finder>=0.9.5 is required for place analysis features'
+            message = 'stargazing-place-finder>=0.9.6 is required for place analysis features'
             raise ModuleNotFoundError(message) from exc
         raise
 

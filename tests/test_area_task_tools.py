@@ -308,3 +308,19 @@ async def test_result_requires_request_metadata(service):
     runtime.registry.succeed(task.task_id, publish=lambda: cache.set('legacy-task', []))
     response = await tools.get_area_analysis_result.fn(task.task_id)
     assert response['error']['code'] == MCPError.CONFIGURATION_ERROR
+
+
+@pytest.mark.asyncio
+async def test_result_without_publication_revision_rejects_later_cache(service):
+    runtime, cache, compute, _now = service
+    task = runtime.registry.submit('unpublished-task', request())
+    runtime.registry.start(task.task_id)
+    runtime.registry.succeed(task.task_id)
+    cache.set('unpublished-task', locations())
+
+    response = await tools.get_area_analysis_result.fn(task.task_id)
+
+    assert response['error']['code'] == MCPError.TASK_RESULT_EXPIRED
+    assert response['error']['details']['next_action'] == 'resubmit'
+    assert 'data' not in response
+    compute.assert_not_called()

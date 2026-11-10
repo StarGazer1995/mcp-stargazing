@@ -17,6 +17,8 @@ from datetime import datetime, timedelta
 from time import perf_counter
 from typing import Any
 
+from stargazing_core import TELESCOPE_PRESETS
+
 from src.logging_config import get_request_id
 from src.response import MCPError
 from src.schemas.agent_planning import (
@@ -130,20 +132,22 @@ _STYLE_PROFILES = {
 }
 
 _EQUIPMENT_PRESETS: dict[EquipmentPreset, dict[str, Any]] = {
-    EquipmentPreset.SEESTAR_S50: {
-        'focal_length_mm': 250.0,
-        'aperture_mm': 50.0,
-        'sensor_pixel_size_um': 2.9,
-        'mount_type': 'altaz',
-    },
-    EquipmentPreset.HOPE_D60_ASI2600MC_AIR: {
-        'focal_length_mm': 280.0,
-        'aperture_mm': 60.0,
-        'sensor_width_mm': 23.5,
-        'sensor_height_mm': 15.7,
-        'sensor_pixel_size_um': 3.76,
-        'mount_type': 'equatorial',
-    },
+    # Preserve historical field sets while sharing the underlying optics.
+    EquipmentPreset.SEESTAR_S50: TELESCOPE_PRESETS['seestar-s50'].model_dump(
+        include={'focal_length_mm', 'aperture_mm', 'sensor_pixel_size_um', 'mount_type'}
+    ),
+    EquipmentPreset.HOPE_D60_ASI2600MC_AIR: TELESCOPE_PRESETS[
+        EquipmentPreset.HOPE_D60_ASI2600MC_AIR.value
+    ].model_dump(
+        include={
+            'focal_length_mm',
+            'aperture_mm',
+            'sensor_width_mm',
+            'sensor_height_mm',
+            'sensor_pixel_size_um',
+            'mount_type',
+        }
+    ),
 }
 
 # Keep the public result small while allowing weather and target signals to

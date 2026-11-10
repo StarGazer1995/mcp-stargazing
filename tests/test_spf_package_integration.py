@@ -12,7 +12,7 @@ from packaging.version import Version
 from src.paths import PROJECT_ROOT
 
 
-def test_spf_requirement_and_installed_version_include_search_fix():
+def test_spf_requirement_and_installed_version_include_target_guidance():
     project = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text())['project']
     requirement = next(
         Requirement(item)
@@ -20,7 +20,8 @@ def test_spf_requirement_and_installed_version_include_search_fix():
         if item.startswith('stargazing-place-finder')
     )
     assert Version('0.9.4') not in requirement.specifier
-    assert Version('0.9.5') in requirement.specifier
+    assert Version('0.9.5') not in requirement.specifier
+    assert Version('0.9.6') in requirement.specifier
     assert Version(version('stargazing-place-finder')) in requirement.specifier
 
 
@@ -50,8 +51,22 @@ def test_bundled_spf_serves_single_search_field_and_built_assets():
     assert page.status_code == 200
     assert page.text.count('id="search-input"') == 1
     assert 'aladin-search-input' not in page.text
+    assert 'id="telescope-target-sort"' in page.text
+    assert 'id="telescope-camera-type"' in page.text
+    assert 'SHO' in page.text
     assets = re.findall(r'(?:src|href)="(/assets/[^"?]+\.(?:js|css))"', page.text)
     assert any(asset.endswith('.js') for asset in assets)
     assert any(asset.endswith('.css') for asset in assets)
     for asset in assets:
         assert client.get(asset).status_code == 200
+
+
+def test_bundled_spf_exposes_shared_hope_equipment_and_camera_metadata():
+    from server.main import app
+
+    response = TestClient(app).get('/api/telescope/presets')
+    assert response.status_code == 200
+    hope = response.json()['hope_d60_asi2600mc_air']
+    assert hope['focal_length_mm'] == 280
+    assert hope['aperture_mm'] == 60
+    assert hope['camera_type'] == 'color'
