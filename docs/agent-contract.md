@@ -369,3 +369,15 @@ curve bounds do not enlarge the selected weather window or imply astronomical da
 only the existing deep-sky weather policy clips to astronomical darkness. Historical/v1
 schemas and golden fixtures remain unchanged; generic reference targets still require
 time-specific verification before choosing exposures.
+
+
+### Imaging ranking implementation (core 0.2.3)
+
+The HOPE preset keeps its public ID and configured numbers, sourced from the shared
+core catalog. Matching retains civil bounds/curves but requires at least 30 continuous
+sampled minutes in astronomical darkness (Sun ≤−18°, target ≥25°); it may include
+objects below the horizon at civil dusk or dawn. Visual magnitude limits are not
+exposure limits. FOV coverage and short windows reduce suitability, and pure-cluster
+optical sizes use a separately attributed OpenNGC overlay. Weather-window assessment
+in the agent planner remains an additional gate; matching alone does not establish
+weather suitability, feasible integration time, or predicted image quality.

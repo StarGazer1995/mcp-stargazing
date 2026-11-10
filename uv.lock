@@ -1433,7 +1433,7 @@ wheels = [
 
 [[package]]
 name = "mcp-stargazing"
-version = "0.12.3"
+version = "0.12.4"
 source = { editable = "." }
 dependencies = [
     { name = "astropy" },
@@ -1471,8 +1471,8 @@ requires-dist = [
     { name = "pytz" },
     { name = "rasterio" },
     { name = "requests" },
-    { name = "stargazing-core", specifier = ">=0.2.2", index = "https://pypi.org/simple/" },
-    { name = "stargazing-place-finder", specifier = ">=0.9.5,<1" },
+    { name = "stargazing-core", specifier = ">=0.2.3", index = "https://pypi.org/simple/" },
+    { name = "stargazing-place-finder", specifier = ">=0.9.6,<1" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "tzlocal" },
 ]
@@ -2782,7 +2782,7 @@ wheels = [
 
 [[package]]
 name = "stargazing-core"
-version = "0.2.2"
+version = "0.2.3"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "astropy" },
@@ -2793,14 +2793,14 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/af/52cc22c956280fbac6aab76ec86c1a0913ac12244c1e71b294c24e95a2b2/stargazing_core-0.2.2.tar.gz", hash = "sha256:379bfbeb034f171088d4957ba20353ad99143162296b483f0c4bf557759ccfb6", size = 259576 }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/38/79c8ab2fdcf94f5729951ec9c54d060f2789ff659d1e353a3c45c768a854/stargazing_core-0.2.3.tar.gz", hash = "sha256:74e510f881229364b217ec91fb5c8cfd5c893c32a45c3c738e830e22b4eaf5ea", size = 275883 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/b0/8954f7212e16fe9caf223c446258594bbc87bd837c699d64afe6bff02cf7/stargazing_core-0.2.2-py3-none-any.whl", hash = "sha256:5cbf7b378e567b65b3bad63ea130206a4c061cb0eb5d1cc059265a8f20eceafd", size = 262374 },
+    { url = "https://files.pythonhosted.org/packages/81/1c/fbbd8ff649bc18c738a3a18dd11c9535bc176636190d5ec0e5017e5d8002/stargazing_core-0.2.3-py3-none-any.whl", hash = "sha256:09e278b829b1a6b6148b6c443773ef5293bebe51828da71cbd918eaa584a631e", size = 276431 },
 ]
 
 [[package]]
 name = "stargazing-place-finder"
-version = "0.9.5"
+version = "0.9.6"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "fastapi" },
@@ -2824,9 +2824,9 @@ dependencies = [
     { name = "structlog" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9b/cc/297b78cb4645fe1dc5f68d8a553c09d8bd3110a50a56135134f6709be1ec/stargazing_place_finder-0.9.5.tar.gz", hash = "sha256:20a08fc002388f0c3db6698b90d8b1dc901ffaf76d565c1507c158fb5b8025c0", size = 75469883 }
+sdist = { url = "https://files.pythonhosted.org/packages/21/0e/d4d5e9ba0fbf622893c9fd842f2b5f4e4ebf8539b63566a6bfc8a1c2609b/stargazing_place_finder-0.9.6.tar.gz", hash = "sha256:f1ae2e653a194636ecb5d1a0bcae23f8a92b47d7ab8211af3d315d4b30a48676", size = 75485665 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/8b/8c0e7837749120b55885b6bf4209423d7a2ca0dc19e5f9c758ff7a126c78/stargazing_place_finder-0.9.5-py3-none-any.whl", hash = "sha256:00d0e8e6dc6e60c87fe69ed803e1d0c13863db34e682def77cee72ae1ff18e59", size = 75509884 },
+    { url = "https://files.pythonhosted.org/packages/39/ab/9b4ba7557a5b505dc6592c9bf823cde7064955d8a5f6bb6f51c2f317a29d/stargazing_place_finder-0.9.6-py3-none-any.whl", hash = "sha256:7705f39f5d9df441d71c7c6ab3e491fdc03463657b9b11e5f1b2b35154bc0154", size = 75524480 },
 ]
 
 [[package]]

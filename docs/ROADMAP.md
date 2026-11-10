@@ -2,6 +2,12 @@
 
 This roadmap tracks the remaining agent-facing, harness, and feature work for `mcp-stargazing`.
 
+## Recently completed: 0.12.4 imaging integration
+
+- Shared Seestar/HOPE configuration projection preserves historical tool fields and preset IDs.
+- Core 0.2.3 and SPF 0.9.6 provide corrected imaging windows, equipment lists, selectable ordering and conservative SHO explanations.
+- Background results without a publication revision remain unavailable even if a later cache entry exists.
+
 ## Recently completed foundation work
 
 - **SPF 0.9.5 integration** — Require `stargazing-place-finder>=0.9.5,<1` to ship

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-stargazing"
-version = "0.12.3"
+version = "0.12.4"
 description = "An MCP server that provides real-time astronomical data, smart stargazing planning, and light pollution analysis for AI agents."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
 ]
 dependencies = [
-    "stargazing-core>=0.2.2",
+    "stargazing-core>=0.2.3",
     "fastmcp>=2.13,<3.0",
     "astropy>=7.0",
     "pytz",
@@ -29,7 +29,7 @@ dependencies = [
     "rasterio",
     "tzlocal",
     "geopy",
-    "stargazing-place-finder>=0.9.5,<1",
+    "stargazing-place-finder>=0.9.6,<1",
     "structlog>=26.1.0",
 ]
 

@@ -106,8 +106,8 @@ Container
 │   └── program:spf-web  → uv run uvicorn server.main:app --port 5001
 │
 Dependency resolution (single venv, no duplication):
-  stargazing-core>=0.2.2  ←  resolved once from PyPI
-  stargazing-place-finder>=0.9.5
+  stargazing-core>=0.2.3  ←  resolved once from PyPI
+  stargazing-place-finder>=0.9.6
   fastapi, uvicorn, ...   ←  SPF's transitive deps
 ```
 
@@ -499,3 +499,14 @@ Provider stage logs (`planning_stage`) record elapsed seconds, outcome and reque
 request-local cache reads (`planning_cache_read`) are separate. Concurrent stage durations
 must not be added as wall-clock latency. Timing uses a monotonic clock and never changes the
 MCP response envelope or writes into the stdio protocol stream.
+
+### Shared imaging presets and ranking
+
+The HOPE `hope_d60_asi2600mc_air` public ID and configured optical values are preserved;
+its values are projected from the core equipment catalog also exposed by SPF. With
+core 0.2.3, equipment matching requires 30 consecutive sampled minutes above 25° in
+astronomical darkness, rather than midnight/dawn visibility. It penalizes oversized
+FOV coverage and short usable runs, and uses usable-window mean altitude and Moon
+interference. Pure open clusters use the pinned OpenNGC optical-size overlay.
+Civil-night curve fields retain their meanings. Scores remain relative heuristics,
+not calibrated SNR, weather clearance, or exposure predictions.

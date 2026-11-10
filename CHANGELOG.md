@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.4 (2026-11-10) — Shared imaging presets and SPF target guidance
+
+- Project existing Seestar and HOPE preset fields from the shared core catalog without changing public preset IDs, schemas or tool registration.
+- Require core 0.2.3 and SPF 0.9.6 for imaging-window eligibility, equipment synchronization, selectable target ordering and camera-aware SHO guidance in SPF.
+- Add a regression ensuring unpublished tasks cannot read a later cache publication; retain current main's request-validation and metadata coverage.
+
 ## 0.12.3 — 2026-11-10
 
 ### Changed
