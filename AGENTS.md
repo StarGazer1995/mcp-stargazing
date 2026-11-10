@@ -90,6 +90,7 @@ This is not a runtime requirement, but it is the best place for team-level regul
 ## Harness engineering requirements
 
 - Use `pytest` for all harness and integration tests.
+- New modules/functions and changed executable lines must have 100% coverage. Validate actual reports and `diff-cover --fail-under=100` against the target branch; do not add coverage ignores/exclusions or lower thresholds to hide missing tests.
 - Keep tests under `tests/` and exercise both registration and tool execution.
 - Existing harness patterns:
   - `tests/test_integration.py` validates tool registration via `mcp._tool_manager._tools`

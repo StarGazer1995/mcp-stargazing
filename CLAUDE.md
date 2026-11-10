@@ -136,7 +136,7 @@ src/
 
 6. **Multi-provider aggregation with degradation** — Weather queries cascade: open-meteo → qweather → wttr. Partial provider failures become notes/warnings in the response rather than failing the entire request. Geocoding cascades similarly: offline China gazetteer → Photon → Nominatim, with Amap available only as an explicit opt-in provider.
 
-7. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` uses only the namespaced public API from `stargazing-place-finder>=0.9.4`. It compares effective settings as well as parameters before resource reuse; this does not establish dataset age or automatically watch DB/TIFF contents.
+7. **Place-finder bridge** — `StargazingPlaceFinder` in `placefinder.py` uses only the namespaced public API from `stargazing-place-finder>=0.9.5`. It compares effective settings as well as parameters before resource reuse; this does not establish dataset age or automatically watch DB/TIFF contents.
 
 8. **Pagination with stable resource_id** — `analysis_area` returns `resource_id` keyed on non-pagination query params (MD5 of sorted kwargs). Cache TTL is 3600s. Cache key excludes `page` and `page_size`, so paginating through results hits the same cache entry.
 

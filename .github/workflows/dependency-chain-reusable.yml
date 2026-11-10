@@ -111,6 +111,11 @@ jobs:
           name: dependency-chain-tool
           path: ${{ runner.temp }}/dependency-chain-tool
 
+      - name: Set up Node.js for SPF production assets
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Cache SPF light-pollution data
         uses: actions/cache@v4
         with:
@@ -119,6 +124,7 @@ jobs:
 
       - name: Run cross-repository tests
         env:
+          GH_TOKEN: ${{ github.token }}
           CORE_REF: ${{ matrix.core_ref }}
           SPF_REF: ${{ matrix.spf_ref }}
           MCP_REF: ${{ matrix.mcp_ref }}
@@ -163,15 +169,25 @@ jobs:
 
             geotiff="$WORK_ROOT/repos/spf/src/light_pollution/resources/viirs_china_2025.tif"
             geotiff_cache="$GITHUB_WORKSPACE/.dependency-chain-cache/viirs_china_2025.tif"
-            if [[ ! -s "$geotiff" ]]; then
+            if [[ ! -s "$geotiff" ]] || [[ "$(wc -c < "$geotiff")" -lt 70000000 ]]; then
               mkdir -p "$(dirname "$geotiff")"
-              if [[ ! -s "$geotiff_cache" ]]; then
+              if [[ ! -s "$geotiff_cache" ]] || [[ "$(wc -c < "$geotiff_cache")" -lt 70000000 ]]; then
                 mkdir -p "$(dirname "$geotiff_cache")"
-                curl -fSL -o "$geotiff_cache" \
-                  "https://github.com/StarGazer1995/stargazing-place-finder/releases/download/geotiff-data-v1/viirs_china_2025.tif"
+                gh release download geotiff-data-v1 \
+                  --repo StarGazer1995/stargazing-place-finder \
+                  --pattern viirs_china_2025.tif --output "$geotiff_cache" --clobber
+                test "$(wc -c < "$geotiff_cache")" -gt 70000000
               fi
               cp "$geotiff_cache" "$geotiff"
             fi
+
+            # Source archives do not contain Vite dist/. Test a production SPF wheel.
+            (
+              cd "$WORK_ROOT/repos/spf/src/source"
+              npm ci
+              npm run build
+            )
+            test -f "$WORK_ROOT/repos/spf/src/source/dist/index-vite.html"
 
             uv build --wheel --out-dir "$WORK_ROOT/wheels/core" "$WORK_ROOT/repos/core"
             uv build --wheel --out-dir "$WORK_ROOT/wheels/spf" "$WORK_ROOT/repos/spf"

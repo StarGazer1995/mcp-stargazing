@@ -76,7 +76,7 @@ bridge 实例的参数，不会被后续环境变化隐式替换。
 
 ## 导入边界
 
-`mcp-stargazing` 最低支持 `stargazing-place-finder>=0.9.4`。Bridge 只导入
+`mcp-stargazing` 最低支持 `stargazing-place-finder>=0.9.5`。Bridge 只导入
 `stargazingplacefinder` 命名空间下的公共 API，不再修改 `sys.path`，也不兼容旧版
 顶层 `config` / `models` / `cache` 布局。
 
@@ -85,7 +85,7 @@ bridge 实例的参数，不会被后续环境变化隐式替换。
 SPF 的内部模块发生名称遮蔽。
 
 依赖缺失时，bridge 会明确提示需要安装
-`stargazing-place-finder>=0.9.4`。配置只从
+`stargazing-place-finder>=0.9.5`。配置只从
 `stargazingplacefinder.config.load_stargazing_config` 加载。
 
 ## 调用链总览
@@ -140,3 +140,6 @@ MCP Agent
 - Bridge 层不引入新的业务模型，只做轻量参数适配
 - 任何对仓库路径常量的修改必须同步更新 `tests/test_paths.py`
 - 如果下层 public API 发生 breaking change，需要同时更新 bridge 接口和本文件
+
+SPF 0.9.5 的星图视口、统一搜索框与 `/api/telescope/resolve` 属于 Web/REST 层；
+MCP 升级只提升依赖下限，不把该端点注册成新 MCP 工具，也不改变现有规划与评分语义。

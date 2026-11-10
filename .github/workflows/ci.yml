@@ -230,6 +230,11 @@ jobs:
           fi
           echo "✅ SPF: static CSS served ($CSS_HREF)"
 
+          # Verify the actual bundled SPF catalog resolver, not only its page shell.
+          curl --fail --silent --show-error --max-time 10 \
+            'http://127.0.0.1:15001/api/telescope/resolve?name=M42' -o /tmp/spf-target.json
+          python -c "import json; d=json.load(open('/tmp/spf-target.json')); assert d['name'] == 'M 42' and d['source'] == 'local_catalog'; assert 0 <= d['ra'] < 360 and -90 <= d['dec'] <= 90"
+
           echo "✅✅ Smoke test complete — MCP :3001 + SPF :5001 both operational"
 
       - name: Upload Test Report
