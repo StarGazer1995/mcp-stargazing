@@ -80,3 +80,13 @@ weakening the normal PR gate.
 The repositories are public, so dependency checkouts use anonymous HTTPS access.
 If any repository becomes private, provide a read-only GitHub App token, but do not
 expose that token to untrusted fork pull requests.
+
+## SPF candidate artifact preparation
+
+Cross-repository jobs build SPF production frontend assets with Node/Vite before
+creating the candidate wheel. The candidate must ship built JS/CSS, just like the
+PyPI release; a raw-source fallback is not equivalent packaging validation.
+GeoTIFF source/cache files below 70,000,000 bytes (including Git LFS pointers) are
+replaced with the release asset through authenticated GitHub CLI download before
+packaging. The installed-package tests must keep checking actual pages/assets and
+local catalog resolution; do not skip them for source-built candidates.
