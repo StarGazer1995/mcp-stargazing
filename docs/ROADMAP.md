@@ -2,6 +2,12 @@
 
 This roadmap tracks the remaining agent-facing, harness, and feature work for `mcp-stargazing`.
 
+## Recently completed: 0.12.5 SPF observing workspace integration
+
+- Published SPF 0.9.7 is the minimum and locked dependency for corrected observing controls, mobile layout and map popup colors.
+- Installed-package tests check observation coordinates, time/timezone controls, production assets and local catalog lookup.
+- Core 0.2.3 and the 21-tool public contract remain unchanged.
+
 ## Recently completed: 0.12.4 imaging integration
 
 - Shared Seestar/HOPE configuration projection preserves historical tool fields and preset IDs.
