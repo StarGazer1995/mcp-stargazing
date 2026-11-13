@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.5 (2026-11-13) — SPF observing workspace integration
+
+- Require and lock published SPF 0.9.7 to include corrected observing controls, mode switching, mobile layout and readable map popups.
+- Verify the installed SPF package serves observation coordinates, time and timezone controls alongside its production assets and local catalog resolver.
+- Keep core 0.2.3, the 21 MCP tools and public schemas unchanged.
+
 ## 0.12.4 (2026-11-10) — Shared imaging presets and SPF target guidance
 
 - Project existing Seestar and HOPE preset fields from the shared core catalog without changing public preset IDs, schemas or tool registration.
